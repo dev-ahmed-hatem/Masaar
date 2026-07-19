@@ -1,0 +1,610 @@
+<title>Masaar — Product Spec v1</title>
+<style>
+  :root {
+    --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+
+    --paper: #f4f7f6;
+    --surface: #ffffff;
+    --surface-2: #eef3f1;
+    --ink: #10201e;
+    --body: #2d3d3a;
+    --muted: #5e706d;
+    --faint: #82938f;
+    --line: #d8e2df;
+    --line-strong: #c3d1cd;
+
+    --primary: #0c7c6e;
+    --primary-strong: #0a6357;
+    --accent: #b0741a;
+
+    --mvp-bg: #e2f1e8;     --mvp-fg: #1f6a45;
+    --later-bg: #f6ecd9;   --later-fg: #97621a;
+    --out-bg: #f6e4e0;     --out-fg: #a04432;
+    --open-bg: #e3ebf4;    --open-fg: #3c5f92;
+
+    --shadow: 0 1px 2px rgba(16,32,30,.04), 0 8px 24px -12px rgba(16,32,30,.12);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0a1312;
+      --surface: #0f1e1b;
+      --surface-2: #15302a;
+      --ink: #e9f1ee;
+      --body: #c2d1cd;
+      --muted: #8aa09b;
+      --faint: #6f8580;
+      --line: #23403a;
+      --line-strong: #2e514a;
+
+      --primary: #37b9a7;
+      --primary-strong: #52d2bf;
+      --accent: #e0a54a;
+
+      --mvp-bg: #12321f;     --mvp-fg: #6fd39c;
+      --later-bg: #33280f;   --later-fg: #e5b76a;
+      --out-bg: #38201b;     --out-fg: #e6917d;
+      --open-bg: #16283f;    --open-fg: #8fb2e6;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #f4f7f6; --surface: #ffffff; --surface-2: #eef3f1;
+    --ink: #10201e; --body: #2d3d3a; --muted: #5e706d; --faint: #82938f;
+    --line: #d8e2df; --line-strong: #c3d1cd;
+    --primary: #0c7c6e; --primary-strong: #0a6357; --accent: #b0741a;
+    --mvp-bg: #e2f1e8; --mvp-fg: #1f6a45; --later-bg: #f6ecd9; --later-fg: #97621a;
+    --out-bg: #f6e4e0; --out-fg: #a04432; --open-bg: #e3ebf4; --open-fg: #3c5f92;
+    --shadow: 0 1px 2px rgba(16,32,30,.04), 0 8px 24px -12px rgba(16,32,30,.12);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0a1312; --surface: #0f1e1b; --surface-2: #15302a;
+    --ink: #e9f1ee; --body: #c2d1cd; --muted: #8aa09b; --faint: #6f8580;
+    --line: #23403a; --line-strong: #2e514a;
+    --primary: #37b9a7; --primary-strong: #52d2bf; --accent: #e0a54a;
+    --mvp-bg: #12321f; --mvp-fg: #6fd39c; --later-bg: #33280f; --later-fg: #e5b76a;
+    --out-bg: #38201b; --out-fg: #e6917d; --open-bg: #16283f; --open-fg: #8fb2e6;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--body);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 48px); }
+
+  /* ---------- Masthead ---------- */
+  .masthead { padding: clamp(40px, 7vw, 84px) 0 34px; }
+  .brandrow { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .wordmark {
+    font-family: var(--serif);
+    font-size: clamp(2.3rem, 5.4vw, 3.4rem);
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -.01em;
+    margin: 0;
+    font-weight: 600;
+  }
+  .wordmark .ar { font-weight: 400; color: var(--primary); }
+  .kicker {
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  .thesis {
+    font-family: var(--serif);
+    font-size: clamp(1.15rem, 2.3vw, 1.5rem);
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 40ch;
+    margin: 20px 0 0;
+    text-wrap: balance;
+  }
+  .rule {
+    height: 3px; border: 0; margin: 30px 0 0;
+    background: linear-gradient(90deg, var(--primary), var(--accent) 78%, transparent);
+    border-radius: 3px;
+  }
+
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 30px;
+    margin-top: 22px;
+    font-family: var(--mono); font-size: .78rem; color: var(--muted);
+    letter-spacing: .02em;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Layout ---------- */
+  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; padding-bottom: 80px; }
+
+  .toc-wrap { position: sticky; top: 20px; }
+  .toc-wrap > summary { list-style: none; }
+  .toc-wrap > summary::-webkit-details-marker { display: none; }
+  nav.toc { font-size: .86rem; }
+  nav.toc .toc-title {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 12px; padding-left: 10px;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  nav.toc a {
+    display: flex; gap: 10px; align-items: baseline;
+    padding: 6px 10px; border-left: 2px solid transparent; border-radius: 0 6px 6px 0;
+    color: var(--muted); text-decoration: none; transition: color .15s, background .15s, border-color .15s;
+  }
+  nav.toc a .n { font-family: var(--mono); font-size: .72rem; color: var(--faint); min-width: 1.4em; }
+  nav.toc a:hover { color: var(--ink); background: var(--surface-2); }
+  nav.toc a.active { color: var(--primary-strong); border-left-color: var(--primary); background: var(--surface-2); font-weight: 600; }
+  nav.toc a.active .n { color: var(--primary); }
+  @media (prefers-reduced-motion: reduce) { nav.toc a { transition: none; } }
+
+  main { min-width: 0; max-width: 74ch; }
+
+  /* ---------- Sections ---------- */
+  section { scroll-margin-top: 24px; padding-top: 8px; margin-bottom: 52px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .sec-num {
+    font-family: var(--mono); font-size: .82rem; font-weight: 600;
+    color: var(--primary); padding-top: .35em;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.15; color: var(--ink);
+    margin: 0; letter-spacing: -.01em; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans); font-weight: 700; font-size: 1rem;
+    color: var(--ink); margin: 26px 0 8px; letter-spacing: .01em;
+  }
+  section > p { margin: 0 0 14px; }
+  p a { color: var(--primary-strong); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  strong { color: var(--ink); font-weight: 650; }
+  code, .mono { font-family: var(--mono); font-size: .86em; }
+  p code, li code {
+    background: var(--surface-2); color: var(--primary-strong);
+    padding: .08em .38em; border-radius: 5px; border: 1px solid var(--line);
+  }
+
+  ul.clean { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  ul.clean > li { position: relative; padding-left: 20px; }
+  ul.clean > li::before {
+    content: ""; position: absolute; left: 3px; top: .62em;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--primary); opacity: .7;
+  }
+
+  /* ---------- Chips ---------- */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: .68rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    vertical-align: middle;
+  }
+  .chip--mvp { background: var(--mvp-bg); color: var(--mvp-fg); }
+  .chip--later { background: var(--later-bg); color: var(--later-fg); }
+  .chip--out { background: var(--out-bg); color: var(--out-fg); }
+  .chip--open { background: var(--open-bg); color: var(--open-fg); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 22px 0 6px; align-items: center; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 7px; font-size: .82rem; color: var(--muted); }
+
+  /* ---------- Callout ---------- */
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    background: var(--surface); border-radius: var(--radius);
+    padding: 16px 18px; margin: 18px 0; box-shadow: var(--shadow);
+  }
+  .callout .co-label {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 6px; font-weight: 600;
+  }
+  .callout p { margin: 0; font-size: .95rem; }
+  .callout.flag { border-left-color: var(--out-fg); }
+  .callout.flag .co-label { color: var(--out-fg); }
+
+  /* ---------- Glance grid ---------- */
+  .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 8px 0 4px; }
+  .gcard {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .gcard .gk { font-family: var(--mono); font-size: .67rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 0 0 5px; }
+  .gcard .gv { color: var(--ink); font-weight: 600; font-size: .95rem; line-height: 1.35; }
+  .gcard .gv small { display: block; font-weight: 400; color: var(--muted); font-size: .82rem; margin-top: 2px; }
+
+  /* ---------- Tables ---------- */
+  .twrap { overflow-x: auto; margin: 10px 0 16px; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; background: var(--surface); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); background: var(--surface-2); font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td b { color: var(--ink); }
+  td.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Flow (numbered lifecycle) ---------- */
+  ol.flow { list-style: none; counter-reset: step; margin: 6px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  ol.flow > li {
+    counter-increment: step; position: relative; padding: 12px 14px 12px 52px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  ol.flow > li::before {
+    content: counter(step); position: absolute; left: 12px; top: 12px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary); color: #fff; font-family: var(--mono); font-size: .82rem; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  :root[data-theme="dark"] ol.flow > li::before,
+  ol.flow > li::before { color: #06110f; }
+  @media (prefers-color-scheme: light) { ol.flow > li::before { color: #fff; } }
+  ol.flow b { color: var(--ink); }
+
+  .subgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 12px; margin: 8px 0 14px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; box-shadow: var(--shadow); }
+  .panel h4 { margin: 0 0 8px; font-size: .82rem; font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--primary-strong); }
+  .panel ul.clean { margin: 0; }
+  .panel ul.clean > li { font-size: .9rem; }
+
+  footer { border-top: 1px solid var(--line); padding: 26px 0 60px; color: var(--faint); font-size: .82rem; font-family: var(--mono); }
+  footer .page { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 0; max-width: 1180px; }
+
+  a:focus-visible, nav.toc a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; gap: 8px; }
+    .toc-wrap { position: static; margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .toc-wrap[open] { box-shadow: var(--shadow); }
+    .toc-wrap > summary { cursor: pointer; padding: 12px 16px; font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+    nav.toc { padding: 4px 8px 12px; }
+    nav.toc .toc-title { display: none; }
+    main { max-width: none; }
+  }
+  @media (min-width: 861px) {
+    .toc-wrap > summary { display: none; }
+    .toc-wrap > nav.toc { display: block; }
+  }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <p class="kicker">Product Specification · Version 1</p>
+    <div class="brandrow">
+      <h1 class="wordmark"><span class="ar">مسار</span> Masaar</h1>
+    </div>
+    <p class="thesis">A Preply/Modarby-style marketplace where students book individual live lesson slots with vetted teachers &mdash; lessons delivered on external video tools, payments handled manually at launch.</p>
+    <hr class="rule" />
+    <div class="meta">
+      <span>Status&nbsp; <b>Agreed via stakeholder interview</b></span>
+      <span>Date&nbsp; <b>2026&#8209;07&#8209;20</b></span>
+      <span>Markets&nbsp; <b>Egypt &amp; Saudi Arabia</b></span>
+      <span>Stack&nbsp; <b>Flutter · Django/DRF · Next.js · Postgres</b></span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- ================= TOC ================= -->
+    <details class="toc-wrap" open>
+      <summary>Contents</summary>
+      <nav class="toc" id="toc">
+        <p class="toc-title">Contents</p>
+        <ol>
+          <li><a href="#vision"><span class="n">01</span><span>Vision &amp; scope</span></a></li>
+          <li><a href="#markets"><span class="n">02</span><span>Markets &amp; localization</span></a></li>
+          <li><a href="#roles"><span class="n">03</span><span>Roles &amp; accounts</span></a></li>
+          <li><a href="#auth"><span class="n">04</span><span>Authentication</span></a></li>
+          <li><a href="#catalog"><span class="n">05</span><span>Catalog &amp; taxonomy</span></a></li>
+          <li><a href="#onboarding"><span class="n">06</span><span>Teacher onboarding</span></a></li>
+          <li><a href="#discovery"><span class="n">07</span><span>Discovery &amp; search</span></a></li>
+          <li><a href="#booking"><span class="n">08</span><span>Booking &amp; lifecycle</span></a></li>
+          <li><a href="#pricing"><span class="n">09</span><span>Pricing &amp; commission</span></a></li>
+          <li><a href="#payments"><span class="n">10</span><span>Payments &mdash; manual</span></a></li>
+          <li><a href="#payouts"><span class="n">11</span><span>Teacher payouts</span></a></li>
+          <li><a href="#reviews"><span class="n">12</span><span>Reviews &amp; ratings</span></a></li>
+          <li><a href="#messaging"><span class="n">13</span><span>Messaging</span></a></li>
+          <li><a href="#notifications"><span class="n">14</span><span>Notifications</span></a></li>
+          <li><a href="#stack"><span class="n">15</span><span>Tech &amp; architecture</span></a></li>
+          <li><a href="#open"><span class="n">16</span><span>Open items</span></a></li>
+          <li><a href="#timeline"><span class="n">17</span><span>Timeline note</span></a></li>
+        </ol>
+      </nav>
+    </details>
+
+    <!-- ================= MAIN ================= -->
+    <main>
+
+      <div class="callout">
+        <p class="co-label">Supersedes</p>
+        <p>This document replaces <code>feasibility-study-questionnaire.md</code>, which described a different product (a course-subscription LMS with academies and recorded content). That model is <strong>out of scope</strong>. Masaar is a lesson-reservation marketplace with flat individual teachers.</p>
+      </div>
+
+      <div class="legend">
+        <span class="lg"><span class="chip chip--mvp">MVP</span> in launch scope</span>
+        <span class="lg"><span class="chip chip--later">Later</span> fast-follow / phase 2</span>
+        <span class="lg"><span class="chip chip--out">Out</span> not at launch</span>
+        <span class="lg"><span class="chip chip--open">Open</span> needs your input</span>
+      </div>
+
+      <h3 style="margin-top:28px">Decisions at a glance</h3>
+      <div class="glance">
+        <div class="gcard"><p class="gk">Core model</p><div class="gv">Lesson reservation<small>Book live 1:1 slots, not courses</small></div></div>
+        <div class="gcard"><p class="gk">Teachers</p><div class="gv">Flat individuals<small>Public application → moderator approval</small></div></div>
+        <div class="gcard"><p class="gk">Delivery</p><div class="gv">External video<small>Zoom · Meet · Teams · custom link</small></div></div>
+        <div class="gcard"><p class="gk">Payments</p><div class="gv">Manual at launch<small>Bank transfer + receipt → verify</small></div></div>
+        <div class="gcard"><p class="gk">Booking</p><div class="gv">Request → confirm<small>Reserve at booking, settle on completion</small></div></div>
+        <div class="gcard"><p class="gk">Locales</p><div class="gv">Arabic + English<small>Full RTL / LTR</small></div></div>
+        <div class="gcard"><p class="gk">Auth</p><div class="gv">Phone + WhatsApp OTP<small>No SMS at launch</small></div></div>
+        <div class="gcard"><p class="gk">Timeline</p><div class="gv">Aggressive MVP<small>~1 months</small></div></div>
+      </div>
+
+      <!-- 01 -->
+      <section id="vision">
+        <div class="sec-head"><span class="sec-num">01</span><h2>Vision &amp; scope</h2></div>
+        <p>Students browse approved teachers, <strong>request</strong> a lesson slot, the teacher <strong>confirms</strong>, and the live lesson happens on an external tool. Teachers are <strong>individual profiles</strong> &mdash; no academies or multi-tenant brands.</p>
+        <p>There is <strong>no recorded course library, no LMS, and no content DRM</strong> at launch. The only teacher media is a short <strong>intro video</strong> hosted on YouTube and played via the <strong>Vidstack</strong> player on the web.</p>
+        <h3>Non-goals at launch <span class="chip chip--out">Out</span></h3>
+        <ul class="clean">
+          <li>Payment gateways &mdash; manual only for the first launch.</li>
+          <li>Recorded courses, quizzes, assignments, gradebook.</li>
+          <li>Academies, co-teachers, teaching assistants.</li>
+          <li>VAT / formal tax e-invoicing.</li>
+          <li>In-platform video calling (we attach external links only).</li>
+        </ul>
+      </section>
+
+      <!-- 02 -->
+      <section id="markets">
+        <div class="sec-head"><span class="sec-num">02</span><h2>Markets &amp; localization</h2></div>
+        <p><strong>Egypt (EGP)</strong> and <strong>Saudi Arabia (SAR)</strong> run as parallel, mostly-siloed markets on one platform. <code>Market</code> is a first-class entity: teachers, students, prices, payment accounts, and payouts are all scoped to a market.</p>
+        <ul class="clean">
+          <li><strong>Per-market teachers &amp; currency</strong> &mdash; Egyptian teachers serve Egyptian students (paid EGP); Saudi teachers serve Saudi students (paid SAR). No cross-market booking at launch.</li>
+          <li><strong>Locales</strong> &mdash; Arabic (RTL) + English (LTR), full RTL layout across all surfaces, not just translated strings.</li>
+          <li><strong>Time zones</strong> &mdash; store UTC, display local. Egypt UTC+2 (DST → +3 in summer); Saudi UTC+3 (no DST). Slot logic must be timezone-correct.</li>
+          <li><strong>Money</strong> &mdash; stored as integer minor units + ISO currency code; never mix currencies in one ledger.</li>
+        </ul>
+      </section>
+
+      <!-- 03 -->
+      <section id="roles">
+        <div class="sec-head"><span class="sec-num">03</span><h2>Roles &amp; accounts</h2></div>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Role</th><th>Surface</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><b>Student</b></td><td>Mobile app (iOS + Android)</td><td>Primary user. Has a <b>parent-monitor</b> link (guardian observes activity/bookings). Minors keep their own account.</td></tr>
+              <tr><td><b>Teacher</b></td><td>Web portal</td><td>Applies publicly, approved by moderators. Manages profile, intro video, availability, prices, lessons, earnings.</td></tr>
+              <tr><td><b>Moderator</b></td><td>Admin web</td><td>Scoped permissions: teacher approvals, receipt/payment verification, disputes, support.</td></tr>
+              <tr><td><b>Super-admin</b></td><td>Admin web</td><td>Full access: pricing, payout runs, role management, configuration.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Role-based access control with scoping and an <strong>audit log</strong> on all moderator/admin actions. The parent-monitor gives a guardian visibility (bookings, activity, notifications) &mdash; not a separate paying login at launch.</p>
+      </section>
+
+      <!-- 04 -->
+      <section id="auth">
+        <div class="sec-head"><span class="sec-num">04</span><h2>Authentication</h2></div>
+        <p><strong>Phone number + OTP</strong>, delivered via <strong>WhatsApp only</strong> (no SMS at launch). Applies to students primarily; teacher/moderator web login also uses phone + WhatsApp OTP. Session/device management and OTP rate-limiting required.</p>
+        <div class="callout">
+          <p class="co-label">Open item</p>
+          <p>Confirm whether internal staff want an email + password fallback for the admin panel. <span class="chip chip--open">Open</span></p>
+        </div>
+      </section>
+
+      <!-- 05 -->
+      <section id="catalog">
+        <div class="sec-head"><span class="sec-num">05</span><h2>Catalog &amp; taxonomy</h2></div>
+        <p>Three verticals, each with its own level taxonomy:</p>
+        <div class="subgrid">
+          <div class="panel"><h4>Primary</h4><ul class="clean"><li>KG → Grade 12</li><li>Grade level required</li></ul></div>
+          <div class="panel"><h4>University</h4><ul class="clean"><li>Year / level</li><li>Major / faculty</li></ul></div>
+          <div class="panel"><h4>Higher education</h4><ul class="clean"><li>BSc / Master / PhD</li><li>Program / specialization</li></ul></div>
+        </div>
+        <p>Shared dimensions for teacher profiles and search filters: <code>market → vertical → grade/level → subject → language of instruction → teacher gender</code>.</p>
+      </section>
+
+      <!-- 06 -->
+      <section id="onboarding">
+        <div class="sec-head"><span class="sec-num">06</span><h2>Teacher onboarding</h2></div>
+        <ol class="flow">
+          <li><b>Public application.</b> Bio, subjects/verticals/grades, qualifications, documents, requested wage/price, intro-video URL.</li>
+          <li><b>Moderator review</b> (+ optional interview) → approve / reject / request changes.</li>
+          <li><b>Publish &amp; configure.</b> On approval the profile goes live and the teacher sets availability, intro video (YouTube → Vidstack), free-lesson allowance, and custom prices within platform rules.</li>
+        </ol>
+      </section>
+
+      <!-- 07 -->
+      <section id="discovery">
+        <div class="sec-head"><span class="sec-num">07</span><h2>Discovery &amp; search</h2></div>
+        <p>Students browse and search teachers <strong>within their own market</strong>. Filters:</p>
+        <ul class="clean">
+          <li><strong>Subject + grade/level</strong></li>
+          <li><strong>Price</strong> and <strong>rating</strong></li>
+          <li><strong>Availability / time</strong></li>
+          <li><strong>Teacher gender</strong> and <strong>language of instruction</strong></li>
+        </ul>
+        <p>A teacher profile shows bio, intro video, subjects/levels, rating &amp; reviews, price, free-lesson offer, and availability.</p>
+      </section>
+
+      <!-- 08 -->
+      <section id="booking">
+        <div class="sec-head"><span class="sec-num">08</span><h2>Booking &amp; lesson lifecycle</h2></div>
+        <ol class="flow">
+          <li><b>Request → confirm.</b> Student picks a slot and requests; the teacher must confirm or decline. In-app <b>chat unlocks once the booking exists</b> (to coordinate and share the meeting link).</li>
+          <li><b>Delivery.</b> Lesson runs on an external tool &mdash; Zoom, Google Meet, Microsoft Teams, or a custom link, attached to the booking.</li>
+          <li><b>Reserve.</b> On confirmation the lesson price is <b>reserved</b> from the student's wallet (sufficient balance required to book).</li>
+          <li><b>Completion.</b> The student <b>confirms</b> the lesson happened; if no action within a configurable window it <b>auto-completes</b>. Either party can <b>dispute → moderator</b>.</li>
+          <li><b>Settlement.</b> On completion the reserved amount is captured, the teacher's wage is credited, and the platform keeps its commission.</li>
+          <li><b>Cancellation / no-show.</b> Flexible early, strict late: free up to a configurable cutoff; after it, student no-show forfeits, teacher no-show refunds the student and may incur a penalty. Free trials follow the same rules at zero charge.</li>
+        </ol>
+      </section>
+
+      <!-- 09 -->
+      <section id="pricing">
+        <div class="sec-head"><span class="sec-num">09</span><h2>Pricing &amp; commission</h2></div>
+        <p>The platform sets a price per lesson category keyed by <code>market + vertical + grade + subject</code>, each with a fixed teacher wage. Example:</p>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Category</th><th class="num">Student pays</th><th class="num">Teacher wage</th><th class="num">Platform margin</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">EG · Primary · G4 · Math</td><td class="num">60 EGP</td><td class="num">35 EGP</td><td class="num">25 EGP</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="clean">
+          <li>Teachers may have a <strong>per-teacher price override</strong> (higher price justified by rating, reviews, volume), approved through admin rules.</li>
+          <li><strong>Commission</strong> = student price − teacher wage; revenue also flows via packages/credits and wallet balances.</li>
+          <li><strong>Trials</strong> &mdash; each teacher configures a number of <strong>free lessons</strong> (0 to the student, 0 to the teacher; policy-configurable).</li>
+        </ul>
+      </section>
+
+      <!-- 10 -->
+      <section id="payments">
+        <div class="sec-head"><span class="sec-num">10</span><h2>Payments &mdash; manual (launch model)</h2></div>
+        <p>No gateways at launch. Students pay by <strong>bank/wallet transfer to platform accounts</strong> and <strong>submit a receipt</strong>; moderators verify. Three funding flows, all supported:</p>
+        <div class="subgrid">
+          <div class="panel"><h4>1 · Wallet top-up</h4><ul class="clean"><li>Transfer any amount → upload receipt → verify → <b>wallet credited</b>.</li><li>Bookings draw from wallet.</li><li>Fewest verifications &mdash; default UX.</li></ul></div>
+          <div class="panel"><h4>2 · Pay per booking</h4><ul class="clean"><li>Transfer exact lesson/package cost at booking.</li><li>Upload receipt → verify → booking confirmed.</li></ul></div>
+          <div class="panel"><h4>3 · Packages / credits</h4><ul class="clean"><li>Buy a predefined bundle.</li><li>Transfer full amount → verify → credits granted.</li></ul></div>
+        </div>
+        <div class="callout flag">
+          <p class="co-label">Flagged priority · Receipt UX</p>
+          <p>Show the correct platform accounts for the student's market (copy-to-clipboard, amount, reference); upload receipt image/PDF with amount + method; clear status tracking <code>pending → approved / rejected (reason)</code> with notifications; a moderator verification queue with side-by-side receipt view and one-click approve/reject.</p>
+        </div>
+        <h3>Wallet ledger</h3>
+        <p>Track <strong>available</strong> vs <strong>reserved</strong> balance with entries for top-up, reservation, capture (settlement), refund, package grant, and adjustment &mdash; designed append-only / double-entry-style for auditability.</p>
+      </section>
+
+      <!-- 11 -->
+      <section id="payouts">
+        <div class="sec-head"><span class="sec-num">11</span><h2>Teacher payouts</h2></div>
+        <ul class="clean">
+          <li><strong>Scheduled batch</strong> (e.g. monthly). The platform accrues each teacher's earned wage from settled lessons.</li>
+          <li>Admin runs a <strong>payout cycle</strong>: computes per-teacher amounts, transfers manually in local currency, marks the period paid.</li>
+          <li>Teacher sees an <strong>earnings dashboard</strong> + statements (settled, pending, paid).</li>
+        </ul>
+      </section>
+
+      <!-- 12 -->
+      <section id="reviews">
+        <div class="sec-head"><span class="sec-num">12</span><h2>Reviews &amp; ratings</h2></div>
+        <p>After a <strong>completed</strong> lesson, students leave a <strong>public</strong> rating (1&ndash;5) + text review on the teacher. The aggregate shows on the profile and feeds search sort/filter and price-override justification.</p>
+      </section>
+
+      <!-- 13 -->
+      <section id="messaging">
+        <div class="sec-head"><span class="sec-num">13</span><h2>Messaging</h2></div>
+        <p>In-app <strong>chat unlocks after a booking</strong> exists between that student and teacher (coordination + meeting link). No pre-booking chat at launch. Light content filtering to reduce off-platform leakage is a <span class="chip chip--later">Later</span> consideration.</p>
+      </section>
+
+      <!-- 14 -->
+      <section id="notifications">
+        <div class="sec-head"><span class="sec-num">14</span><h2>Notifications</h2></div>
+        <p>Channels at launch: <strong>Push</strong> (FCM/APNs via Flutter), <strong>WhatsApp</strong> (Business API), <strong>Email</strong>. No SMS.</p>
+        <p>Key events: OTP; booking requested / confirmed / declined; lesson reminders; completion prompt; dispute updates; <strong>receipt approved / rejected</strong>; wallet credited; package granted; payout completed; review request.</p>
+      </section>
+
+      <!-- 15 -->
+      <section id="stack">
+        <div class="sec-head"><span class="sec-num">15</span><h2>Tech &amp; architecture</h2></div>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Layer</th><th>Choice</th></tr></thead>
+            <tbody>
+              <tr><td><b>Student mobile</b></td><td>Flutter (iOS + Android), full RTL / i18n</td></tr>
+              <tr><td><b>Backend / API</b></td><td>Django + Django REST Framework (modular monolith)</td></tr>
+              <tr><td><b>Teacher portal + Admin</b></td><td>Next.js (React), RTL-aware</td></tr>
+              <tr><td><b>Database</b></td><td>PostgreSQL (prod) · SQLite (local dev)</td></tr>
+              <tr><td><b>Media</b></td><td>YouTube + Vidstack player (teacher intro video, web)</td></tr>
+              <tr><td><b>Integrations</b></td><td>WhatsApp Business API (OTP + notifications) · FCM/APNs · email</td></tr>
+              <tr><td><b>Supporting</b> <span class="chip chip--open">Open</span></td><td>Redis (cache + jobs/queues) · object storage for receipt uploads</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 16 -->
+      <section id="open">
+        <div class="sec-head"><span class="sec-num">16</span><h2>Open items &nbsp;<span class="chip chip--open">Open</span></h2></div>
+        <ol class="flow">
+          <li><b>Admin login method</b> &mdash; phone+WhatsApp OTP for staff, or add email+password for the admin panel?</li>
+          <li><b>Payment accounts</b> &mdash; how many bank/wallet accounts per market, and their details.</li>
+          <li><b>Cutoff &amp; window</b> &mdash; cancellation cutoff and auto-complete window (proposed defaults: 24h / 24h).</li>
+          <li><b>Free-trial abuse controls</b> &mdash; cap free lessons per student across teachers? per teacher?</li>
+          <li><b>Package definitions</b> &mdash; defined by platform or per-teacher, and discount structure.</li>
+          <li><b>Price-override rules</b> &mdash; thresholds / approval flow for raising price above the category default.</li>
+          <li><b>Legal / entity &amp; data residency</b> for Egypt + Saudi &mdash; a launch gate; confirmed out of scope for now?</li>
+          <li><b>Parent-monitor scope</b> &mdash; exact visibility and how the guardian link is established.</li>
+        </ol>
+      </section>
+
+      <!-- 17 -->
+      <section id="timeline">
+        <div class="sec-head"><span class="sec-num">17</span><h2>Timeline note</h2></div>
+        <p>The agreed MVP spans a Flutter app <strong>+</strong> a Next.js teacher portal <strong>+</strong> a Next.js admin dashboard <strong>+</strong> a Django API, with a wallet/ledger, manual-payment verification, bilingual RTL, two markets, and three notification channels. That is a <strong>large MVP for first launch</strong>.</p>
+        <div class="subgrid">
+          <div class="panel"><h4>Path A · Recommended</h4><ul class="clean"><li>Phase the surfaces.</li><li>Ship student app + admin (manual payments, booking, wallet) first.</li><li>Teacher portal starts minimal (availability + confirm + earnings), expands as a fast-follow.</li></ul></div>
+          <div class="panel"><h4>Path B</h4><ul class="clean"><li>Trim scope within each surface.</li><li>e.g. wallet-only funding first; add pay-per-booking &amp; packages next.</li></ul></div>
+        </div>
+        <p>Recommended next deliverables: a concrete <strong>phased backlog</strong> and an <strong>architecture / data-model</strong> document.</p>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<footer>
+  <div class="page">
+    <span>مسار · Masaar — Product Spec v1</span>
+    <span>2026-07-18 · Single source of truth</span>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    // Active-section highlighting in the ToC
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+    var map = {};
+    links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+    var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
+    if ('IntersectionObserver' in window && sections.length) {
+      var current = null;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) {
+            if (current && map[current]) map[current].classList.remove('active');
+            current = e.target.id;
+            if (map[current]) map[current].classList.add('active');
+          }
+        });
+      }, { rootMargin: '-10% 0px -75% 0px', threshold: 0 });
+      sections.forEach(function (s) { io.observe(s); });
+    }
+    // Close the mobile ToC after choosing a destination
+    links.forEach(function (a) {
+      a.addEventListener('click', function () {
+        var d = document.querySelector('details.toc-wrap');
+        if (d && window.matchMedia('(max-width: 860px)').matches) d.removeAttribute('open');
+      });
+    });
+  })();
+</script>
