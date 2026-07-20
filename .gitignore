@@ -95,6 +95,9 @@ db.sqlite3-journal
 /media/
 /staticfiles/
 /static_root/
+api/media/
+api/staticfiles/
+api/static_root/
 local_settings.py
 
 # Tooling / coverage / caches

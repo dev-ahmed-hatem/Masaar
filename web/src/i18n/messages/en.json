@@ -1,0 +1,32 @@
+{
+  "app": {
+    "name": "Masaar",
+    "tagline": "Book lessons with vetted teachers across Egypt & Saudi Arabia."
+  },
+  "nav": {
+    "home": "Home",
+    "teacher": "Teacher portal",
+    "admin": "Admin"
+  },
+  "landing": {
+    "subtitle": "Tutoring reservation marketplace",
+    "teacherCta": "Teacher portal",
+    "adminCta": "Moderator / Admin"
+  },
+  "teacher": {
+    "title": "Teacher portal",
+    "intro": "Manage your availability, lessons, and earnings.",
+    "availability": "Availability",
+    "lessons": "Lessons",
+    "earnings": "Earnings",
+    "profile": "Profile & intro video"
+  },
+  "admin": {
+    "title": "Moderator / Admin",
+    "intro": "Operate the marketplace.",
+    "receipts": "Receipt verification",
+    "teachers": "Teacher approvals",
+    "pricing": "Pricing",
+    "payouts": "Payouts"
+  }
+}

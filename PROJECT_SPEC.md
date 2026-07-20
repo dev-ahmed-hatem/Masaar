@@ -141,8 +141,8 @@ No gateways at launch. Students pay by **bank/wallet transfer to platform accoun
 
 ## 13. Messaging
 
-- In-app **chat unlocks after a booking** exists between that student and teacher (coordination + meeting link).
-- No pre-booking chat at launch. *(Consider light content filtering later to reduce off-platform leakage.)*
+- In-app **chat is available before booking** — students can message teachers with questions at any time, and the same thread continues after booking to coordinate the session and share the meeting link.
+- *(Consider light content filtering later to reduce off-platform leakage.)*
 
 ---
 
