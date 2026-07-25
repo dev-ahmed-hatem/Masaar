@@ -9,6 +9,8 @@ from django.db import transaction
 from apps.accounts.models import User
 from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market, PaymentAccount
+from apps.payments import services as wallet_services
+from apps.payments.models import Wallet
 from apps.teachers.models import (
     AvailabilityRule,
     TeacherApplication,
@@ -113,6 +115,22 @@ class Command(BaseCommand):
         )
         self._availability(t_sara, [AvailabilityRule.Weekday.SUN, AvailabilityRule.Weekday.TUE])
 
+        # --- Sample student with a funded wallet (for booking demos) ------
+        student, created = User.objects.get_or_create(
+            phone="+201333333301",
+            defaults={
+                "full_name": "Omar Student",
+                "role": User.Role.STUDENT,
+                "market": eg,
+                "is_verified": True,
+            },
+        )
+        if created:
+            student.set_password("Student12345")
+            student.save(update_fields=["password"])
+        if not Wallet.objects.filter(user=student).exists():
+            wallet_services.credit(wallet_services.get_or_create_wallet(student), 50000)
+
         # --- Sample pending teacher applications (for the review queue) ---
         for full_name, phone, bio in [
             ("Mona Adel", "+201222222201", "Physics & chemistry, 5 years of prep-school tutoring."),
@@ -158,6 +176,7 @@ class Command(BaseCommand):
             f"lesson_categories={LessonCategory.objects.count()} "
             f"teachers={TeacherProfile.objects.count()} "
             f"applications={TeacherApplication.objects.count()} "
+            f"students={User.objects.filter(role=User.Role.STUDENT).count()} "
             f"payment_accounts={PaymentAccount.objects.count()}"
         )
 

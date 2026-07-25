@@ -157,3 +157,12 @@ OTP_SENDER = env("OTP_SENDER", default="apps.accounts.senders.ConsoleOTPSender")
 ACCOUNT_MESSAGE_SENDER = env(
     "ACCOUNT_MESSAGE_SENDER", default="apps.accounts.senders.ConsoleAccountSender"
 )
+
+# --- Booking lifecycle policy (§16) ---
+# Free student cancellation up to this many hours before the lesson; later is charged.
+BOOKING_CANCEL_CUTOFF_HOURS = env.int("BOOKING_CANCEL_CUTOFF_HOURS", default=24)
+# A confirmed lesson auto-completes this many hours after it ends if unconfirmed.
+BOOKING_AUTOCOMPLETE_HOURS = env.int("BOOKING_AUTOCOMPLETE_HOURS", default=24)
+BOOKING_DEFAULT_DURATION_MIN = env.int("BOOKING_DEFAULT_DURATION_MIN", default=60)
+# How many days ahead slot listing generates from recurring availability.
+BOOKING_SLOT_HORIZON_DAYS = env.int("BOOKING_SLOT_HORIZON_DAYS", default=14)

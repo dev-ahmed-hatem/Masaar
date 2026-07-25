@@ -98,18 +98,28 @@
   profile (✅ live-verified). 19 Slice-3 tests (38 total); `check`, migrations, `npm run build` green.
   *(Intro video is a plain YouTube embed for now; Vidstack player is a later polish.)*
 
-## Slice 4 — Availability & booking lifecycle
+## Slice 4 — Availability & booking lifecycle  — 🚧 **in progress** (core API + wallet done)
 
 **Goal:** request → confirm → complete, with wallet reserve/settle.
 
-- **API:** teacher availability CRUD; slot listing; `POST /api/bookings` (request, validates
-  balance, sets meeting provider/link, reserves wallet); teacher confirm/decline; student confirm
-  completion + auto-complete job; cancellation (flexible-early/strict-late) + dispute → moderator.
-  Enforce the `Booking.TRANSITIONS` state machine.
-- **Web (teacher):** incoming requests, confirm/decline, attach meeting link, upcoming/past lessons.
-- **Web (admin):** bookings view, dispute handling.
+- **Wallet (done):** `apps/payments/services.py` — `reserve/refund/capture/credit` over the
+  append-only `LedgerEntry`; `available_minor` is the spendable balance and `balance_after_minor`
+  is authoritative. `GET /api/wallet/` (student balance + recent ledger).
+- **Booking API (done):** `GET /api/bookings/slots/?teacher=` (concrete slots generated from
+  recurring `AvailabilityRule` in the market TZ, past/overlap excluded); `POST /api/bookings/`
+  (validates market/teaches/availability/overlap, resolves override→default price, **reserves
+  wallet**); teacher `confirm/` (+meeting provider/link) & `decline/` (refund); student `complete/`
+  (**capture** + credit teacher lesson); `cancel/` (24h cutoff: free refund early, forfeit/capture
+  late; teacher-cancel always refunds); `dispute/` → moderator `resolve/` (complete=capture /
+  cancel=refund); teacher `no-show/`. `Booking.TRANSITIONS` enforced via `can_transition`. Trials
+  (free-lesson offer) book at price 0 with no reserve, once per teacher. Policy values are settings
+  (`BOOKING_CANCEL_CUTOFF_HOURS=24`, `BOOKING_AUTOCOMPLETE_HOURS=24`).
+- **Still TODO (next pass):** teacher web (incoming requests, confirm/decline + meeting link,
+  upcoming/past); admin web (bookings view, dispute handling); **auto-complete job** (settle
+  confirmed lessons 24h after they end); student booking UI is mobile/Track C.
 - **Done when:** a full lesson lifecycle runs, wallet moves reserved→captured on completion, and
-  teacher wage is credited.
+  teacher wage is credited. *(✅ live-verified: book→reserve→confirm→complete→capture; 15 booking
+  tests, 53 total; teacher payout crediting is Slice 7.)*
 
 ## Slice 5 — Manual payments & wallet  ⭐ (flagged priority)
 
