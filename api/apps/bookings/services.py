@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.notifications.services import notify
 from apps.payments import services as wallet
 from apps.teachers.models import TeacherPrice, TeacherSubject
 
@@ -143,6 +144,7 @@ def request_booking(student, teacher, category, scheduled_start, *, duration_min
     )
     if price > 0:
         wallet.reserve(wallet.get_or_create_wallet(student), price, booking=booking)
+    notify(teacher.user, "booking_requested", {"student": student.full_name, "booking_id": booking.id})
     return booking
 
 
@@ -153,6 +155,10 @@ def confirm_booking(booking, *, meeting_provider, meeting_link):
     booking.meeting_link = meeting_link
     booking.status = Booking.Status.CONFIRMED
     booking.save(update_fields=["meeting_provider", "meeting_link", "status", "updated_at"])
+    notify(
+        booking.student, "booking_confirmed",
+        {"teacher": booking.teacher.user.full_name, "meeting_link": meeting_link},
+    )
     return booking
 
 
@@ -166,6 +172,7 @@ def decline_booking(booking):
         )
     booking.status = Booking.Status.DECLINED
     booking.save(update_fields=["status", "updated_at"])
+    notify(booking.student, "booking_declined", {"teacher": booking.teacher.user.full_name})
     return booking
 
 
@@ -192,6 +199,9 @@ def cancel_booking(booking, actor, *, reason=""):
     booking.status = Booking.Status.CANCELLED
     booking.cancel_reason = reason
     booking.save(update_fields=["status", "cancel_reason", "updated_at"])
+    # Notify the other party.
+    recipient = booking.teacher.user if actor == booking.student else booking.student
+    notify(recipient, "booking_cancelled", {"booking_id": booking.id})
     return booking
 
 
@@ -218,6 +228,7 @@ def complete_booking(booking):
     booking.completed_at = timezone.now()
     booking.save(update_fields=["status", "completed_at", "updated_at"])
     _credit_teacher(booking)
+    notify(booking.student, "lesson_completed", {"teacher": booking.teacher.user.full_name})
     return booking
 
 

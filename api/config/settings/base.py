@@ -158,6 +158,16 @@ ACCOUNT_MESSAGE_SENDER = env(
     "ACCOUNT_MESSAGE_SENDER", default="apps.accounts.senders.ConsoleAccountSender"
 )
 
+# --- Notifications (Track D integrations behind these providers) ---
+# Dev routes every channel to a console logger; production points these at real
+# WhatsApp Cloud / FCM / SMTP providers.
+NOTIFICATION_PROVIDERS = {
+    "WHATSAPP": env("NOTIFY_WHATSAPP_PROVIDER", default="apps.notifications.providers.ConsoleProvider"),
+    "PUSH": env("NOTIFY_PUSH_PROVIDER", default="apps.notifications.providers.ConsoleProvider"),
+    "EMAIL": env("NOTIFY_EMAIL_PROVIDER", default="apps.notifications.providers.EmailProvider"),
+}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Masaar <no-reply@masaar.local>")
+
 # --- Booking lifecycle policy (§16) ---
 # Free student cancellation up to this many hours before the lesson; later is charged.
 BOOKING_CANCEL_CUTOFF_HOURS = env.int("BOOKING_CANCEL_CUTOFF_HOURS", default=24)

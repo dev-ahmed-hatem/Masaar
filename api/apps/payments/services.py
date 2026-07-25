@@ -12,7 +12,9 @@ Wallet semantics
 """
 from django.db import transaction
 
+from apps.common.models import format_money
 from apps.markets.models import Market
+from apps.notifications.services import notify
 
 from . import errors
 from .models import LedgerEntry, PackagePurchase, Receipt, Wallet
@@ -117,6 +119,10 @@ def approve_receipt(receipt, moderator):
     receipt.status = Receipt.Status.APPROVED
     receipt.reviewed_by = moderator
     receipt.save(update_fields=["status", "reviewed_by", "updated_at"])
+    notify(
+        receipt.user, "receipt_approved",
+        {"amount": format_money(receipt.amount_minor, receipt.currency)},
+    )
     return receipt
 
 
@@ -132,4 +138,5 @@ def reject_receipt(receipt, moderator, reason=""):
         PackagePurchase.objects.filter(receipt=receipt).update(
             status=PackagePurchase.Status.REJECTED
         )
+    notify(receipt.user, "receipt_rejected", {"reason": reason or "See details."})
     return receipt

@@ -178,9 +178,21 @@ mark-paid with reference; teacher payout statements.
 - **Done:** ✅ live-verified — complete lesson → generate cycle (35.00 EGP / 1 lesson) → mark paid
   (reference) → teacher statement shows PAID. 5 payout tests, 77 total.
 
-## Slice 8 — Notifications
+## Slice 8 — Notifications  — ✅ **complete** (dispatch layer; real WhatsApp/push = Track D)
 Wire the `Notification` model to real channels (Track D): WhatsApp Business API, FCM/APNs push,
 email — for OTP, booking status, receipt approved/rejected, reminders, payout done.
+
+- **Dispatch layer:** `notify(user, event_type, payload)` records a `Notification` per channel and
+  delivers via a pluggable provider (`settings.NOTIFICATION_PROVIDERS`, dotted paths). Dev = console
+  logger for WhatsApp/push, Django email (console backend) for email; **real WhatsApp Cloud / FCM
+  providers are stubs** (`NotImplementedError`) for Track D. Failures are captured on the row
+  (status FAILED) and never break the triggering action.
+- **Event catalogue** (`events.py`): channel + rendered title/body per event.
+- **Wired events:** `booking_requested/confirmed/declined/cancelled`, `lesson_completed`,
+  `receipt_approved/rejected`, `payout_paid` (OTP keeps its own sender).
+- **API:** `GET /api/notifications/` — the user's own feed (rendered title/body).
+- **Done:** ✅ live-verified — confirming a booking notifies both parties (feed + console dispatch).
+  5 notification tests, 82 total. *(Reminders/scheduled sends + real channel providers are Track D.)*
 
 ## Slice 9 — Mobile app (Track C, Flutter)
 Kick off once auth + discovery + booking + payments APIs are stable: install Flutter SDK, scaffold

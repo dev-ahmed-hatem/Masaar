@@ -9,6 +9,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.bookings.models import Booking
+from apps.common.models import format_money
+from apps.notifications.services import notify
 
 from .models import PayoutCycle, PayoutItem
 
@@ -66,4 +68,9 @@ def mark_item_paid(item, reference="") -> PayoutItem:
     elif cycle.status == PayoutCycle.Status.OPEN:
         cycle.status = PayoutCycle.Status.PROCESSING
         cycle.save(update_fields=["status", "updated_at"])
+
+    notify(
+        item.teacher.user, "payout_paid",
+        {"amount": format_money(item.amount_minor, item.currency), "reference": reference or "—"},
+    )
     return item
