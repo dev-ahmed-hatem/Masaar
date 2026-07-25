@@ -53,16 +53,24 @@
   anonymous (covered by tests); roles route correctly and role-scoped routes are guarded in web.
   `manage.py check`, migrations, pytest (9 tests), and `npm run build` all green.
 
-## Slice 2 — Catalog & teacher discovery
+## Slice 2 — Catalog & teacher discovery  — ✅ **complete**
 
 **Goal:** browse/search published teachers within a market.
 
-- **API:** read endpoints for verticals/grades/subjects; `GET /api/teachers` with filters
-  (subject+grade, price, rating, availability, gender, language) + pagination; teacher detail
-  (profile, intro video, prices, free-lesson offer, reviews summary).
-- **Web (admin):** read-only catalog + teacher browser (student-facing UI is mobile/Track C).
-- **Done when:** filtered teacher search returns correct results scoped to market; detail
-  resolves per-teacher price (override → category default).
+- **API:** `/api/catalog/` read endpoints (`verticals/`, `grade-levels/?vertical=`, `subjects/`);
+  `GET /api/teachers/` market-scoped, with filters (subject, grade, vertical, gender, language,
+  min-rating, price range, weekday availability), ordering (rating / price / lessons) and
+  pagination; `GET /api/teachers/<id>/` detail (bio, per-subject resolved prices, availability,
+  reviews summary + recent reviews). Effective price resolves **approved override → category
+  default** via a correlated subquery, so list filter/sort/pagination stay correct.
+- **Conventions locked here** (deferred from Slice 1): `django-filter` as the default filter
+  backend + `StandardPagination` (page/page_size, PAGE_SIZE=20).
+- **Web (admin):** staff-guarded **Teacher browser** at `/admin/teachers` — market/subject/gender/
+  rating/sort filters, paginated table, detail drawer (offerings + prices, availability, reviews).
+  Linked from the admin dashboard. AR+EN, RTL.
+- **Seed:** two published EG teachers (one with an approved price override) so the browser demos.
+- **Done:** filtered search returns correct results scoped to market; detail resolves per-teacher
+  price (override → default). 10 discovery tests; `check`, migrations, pytest (19), `npm run build` green.
 
 ## Slice 3 — Teacher onboarding & profile management
 
