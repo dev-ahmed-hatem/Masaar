@@ -148,9 +148,18 @@
   three funding flows (top-up, per-booking, package) work. *(✅ live-verified: top-up `TOPUP` +100,
   package purchase → `PACKAGE_GRANT` +300, purchase GRANTED. 12 payment tests, 66 total.)*
 
-## Slice 6 — Reviews
+## Slice 6 — Reviews  — ✅ **complete**
 Post-completion student→teacher rating; recompute `rating_avg`/`rating_count`; surface on profile
 and in discovery sort. Admin moderation/unpublish.
+
+- **API:** `POST /api/reviews/` (student; one per COMPLETED booking they own → recomputes the
+  teacher's rating); `GET /api/reviews/?teacher=` (public: published only; staff: all + `?published=`);
+  `…/unpublish/` & `…/republish/` (`IsStaff`, recompute). Rating already feeds discovery sort +
+  teacher-detail `reviews_summary`/`recent_reviews`.
+- **Web (admin):** review moderation at `/admin/reviews` (visibility filter, hide/restore), linked
+  from the dashboard. Student submission is API-only (mobile/Track C). AR+EN, RTL.
+- **Done:** ✅ live-verified — review → rating_avg 5.0/1 in discovery → hide → recomputed 0.0/0.
+  6 review tests, 72 total.
 
 ## Slice 7 — Payouts
 Monthly `PayoutCycle` generation from settled lessons; per-teacher `PayoutItem` computation; admin
