@@ -1,17 +1,34 @@
 from django.db.models import F, IntegerField, OuterRef, Prefetch, Subquery
 from django.db.models.functions import Coalesce
+from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import APIException
 from rest_framework.filters import OrderingFilter
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.accounts.permissions import IsStaff
 from apps.markets.models import Market
 from apps.reviews.models import Review
 
-from .models import AvailabilityRule, TeacherPrice, TeacherProfile, TeacherSubject
-from .serializers import TeacherDetailSerializer, TeacherListSerializer
+from . import services
+from .models import (
+    AvailabilityRule,
+    TeacherApplication,
+    TeacherPrice,
+    TeacherProfile,
+    TeacherSubject,
+)
+from .serializers import (
+    ApplicationRejectSerializer,
+    TeacherApplicationCreateSerializer,
+    TeacherApplicationSerializer,
+    TeacherDetailSerializer,
+    TeacherListSerializer,
+)
 
 
 class MarketRequired(APIException):
@@ -164,3 +181,74 @@ class TeacherDetailView(RetrieveAPIView):
             )
             .annotate(from_price_minor=from_price_subquery())
         )
+
+
+# --- Onboarding: teacher applications --------------------------------------
+
+class ApplicationListCreateView(ListCreateAPIView):
+    """Public application submission (POST) and moderator review queue (GET)."""
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [AllowAny()]
+        return [IsStaff()]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return TeacherApplicationCreateSerializer
+        return TeacherApplicationSerializer
+
+    def get_queryset(self):
+        qs = TeacherApplication.objects.select_related("market", "reviewed_by").order_by(
+            "-created_at"
+        )
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param.upper())
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        application = serializer.save()
+        # Echo back the created application using the read serializer.
+        return Response(
+            TeacherApplicationSerializer(application).data, status=201
+        )
+
+
+class ApplicationDetailView(RetrieveAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = TeacherApplicationSerializer
+    queryset = TeacherApplication.objects.select_related("market", "reviewed_by", "created_profile")
+
+
+class ApplicationApproveView(APIView):
+    permission_classes = [IsStaff]
+
+    @extend_schema(request=None, responses={200: TeacherApplicationSerializer})
+    def post(self, request, pk):
+        application = get_object_or_404(TeacherApplication, pk=pk)
+        services.approve_application(application, request.user)
+        application.refresh_from_db()
+        return Response(
+            {
+                "message": "Application approved; temporary password sent to the teacher.",
+                "application": TeacherApplicationSerializer(application).data,
+            }
+        )
+
+
+class ApplicationRejectView(APIView):
+    permission_classes = [IsStaff]
+    serializer_class = ApplicationRejectSerializer
+
+    @extend_schema(request=ApplicationRejectSerializer, responses={200: TeacherApplicationSerializer})
+    def post(self, request, pk):
+        application = get_object_or_404(TeacherApplication, pk=pk)
+        serializer = ApplicationRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.reject_application(
+            application, request.user, serializer.validated_data["notes"]
+        )
+        return Response(TeacherApplicationSerializer(application).data)

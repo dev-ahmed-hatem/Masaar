@@ -11,6 +11,7 @@ from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market, PaymentAccount
 from apps.teachers.models import (
     AvailabilityRule,
+    TeacherApplication,
     TeacherPrice,
     TeacherProfile,
     TeacherSubject,
@@ -112,6 +113,22 @@ class Command(BaseCommand):
         )
         self._availability(t_sara, [AvailabilityRule.Weekday.SUN, AvailabilityRule.Weekday.TUE])
 
+        # --- Sample pending teacher applications (for the review queue) ---
+        for full_name, phone, bio in [
+            ("Mona Adel", "+201222222201", "Physics & chemistry, 5 years of prep-school tutoring."),
+            ("Khaled Omar", "+201222222202", "English language and IELTS coach."),
+        ]:
+            TeacherApplication.objects.get_or_create(
+                phone=phone,
+                status=TeacherApplication.Status.PENDING,
+                defaults={
+                    "full_name": full_name,
+                    "market": eg,
+                    "bio": bio,
+                    "intro_video_url": "https://youtu.be/dQw4w9WgXcQ",
+                },
+            )
+
         # --- Sample payment accounts (manual transfer targets) ------------
         PaymentAccount.objects.get_or_create(
             market=eg,
@@ -140,6 +157,7 @@ class Command(BaseCommand):
             f"grade_levels={GradeLevel.objects.count()} subjects={Subject.objects.count()} "
             f"lesson_categories={LessonCategory.objects.count()} "
             f"teachers={TeacherProfile.objects.count()} "
+            f"applications={TeacherApplication.objects.count()} "
             f"payment_accounts={PaymentAccount.objects.count()}"
         )
 

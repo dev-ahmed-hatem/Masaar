@@ -34,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
             "locale",
             "market",
             "is_verified",
+            "must_change_password",
         )
         read_only_fields = fields
 
@@ -108,6 +109,30 @@ class ResendOtpSerializer(serializers.Serializer):
                 services.request_otp(phone, purpose)
         elif User.objects.filter(phone=phone).exists():
             services.request_otp(phone, purpose)
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+    new_password = serializers.CharField(
+        write_only=True, min_length=8, style={"input_type": "password"}
+    )
+
+    def validate_old_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        validate_password(value, user=self.context["request"].user)
+        return value
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password"])
+        return user
 
 
 class MasaarTokenObtainPairSerializer(TokenObtainPairSerializer):

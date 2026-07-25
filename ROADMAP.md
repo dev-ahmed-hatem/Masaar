@@ -72,17 +72,23 @@
 - **Done:** filtered search returns correct results scoped to market; detail resolves per-teacher
   price (override → default). 10 discovery tests; `check`, migrations, pytest (19), `npm run build` green.
 
-## Slice 3 — Teacher onboarding & profile management
+## Slice 3 — Teacher onboarding & profile management  — 🚧 **in progress** (onboarding+approval done)
 
 **Goal:** public application → moderator approval → published profile the teacher can manage.
 
-- **API:** submit `TeacherApplication`; moderator list/review/approve/reject (creates the teacher
-  `User` + `TeacherProfile` on approve); teacher self-serve profile, subjects, intro video,
-  free-lesson count, custom price requests.
-- **Web (admin):** teacher-approvals queue (review, approve/reject with notes).
-- **Web (teacher):** profile editor, subjects, availability rules, intro-video URL (Vidstack preview).
+- **API (done):** `POST /api/teacher-applications/` (public submit; phone normalized with market
+  dial code; blocks a duplicate open application). Moderator (`IsStaff`) queue: list (`?status=`),
+  detail, `…/approve/`, `…/reject/`. **Approve** creates the teacher `User` (role TEACHER, verified,
+  random **temporary password** WhatsApp'd via `ACCOUNT_MESSAGE_SENDER`, `must_change_password=True`)
+  + a **draft** `TeacherProfile` (`is_published=False`), and links `created_profile`. Credential
+  handoff: teacher signs in with the temp password, then `POST /api/auth/password/change/`
+  (old+new) clears `must_change_password`. `must_change_password` surfaced on the user payload.
+- **Web (admin, done):** teacher-approvals queue at `/admin/applications` (status filter, table,
+  detail drawer, approve/reject with notes), linked from the dashboard. AR+EN, RTL.
+- **Still TODO (next pass):** teacher self-serve profile editor — profile, subjects, availability
+  rules, intro-video URL (Vidstack preview), free-lesson count, custom price requests; publish flow.
 - **Done when:** an application can be approved end-to-end and the new teacher logs in and edits
-  their published profile.
+  their published profile. *(Approval end-to-end ✅ live-verified; profile editor + publish pending.)*
 
 ## Slice 4 — Availability & booking lifecycle
 

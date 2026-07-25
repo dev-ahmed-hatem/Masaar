@@ -10,6 +10,7 @@ from django.conf import settings
 from django.utils.module_loading import import_string
 
 logger = logging.getLogger("masaar.otp")
+notify_logger = logging.getLogger("masaar.notify")
 
 
 class OTPSender(Protocol):
@@ -40,3 +41,18 @@ class WhatsAppCloudSender:
 
 def get_otp_sender() -> OTPSender:
     return import_string(settings.OTP_SENDER)()
+
+
+class AccountMessageSender(Protocol):
+    def send_message(self, phone: str, message: str) -> None: ...
+
+
+class ConsoleAccountSender:
+    """Development sender — writes account messages (e.g. temp passwords) to the log."""
+
+    def send_message(self, phone: str, message: str) -> None:
+        notify_logger.warning("[MSG] %s -> %s", phone, message)
+
+
+def get_account_sender() -> AccountMessageSender:
+    return import_string(settings.ACCOUNT_MESSAGE_SENDER)()

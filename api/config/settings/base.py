@@ -153,3 +153,7 @@ OTP_RESEND_COOLDOWN_SECONDS = env.int("OTP_RESEND_COOLDOWN_SECONDS", default=60)
 # Dotted path to the OTP sender implementation. Dev logs the code; swap for the
 # WhatsApp Cloud API sender in production.
 OTP_SENDER = env("OTP_SENDER", default="apps.accounts.senders.ConsoleOTPSender")
+# Sender for non-OTP account messages (e.g. an approved teacher's temporary password).
+ACCOUNT_MESSAGE_SENDER = env(
+    "ACCOUNT_MESSAGE_SENDER", default="apps.accounts.senders.ConsoleAccountSender"
+)

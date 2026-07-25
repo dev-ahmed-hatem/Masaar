@@ -34,6 +34,9 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    # Set when an account is issued a temporary password (e.g. an approved
+    # teacher) and must set their own on first sign-in.
+    must_change_password = models.BooleanField(default=False)
 
     objects = UserManager()
 

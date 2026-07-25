@@ -1,9 +1,12 @@
 from rest_framework import serializers
 
+from apps.accounts.utils import normalize_phone
 from apps.common.models import format_money
+from apps.markets.models import Market
 from apps.reviews.models import Review
 
-from .models import AvailabilityRule, TeacherProfile
+from . import errors
+from .models import AvailabilityRule, TeacherApplication, TeacherProfile
 
 
 def _split_languages(raw: str) -> list[str]:
@@ -149,3 +152,55 @@ class TeacherDetailSerializer(TeacherListSerializer):
     def get_recent_reviews(self, obj) -> list[dict]:
         reviews = [r for r in obj.reviews.all() if r.is_published][:10]
         return ReviewSerializer(reviews, many=True).data
+
+
+# --- Onboarding: teacher applications --------------------------------------
+
+class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
+    market = serializers.SlugRelatedField(slug_field="code", queryset=Market.objects.all())
+
+    class Meta:
+        model = TeacherApplication
+        fields = ("full_name", "phone", "email", "market", "bio", "intro_video_url", "document")
+
+    def validate(self, attrs):
+        # Normalize with the market dial code (a local "01…" is ambiguous alone).
+        attrs["phone"] = normalize_phone(attrs["phone"], attrs["market"].code)
+        open_statuses = (
+            TeacherApplication.Status.PENDING,
+            TeacherApplication.Status.CHANGES_REQUESTED,
+        )
+        if TeacherApplication.objects.filter(
+            phone=attrs["phone"], status__in=open_statuses
+        ).exists():
+            raise errors.DuplicateApplication()
+        return attrs
+
+
+class TeacherApplicationSerializer(serializers.ModelSerializer):
+    market = serializers.SlugRelatedField(slug_field="code", read_only=True)
+    reviewed_by = serializers.CharField(source="reviewed_by.full_name", read_only=True, default=None)
+    created_profile_id = serializers.IntegerField(source="created_profile.id", read_only=True, default=None)
+
+    class Meta:
+        model = TeacherApplication
+        fields = (
+            "id",
+            "full_name",
+            "phone",
+            "email",
+            "market",
+            "bio",
+            "intro_video_url",
+            "document",
+            "status",
+            "review_notes",
+            "reviewed_by",
+            "created_profile_id",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class ApplicationRejectSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
