@@ -17,6 +17,7 @@ export default async function AdminPage({
   const cards: { label: string; href?: string }[] = [
     { label: d.admin.teacherBrowser, href: `/${locale}/admin/teachers` },
     { label: d.admin.teachers, href: `/${locale}/admin/applications` },
+    { label: d.bookings.adminTitle, href: `/${locale}/admin/bookings` },
     { label: d.admin.receipts },
     { label: d.admin.pricing },
     { label: d.admin.payouts },

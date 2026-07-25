@@ -247,6 +247,26 @@ def resolve_dispute(booking, *, complete: bool):
     return booking
 
 
+def autocomplete_due(now=None) -> int:
+    """Auto-complete confirmed lessons whose auto-complete window has elapsed.
+
+    Run periodically (management command / cron). Returns how many settled.
+    """
+    now = now or timezone.now()
+    window = timedelta(hours=settings.BOOKING_AUTOCOMPLETE_HOURS)
+    # Coarse DB filter (start <= now - window is a valid superset of due lessons).
+    candidates = Booking.objects.filter(
+        status=Booking.Status.CONFIRMED, scheduled_start__lte=now - window
+    )
+    settled = 0
+    for booking in candidates:
+        lesson_end = booking.scheduled_start + timedelta(minutes=booking.duration_min)
+        if lesson_end + window <= now:
+            complete_booking(booking)
+            settled += 1
+    return settled
+
+
 @transaction.atomic
 def mark_no_show(booking):
     """Teacher reports a student no-show: the lesson is charged (reserve captured)."""

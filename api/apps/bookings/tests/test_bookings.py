@@ -250,3 +250,34 @@ def test_wallet_endpoint(api, world):
     res = api.get(WALLET)
     assert res.status_code == 200
     assert res.data["wallet"]["available_minor"] == 100000
+
+
+# --- Auto-complete job -----------------------------------------------------
+
+def test_autocomplete_settles_only_elapsed(api, world):
+    from apps.bookings import services
+
+    w = wallet.get_or_create_wallet(world["student"])
+
+    def _confirmed(start):
+        b = Booking.objects.create(
+            student=world["student"], teacher=world["teacher"], lesson_category=world["eg_math"],
+            scheduled_start=start, duration_min=60, price_minor=6000, teacher_wage_minor=3500,
+            currency="EGP", status=Booking.Status.CONFIRMED,
+        )
+        wallet.reserve(w, 6000, booking=b)
+        return b
+
+    # Ended > 24h ago -> due; ended just now -> not due.
+    due = _confirmed(timezone.now() - timedelta(hours=26))
+    fresh = _confirmed(timezone.now() - timedelta(minutes=30))
+
+    settled = services.autocomplete_due()
+    assert settled == 1
+
+    due.refresh_from_db()
+    fresh.refresh_from_db()
+    assert due.status == Booking.Status.COMPLETED
+    assert fresh.status == Booking.Status.CONFIRMED
+    # One lesson captured (6000 of the 12000 reserved).
+    assert _wallet(world["student"]).reserved_minor == 6000

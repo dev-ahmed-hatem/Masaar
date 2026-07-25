@@ -98,7 +98,7 @@
   profile (✅ live-verified). 19 Slice-3 tests (38 total); `check`, migrations, `npm run build` green.
   *(Intro video is a plain YouTube embed for now; Vidstack player is a later polish.)*
 
-## Slice 4 — Availability & booking lifecycle  — 🚧 **in progress** (core API + wallet done)
+## Slice 4 — Availability & booking lifecycle  — ✅ **complete**
 
 **Goal:** request → confirm → complete, with wallet reserve/settle.
 
@@ -114,12 +114,15 @@
   cancel=refund); teacher `no-show/`. `Booking.TRANSITIONS` enforced via `can_transition`. Trials
   (free-lesson offer) book at price 0 with no reserve, once per teacher. Policy values are settings
   (`BOOKING_CANCEL_CUTOFF_HOURS=24`, `BOOKING_AUTOCOMPLETE_HOURS=24`).
-- **Still TODO (next pass):** teacher web (incoming requests, confirm/decline + meeting link,
-  upcoming/past); admin web (bookings view, dispute handling); **auto-complete job** (settle
-  confirmed lessons 24h after they end); student booking UI is mobile/Track C.
-- **Done when:** a full lesson lifecycle runs, wallet moves reserved→captured on completion, and
-  teacher wage is credited. *(✅ live-verified: book→reserve→confirm→complete→capture; 15 booking
-  tests, 53 total; teacher payout crediting is Slice 7.)*
+- **Auto-complete job (done):** `manage.py autocomplete_bookings` (service `autocomplete_due`)
+  settles CONFIRMED lessons `BOOKING_AUTOCOMPLETE_HOURS` after they end — run via cron in prod.
+- **Web (teacher, done):** `/teacher/lessons` — Requests / Upcoming / Past tabs; confirm (meeting
+  provider + link modal), decline, cancel, no-show, join link.
+- **Web (admin, done):** `/admin/bookings` — status filter, table, detail drawer, dispute
+  resolution (complete = capture / refund). Both linked from their dashboards. AR+EN, RTL.
+- **Done:** full lesson lifecycle runs, wallet moves reserved→captured on completion, teacher wage
+  credited. *(✅ live-verified end-to-end + role-scoped lists; 16 booking tests, 54 total; student
+  booking UI is mobile/Track C; teacher payout crediting is Slice 7.)*
 
 ## Slice 5 — Manual payments & wallet  ⭐ (flagged priority)
 

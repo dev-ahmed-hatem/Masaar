@@ -16,8 +16,8 @@ export default async function TeacherPage({
 
   const cards: { label: string; href?: string }[] = [
     { label: d.teacher.profile, href: `/${locale}/teacher/profile` },
-    { label: d.teacher.availability },
-    { label: d.teacher.lessons },
+    { label: d.teacher.lessons, href: `/${locale}/teacher/lessons` },
+    { label: d.teacher.availability, href: `/${locale}/teacher/profile` },
     { label: d.teacher.earnings },
   ];
 
