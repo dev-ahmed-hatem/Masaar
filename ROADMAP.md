@@ -124,18 +124,24 @@
   credited. *(✅ live-verified end-to-end + role-scoped lists; 16 booking tests, 54 total; student
   booking UI is mobile/Track C; teacher payout crediting is Slice 7.)*
 
-## Slice 5 — Manual payments & wallet  ⭐ (flagged priority)
+## Slice 5 — Manual payments & wallet  ⭐ (flagged priority)  — 🚧 **in progress** (top-up + verify done)
 
 **Goal:** the manual top-up/receipt → verify → ledger flow, plus packages.
 
-- **API:** show per-market payment accounts; `POST /api/receipts` (upload image, amount, method,
-  purpose); wallet balance + ledger; package catalog + purchase; moderator verify (approve →
-  credit wallet / grant credits / confirm booking; reject with reason).
-- **Web (admin):** **receipt-verification queue** (side-by-side receipt view, one-click
-  approve/reject, reason) — the flagged UX.
-- **Web (teacher):** earnings/wallet read views as relevant.
-- **Done when:** a student receipt can be verified and correctly credits an append-only ledger;
-  all three funding flows (top-up, per-booking, package) work.
+- **Top-up + verification (done):** `GET /api/payment-accounts/` (student's market); `POST
+  /api/receipts/` (student, multipart: amount/method/reference/image, `purpose=TOPUP`); `GET
+  /api/receipts/` (student sees own, `IsStaff` sees the queue, `?status=`); `…/approve/` →
+  `credit()` wallet (ledger `TOPUP`) + reviewed_by; `…/reject/` with reason. Wallet balance/ledger
+  at `GET /api/wallet/`. Decision: **package credits = wallet money** (one currency).
+- **Web (admin, done):** the flagged **receipt-verification queue** at `/admin/receipts` —
+  status filter, **side-by-side receipt image**, one-click approve (credits wallet) / reject with
+  reason. Linked from the dashboard. AR+EN, RTL.
+- **Student side:** API-only for now (top-up UI is mobile/Track C).
+- **Still TODO (pass 2):** pay-per-booking (receipt linked to a booking) + packages (`Package`
+  catalog/purchase → grant wallet money on approve).
+- **Done when:** a student receipt can be verified and correctly credits an append-only ledger
+  (✅ live-verified: receipt → approve → wallet +100.00 via ledger `TOPUP`); all three funding flows
+  work. 6 receipt tests, 60 total.
 
 ## Slice 6 — Reviews
 Post-completion student→teacher rating; recompute `rating_avg`/`rating_count`; surface on profile

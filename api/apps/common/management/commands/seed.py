@@ -10,7 +10,7 @@ from apps.accounts.models import User
 from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market, PaymentAccount
 from apps.payments import services as wallet_services
-from apps.payments.models import Wallet
+from apps.payments.models import Receipt, Wallet
 from apps.teachers.models import (
     AvailabilityRule,
     TeacherApplication,
@@ -130,6 +130,13 @@ class Command(BaseCommand):
             student.save(update_fields=["password"])
         if not Wallet.objects.filter(user=student).exists():
             wallet_services.credit(wallet_services.get_or_create_wallet(student), 50000)
+        # A pending top-up receipt so the verification queue has something to review.
+        if not Receipt.objects.filter(user=student).exists():
+            Receipt.objects.create(
+                user=student, market=eg, amount_minor=10000, currency="EGP",
+                method=Receipt.Method.BANK, reference="SEED-TXN-001",
+                purpose=Receipt.Purpose.TOPUP, status=Receipt.Status.PENDING,
+            )
 
         # --- Sample pending teacher applications (for the review queue) ---
         for full_name, phone, bio in [

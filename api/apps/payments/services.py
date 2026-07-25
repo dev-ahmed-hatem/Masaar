@@ -15,7 +15,7 @@ from django.db import transaction
 from apps.markets.models import Market
 
 from . import errors
-from .models import LedgerEntry, Wallet
+from .models import LedgerEntry, Receipt, Wallet
 
 
 def get_or_create_wallet(user) -> Wallet:
@@ -84,3 +84,37 @@ def capture(wallet, amount_minor, *, booking, note=""):
     wallet.save(update_fields=["reserved_minor", "updated_at"])
     _entry(wallet, LedgerEntry.Kind.CAPTURE, -amount_minor, booking=booking, note=note)
     return wallet
+
+
+# --- Manual-payment receipts ----------------------------------------------
+
+@transaction.atomic
+def approve_receipt(receipt, moderator):
+    """Verify a receipt and apply its effect (pass 1: TOPUP credits the wallet)."""
+    if receipt.status != Receipt.Status.PENDING:
+        raise errors.ReceiptNotPending()
+    if receipt.purpose == Receipt.Purpose.TOPUP:
+        credit(
+            get_or_create_wallet(receipt.user),
+            receipt.amount_minor,
+            kind=LedgerEntry.Kind.TOPUP,
+            created_by=moderator,
+            note="Top-up receipt approved",
+            receipt=receipt,
+        )
+    # BOOKING / PACKAGE purposes are handled in Slice 5 pass 2.
+    receipt.status = Receipt.Status.APPROVED
+    receipt.reviewed_by = moderator
+    receipt.save(update_fields=["status", "reviewed_by", "updated_at"])
+    return receipt
+
+
+@transaction.atomic
+def reject_receipt(receipt, moderator, reason=""):
+    if receipt.status != Receipt.Status.PENDING:
+        raise errors.ReceiptNotPending()
+    receipt.status = Receipt.Status.REJECTED
+    receipt.reviewed_by = moderator
+    receipt.reject_reason = reason
+    receipt.save(update_fields=["status", "reviewed_by", "reject_reason", "updated_at"])
+    return receipt
