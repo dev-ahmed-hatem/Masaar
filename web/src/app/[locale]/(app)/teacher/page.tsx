@@ -18,7 +18,7 @@ export default async function TeacherPage({
     { label: d.teacher.profile, href: `/${locale}/teacher/profile` },
     { label: d.teacher.lessons, href: `/${locale}/teacher/lessons` },
     { label: d.teacher.availability, href: `/${locale}/teacher/profile` },
-    { label: d.teacher.earnings },
+    { label: d.teacher.earnings, href: `/${locale}/teacher/earnings` },
   ];
 
   return (

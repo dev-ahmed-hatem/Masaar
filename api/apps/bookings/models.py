@@ -60,6 +60,17 @@ class Booking(TimeStampedModel):
     cancel_reason = models.CharField(max_length=255, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
+    # Payout tracking: set when the teacher's wage is earned (settled), then
+    # linked to a PayoutItem once included in a payout cycle.
+    wage_settled = models.BooleanField(default=False)
+    payout_item = models.ForeignKey(
+        "payouts.PayoutItem",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="bookings",
+    )
+
     class Meta:
         ordering = ["-scheduled_start"]
 

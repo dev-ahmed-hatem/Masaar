@@ -161,9 +161,22 @@ and in discovery sort. Admin moderation/unpublish.
 - **Done:** ✅ live-verified — review → rating_avg 5.0/1 in discovery → hide → recomputed 0.0/0.
   6 review tests, 72 total.
 
-## Slice 7 — Payouts
+## Slice 7 — Payouts  — ✅ **complete**
 Monthly `PayoutCycle` generation from settled lessons; per-teacher `PayoutItem` computation; admin
 mark-paid with reference; teacher payout statements.
+
+- **Settled-lesson tracking:** `Booking.wage_settled` is set when the teacher is credited
+  (complete / no-show / late-forfeit / dispute-complete); `Booking.payout_item` links it once paid,
+  so nothing is paid twice.
+- **API (`IsStaff`):** `POST /api/payout-cycles/` sweeps a market's settled-but-unpaid lessons into
+  per-teacher `PayoutItem`s (period is a statement label); `GET /api/payout-cycles/[/<id>]`;
+  `POST /api/payout-items/<id>/mark-paid/` (reference) → item PAID, cycle auto-advances
+  OPEN→PROCESSING→PAID. Teacher statement: `GET /api/my-payouts/` (`IsTeacher`).
+- **Web (admin):** `/admin/payouts` — generate a cycle (market + period), cycles table, detail
+  drawer with per-teacher items + inline mark-paid. **Web (teacher):** `/teacher/earnings`
+  statement. Both linked from dashboards. AR+EN, RTL.
+- **Done:** ✅ live-verified — complete lesson → generate cycle (35.00 EGP / 1 lesson) → mark paid
+  (reference) → teacher statement shows PAID. 5 payout tests, 77 total.
 
 ## Slice 8 — Notifications
 Wire the `Notification` model to real channels (Track D): WhatsApp Business API, FCM/APNs push,

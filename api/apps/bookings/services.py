@@ -196,10 +196,14 @@ def cancel_booking(booking, actor, *, reason=""):
 
 
 def _credit_teacher(booking):
-    """A settled lesson counts toward the teacher's earnings (payout is Slice 7)."""
+    """A settled lesson counts toward the teacher's earnings and becomes payable
+    (picked up by the next payout cycle — Slice 7)."""
     teacher = booking.teacher
     teacher.lessons_count = (teacher.lessons_count or 0) + 1
     teacher.save(update_fields=["lessons_count", "updated_at"])
+    if not booking.wage_settled:
+        booking.wage_settled = True
+        booking.save(update_fields=["wage_settled", "updated_at"])
 
 
 @transaction.atomic
