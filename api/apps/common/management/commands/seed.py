@@ -10,7 +10,7 @@ from apps.accounts.models import User
 from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market, PaymentAccount
 from apps.payments import services as wallet_services
-from apps.payments.models import Receipt, Wallet
+from apps.payments.models import Package, Receipt, Wallet
 from apps.teachers.models import (
     AvailabilityRule,
     TeacherApplication,
@@ -138,6 +138,15 @@ class Command(BaseCommand):
                 purpose=Receipt.Purpose.TOPUP, status=Receipt.Status.PENDING,
             )
 
+        # --- Sample lesson packages (EG) — priced at face value; discount
+        #     structure is a §16 open item, so a grant equals what's paid. ----
+        for name, credits in [("Starter — 5 lessons", 5), ("Value — 10 lessons", 10)]:
+            Package.objects.get_or_create(
+                market=eg,
+                name=name,
+                defaults={"credits": credits, "price_minor": credits * 6000, "currency": "EGP"},
+            )
+
         # --- Sample pending teacher applications (for the review queue) ---
         for full_name, phone, bio in [
             ("Mona Adel", "+201222222201", "Physics & chemistry, 5 years of prep-school tutoring."),
@@ -184,6 +193,7 @@ class Command(BaseCommand):
             f"teachers={TeacherProfile.objects.count()} "
             f"applications={TeacherApplication.objects.count()} "
             f"students={User.objects.filter(role=User.Role.STUDENT).count()} "
+            f"packages={Package.objects.count()} "
             f"payment_accounts={PaymentAccount.objects.count()}"
         )
 

@@ -15,7 +15,7 @@ from django.db import transaction
 from apps.markets.models import Market
 
 from . import errors
-from .models import LedgerEntry, Receipt, Wallet
+from .models import LedgerEntry, PackagePurchase, Receipt, Wallet
 
 
 def get_or_create_wallet(user) -> Wallet:
@@ -90,19 +90,30 @@ def capture(wallet, amount_minor, *, booking, note=""):
 
 @transaction.atomic
 def approve_receipt(receipt, moderator):
-    """Verify a receipt and apply its effect (pass 1: TOPUP credits the wallet)."""
+    """Verify a receipt and apply its effect. All funding flows credit the
+    wallet (credits = wallet money); a PACKAGE receipt also grants its purchase."""
     if receipt.status != Receipt.Status.PENDING:
         raise errors.ReceiptNotPending()
-    if receipt.purpose == Receipt.Purpose.TOPUP:
+
+    wallet_obj = get_or_create_wallet(receipt.user)
+    if receipt.purpose == Receipt.Purpose.PACKAGE:
+        purchase = PackagePurchase.objects.select_related("package").get(receipt=receipt)
         credit(
-            get_or_create_wallet(receipt.user),
-            receipt.amount_minor,
-            kind=LedgerEntry.Kind.TOPUP,
-            created_by=moderator,
-            note="Top-up receipt approved",
-            receipt=receipt,
+            wallet_obj, receipt.amount_minor,
+            kind=LedgerEntry.Kind.PACKAGE_GRANT, created_by=moderator,
+            note=f"Package: {purchase.package.name}", receipt=receipt,
         )
-    # BOOKING / PACKAGE purposes are handled in Slice 5 pass 2.
+        purchase.status = PackagePurchase.Status.GRANTED
+        purchase.credits_granted = purchase.package.credits
+        purchase.save(update_fields=["status", "credits_granted", "updated_at"])
+    else:
+        # TOPUP and pay-per-BOOKING both add spendable funds.
+        note = "Booking payment approved" if receipt.purpose == Receipt.Purpose.BOOKING else "Top-up receipt approved"
+        credit(
+            wallet_obj, receipt.amount_minor,
+            kind=LedgerEntry.Kind.TOPUP, created_by=moderator, note=note, receipt=receipt,
+        )
+
     receipt.status = Receipt.Status.APPROVED
     receipt.reviewed_by = moderator
     receipt.save(update_fields=["status", "reviewed_by", "updated_at"])
@@ -117,4 +128,8 @@ def reject_receipt(receipt, moderator, reason=""):
     receipt.reviewed_by = moderator
     receipt.reject_reason = reason
     receipt.save(update_fields=["status", "reviewed_by", "reject_reason", "updated_at"])
+    if receipt.purpose == Receipt.Purpose.PACKAGE:
+        PackagePurchase.objects.filter(receipt=receipt).update(
+            status=PackagePurchase.Status.REJECTED
+        )
     return receipt

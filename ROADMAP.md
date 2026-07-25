@@ -124,7 +124,7 @@
   credited. *(✅ live-verified end-to-end + role-scoped lists; 16 booking tests, 54 total; student
   booking UI is mobile/Track C; teacher payout crediting is Slice 7.)*
 
-## Slice 5 — Manual payments & wallet  ⭐ (flagged priority)  — 🚧 **in progress** (top-up + verify done)
+## Slice 5 — Manual payments & wallet  ⭐ (flagged priority)  — ✅ **complete**
 
 **Goal:** the manual top-up/receipt → verify → ledger flow, plus packages.
 
@@ -137,11 +137,16 @@
   status filter, **side-by-side receipt image**, one-click approve (credits wallet) / reject with
   reason. Linked from the dashboard. AR+EN, RTL.
 - **Student side:** API-only for now (top-up UI is mobile/Track C).
-- **Still TODO (pass 2):** pay-per-booking (receipt linked to a booking) + packages (`Package`
-  catalog/purchase → grant wallet money on approve).
-- **Done when:** a student receipt can be verified and correctly credits an append-only ledger
-  (✅ live-verified: receipt → approve → wallet +100.00 via ledger `TOPUP`); all three funding flows
-  work. 6 receipt tests, 60 total.
+- **Pay-per-booking + packages (done):** `POST /api/receipts/` accepts `purpose=BOOKING` (optional
+  booking link) — credits the wallet on approve like a top-up. `GET /api/packages/` (market-scoped);
+  `POST /api/packages/<id>/purchase/` (multipart) creates a `PackagePurchase` + its PACKAGE receipt;
+  approving that receipt **grants wallet money** (ledger `PACKAGE_GRANT`) and marks the purchase
+  `GRANTED`; reject marks it `REJECTED`. `GET /api/package-purchases/`. The pass-1 verification queue
+  handles all three purposes unchanged. *(Packages grant at face value; discount structure is a §16
+  open item.)*
+- **Done:** a student receipt can be verified and correctly credits the append-only ledger; all
+  three funding flows (top-up, per-booking, package) work. *(✅ live-verified: top-up `TOPUP` +100,
+  package purchase → `PACKAGE_GRANT` +300, purchase GRANTED. 12 payment tests, 66 total.)*
 
 ## Slice 6 — Reviews
 Post-completion student→teacher rating; recompute `rating_avg`/`rating_count`; surface on profile
