@@ -72,23 +72,31 @@
 - **Done:** filtered search returns correct results scoped to market; detail resolves per-teacher
   price (override → default). 10 discovery tests; `check`, migrations, pytest (19), `npm run build` green.
 
-## Slice 3 — Teacher onboarding & profile management  — 🚧 **in progress** (onboarding+approval done)
+## Slice 3 — Teacher onboarding & profile management  — ✅ **complete**
 
 **Goal:** public application → moderator approval → published profile the teacher can manage.
 
-- **API (done):** `POST /api/teacher-applications/` (public submit; phone normalized with market
-  dial code; blocks a duplicate open application). Moderator (`IsStaff`) queue: list (`?status=`),
-  detail, `…/approve/`, `…/reject/`. **Approve** creates the teacher `User` (role TEACHER, verified,
-  random **temporary password** WhatsApp'd via `ACCOUNT_MESSAGE_SENDER`, `must_change_password=True`)
-  + a **draft** `TeacherProfile` (`is_published=False`), and links `created_profile`. Credential
-  handoff: teacher signs in with the temp password, then `POST /api/auth/password/change/`
-  (old+new) clears `must_change_password`. `must_change_password` surfaced on the user payload.
-- **Web (admin, done):** teacher-approvals queue at `/admin/applications` (status filter, table,
-  detail drawer, approve/reject with notes), linked from the dashboard. AR+EN, RTL.
-- **Still TODO (next pass):** teacher self-serve profile editor — profile, subjects, availability
-  rules, intro-video URL (Vidstack preview), free-lesson count, custom price requests; publish flow.
-- **Done when:** an application can be approved end-to-end and the new teacher logs in and edits
-  their published profile. *(Approval end-to-end ✅ live-verified; profile editor + publish pending.)*
+- **Onboarding & approval API:** `POST /api/teacher-applications/` (public submit; phone normalized
+  with market dial code; blocks a duplicate open application). Moderator (`IsStaff`) queue: list
+  (`?status=`), detail, `…/approve/`, `…/reject/`. **Approve** creates the teacher `User` (role
+  TEACHER, verified, random **temporary password** WhatsApp'd via `ACCOUNT_MESSAGE_SENDER`,
+  `must_change_password=True`) + a **draft** `TeacherProfile`, links `created_profile`. Credential
+  handoff: teacher signs in with the temp password, then `POST /api/auth/password/change/` clears
+  `must_change_password` (surfaced on the user payload).
+- **Teacher self-serve API** (`/api/teacher/`, `IsTeacher`, own record only): `GET/PATCH profile/`
+  (name/gender/languages/bios/intro-video/free-lessons), `POST profile/publish|unpublish/`
+  (publish validates ≥1 subject + a bio → 400 `profile_incomplete` with `missing[]`),
+  `lesson-categories/` (market-scoped picker), `subjects/` (+`<id>/` delete), `availability/`
+  (+`<id>/`), `prices/` (custom-price **requests** — `is_approved=False`, moderator approval is
+  Slice 5). Subject prices resolve override→default.
+- **Web (admin):** approvals queue at `/admin/applications` (status filter, table, drawer,
+  approve/reject with notes), linked from the dashboard.
+- **Web (teacher):** profile editor at `/teacher/profile` — profile form + YouTube intro-video
+  preview, subjects add/remove, weekly availability, custom-price requests, and a publish/unpublish
+  toggle surfacing what's missing. Linked from the teacher portal. AR+EN, RTL.
+- **Done:** application approved end-to-end and the new teacher logs in and edits + publishes their
+  profile (✅ live-verified). 19 Slice-3 tests (38 total); `check`, migrations, `npm run build` green.
+  *(Intro video is a plain YouTube embed for now; Vidstack player is a later polish.)*
 
 ## Slice 4 — Availability & booking lifecycle
 
