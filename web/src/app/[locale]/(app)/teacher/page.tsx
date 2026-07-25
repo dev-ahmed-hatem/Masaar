@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import RouteGuard from "@/components/route-guard";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -20,6 +21,7 @@ export default async function TeacherPage({
   ];
 
   return (
+    <RouteGuard locale={locale} allow={["TEACHER"]}>
     <section className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">{d.teacher.title}</h1>
@@ -37,5 +39,6 @@ export default async function TeacherPage({
         ))}
       </div>
     </section>
+    </RouteGuard>
   );
 }

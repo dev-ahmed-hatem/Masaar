@@ -113,6 +113,15 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.common.exceptions.masaar_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "otp_request": env("THROTTLE_OTP_REQUEST", default="5/min"),
+        "otp_verify": env("THROTTLE_OTP_VERIFY", default="10/min"),
+        "login": env("THROTTLE_LOGIN", default="10/min"),
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -128,3 +137,12 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+
+# --- OTP (phone verification + password reset via WhatsApp) ---
+OTP_LENGTH = env.int("OTP_LENGTH", default=6)
+OTP_TTL_SECONDS = env.int("OTP_TTL_SECONDS", default=300)
+OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
+OTP_RESEND_COOLDOWN_SECONDS = env.int("OTP_RESEND_COOLDOWN_SECONDS", default=60)
+# Dotted path to the OTP sender implementation. Dev logs the code; swap for the
+# WhatsApp Cloud API sender in production.
+OTP_SENDER = env("OTP_SENDER", default="apps.accounts.senders.ConsoleOTPSender")

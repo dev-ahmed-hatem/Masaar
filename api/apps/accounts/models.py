@@ -83,16 +83,20 @@ class GuardianLink(TimeStampedModel):
 
 
 class PhoneOTP(TimeStampedModel):
-    """Scaffold for phone + WhatsApp OTP verification (delivery wired later)."""
+    """Hashed one-time codes for phone verification and password reset.
+
+    Delivery goes through a pluggable sender (see accounts/senders.py); in dev
+    the console sender logs the plaintext code.
+    """
 
     class Purpose(models.TextChoices):
-        LOGIN = "LOGIN", "Login"
         VERIFY = "VERIFY", "Verify"
+        RESET = "RESET", "Password reset"
 
     phone = models.CharField(max_length=20, db_index=True)
     code_hash = models.CharField(max_length=128)
     purpose = models.CharField(
-        max_length=10, choices=Purpose.choices, default=Purpose.LOGIN
+        max_length=10, choices=Purpose.choices, default=Purpose.VERIFY
     )
     expires_at = models.DateTimeField()
     consumed_at = models.DateTimeField(null=True, blank=True)
