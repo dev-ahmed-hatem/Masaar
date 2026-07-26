@@ -21,6 +21,7 @@ import {
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { PageHeader } from "@/components/ui";
 import {
   teacherSelf,
   type AvailabilityRule,
@@ -32,7 +33,7 @@ import {
 
 type Dict = Dictionary["teacherProfile"];
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 function youtubeId(url: string): string | null {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{11})/);
@@ -130,27 +131,23 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <Title level={3} style={{ marginBottom: 4 }}>
-            {dict.title}
-          </Title>
-          <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            {dict.intro}
-          </Paragraph>
-        </div>
-        <Space direction="vertical" align="end">
-          <Tag color={profile.is_published ? "green" : "gold"}>
-            {profile.is_published ? dict.statusPublished : dict.statusDraft}
-          </Tag>
-          <Button
-            type={profile.is_published ? "default" : "primary"}
-            onClick={togglePublish}
-          >
-            {profile.is_published ? dict.unpublish : dict.publish}
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title={dict.title}
+        subtitle={dict.intro}
+        extra={
+          <Space direction="vertical" align="end">
+            <Tag color={profile.is_published ? "green" : "gold"}>
+              {profile.is_published ? dict.statusPublished : dict.statusDraft}
+            </Tag>
+            <Button
+              type={profile.is_published ? "default" : "primary"}
+              onClick={togglePublish}
+            >
+              {profile.is_published ? dict.unpublish : dict.publish}
+            </Button>
+          </Space>
+        }
+      />
 
       {missing.length > 0 && (
         <Alert

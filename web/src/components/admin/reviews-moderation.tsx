@@ -1,17 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, App, Button, Empty, Rate, Select, Table, Tag, Typography } from "antd";
+import { Alert, App, Button, Empty, Rate, Select, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { FilterField, PageHeader, Panel } from "@/components/ui";
 import { listReviews, republishReview, unpublishReview, type Review } from "@/lib/reviews";
 
 type Dict = Dictionary["adminReviews"];
-
-const { Title, Paragraph } = Typography;
 
 export default function ReviewsModeration({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
@@ -82,41 +81,38 @@ export default function ReviewsModeration({ dict, locale }: { dict: Dict; locale
     },
   ];
 
-  return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.title}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.intro}
-        </Paragraph>
-      </div>
+  const filters = (
+    <FilterField label={dict.filterPublished}>
+      <Select
+        value={published}
+        onChange={setPublished}
+        style={{ width: 220 }}
+        options={[
+          { value: "", label: dict.all },
+          { value: "true", label: dict.publishedOnly },
+          { value: "false", label: dict.hiddenOnly },
+        ]}
+      />
+    </FilterField>
+  );
 
-      <label className="flex flex-col gap-1 text-xs" style={{ maxWidth: 220 }}>
-        <span className="opacity-60">{dict.filterPublished}</span>
-        <Select
-          value={published}
-          onChange={setPublished}
-          options={[
-            { value: "", label: dict.all },
-            { value: "true", label: dict.publishedOnly },
-            { value: "false", label: dict.hiddenOnly },
-          ]}
-        />
-      </label>
+  return (
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       {error ? (
         <Alert type="error" message={error} showIcon />
       ) : (
-        <Table<Review>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-          pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
-        />
+        <Panel toolbar={filters}>
+          <Table<Review>
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            loading={loading}
+            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+          />
+        </Panel>
       )}
     </section>
   );

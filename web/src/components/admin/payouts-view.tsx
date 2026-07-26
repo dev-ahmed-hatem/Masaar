@@ -21,6 +21,7 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { FilterField, PageHeader, Panel } from "@/components/ui";
 import {
   generateCycle,
   getCycle,
@@ -35,7 +36,7 @@ import {
 
 type Dict = Dictionary["adminPayouts"];
 
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 
 const CYCLE_COLORS: Record<CycleStatus, string> = { OPEN: "gold", PROCESSING: "blue", PAID: "green" };
 const ITEM_COLORS: Record<ItemStatus, string> = { PENDING: "gold", PAID: "green" };
@@ -157,44 +158,41 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
     },
   ];
 
-  return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.title}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.intro}
-        </Paragraph>
-      </div>
+  const filters = (
+    <>
+      <FilterField label={dict.market}>
+        <Select value={market} onChange={setMarket} style={{ width: 120 }} options={MARKETS.map((m) => ({ value: m, label: m }))} />
+      </FilterField>
+      <FilterField label={dict.periodStart}>
+        <DatePicker value={start} onChange={setStart} />
+      </FilterField>
+      <FilterField label={dict.periodEnd}>
+        <DatePicker value={end} onChange={setEnd} />
+      </FilterField>
+      <Button type="primary" loading={generating} disabled={!start || !end} onClick={generate}>
+        {dict.generate}
+      </Button>
+    </>
+  );
 
-      <Space wrap align="end">
-        <Labeled label={dict.market}>
-          <Select value={market} onChange={setMarket} style={{ width: 120 }} options={MARKETS.map((m) => ({ value: m, label: m }))} />
-        </Labeled>
-        <Labeled label={dict.periodStart}>
-          <DatePicker value={start} onChange={setStart} />
-        </Labeled>
-        <Labeled label={dict.periodEnd}>
-          <DatePicker value={end} onChange={setEnd} />
-        </Labeled>
-        <Button type="primary" loading={generating} disabled={!start || !end} onClick={generate}>
-          {dict.generate}
-        </Button>
-      </Space>
+  return (
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       {error ? (
         <Alert type="error" message={error} showIcon />
       ) : (
-        <Table<PayoutCycle>
-          rowKey="id"
-          columns={cycleColumns}
-          dataSource={rows}
-          loading={loading}
-          onRow={(c) => ({ onClick: () => openCycle(c.id), style: { cursor: "pointer" } })}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-          pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
-        />
+        <Panel toolbar={filters}>
+          <Table<PayoutCycle>
+            rowKey="id"
+            columns={cycleColumns}
+            dataSource={rows}
+            loading={loading}
+            onRow={(c) => ({ onClick: () => openCycle(c.id), style: { cursor: "pointer" } })}
+            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+          />
+        </Panel>
       )}
 
       <Drawer
@@ -219,14 +217,5 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
         )}
       </Drawer>
     </section>
-  );
-}
-
-function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs">
-      <span className="opacity-60">{label}</span>
-      {children}
-    </label>
   );
 }

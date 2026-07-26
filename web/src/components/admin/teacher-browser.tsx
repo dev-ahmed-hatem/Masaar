@@ -18,6 +18,7 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { FilterField, PageHeader, Panel } from "@/components/ui";
 import {
   getTeacher,
   listSubjects,
@@ -29,7 +30,7 @@ import {
 
 type Dict = Dictionary["adminTeachers"];
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 const PAGE_SIZE = 20;
 
 const MARKETS = ["EG", "SA"] as const;
@@ -133,92 +134,89 @@ export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: L
     { title: dict.colLessons, dataIndex: "lessons_count", key: "lessons" },
   ];
 
-  return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.title}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.intro}
-        </Paragraph>
-      </div>
+  const filters = (
+    <>
+      <FilterField label={dict.market}>
+        <Select
+          value={market}
+          onChange={setMarket}
+          style={{ width: 160 }}
+          options={MARKETS.map((c) => ({ value: c, label: marketLabel(c, locale) }))}
+        />
+      </FilterField>
+      <FilterField label={dict.subject}>
+        <Select
+          allowClear
+          placeholder={dict.allSubjects}
+          value={subject}
+          onChange={(v) => setSubject(v)}
+          style={{ width: 200 }}
+          options={subjects.map((s) => ({ value: s.id, label: subjectName(s) }))}
+        />
+      </FilterField>
+      <FilterField label={dict.gender}>
+        <Select
+          allowClear
+          placeholder={dict.anyGender}
+          value={gender}
+          onChange={(v) => setGender(v)}
+          style={{ width: 140 }}
+          options={[
+            { value: "MALE", label: dict.male },
+            { value: "FEMALE", label: dict.female },
+          ]}
+        />
+      </FilterField>
+      <FilterField label={dict.minRating}>
+        <Select
+          allowClear
+          placeholder="—"
+          value={minRating}
+          onChange={(v) => setMinRating(v)}
+          style={{ width: 110 }}
+          options={[3, 3.5, 4, 4.5].map((r) => ({ value: r, label: `${r}★+` }))}
+        />
+      </FilterField>
+      <FilterField label={dict.sortBy}>
+        <Select
+          value={ordering}
+          onChange={setOrdering}
+          style={{ width: 180 }}
+          options={[
+            { value: "-rating_avg", label: dict.sortRating },
+            { value: "from_price_minor", label: dict.sortPriceAsc },
+            { value: "-lessons_count", label: dict.sortLessons },
+          ]}
+        />
+      </FilterField>
+    </>
+  );
 
-      <Space wrap size="middle">
-        <Labeled label={dict.market}>
-          <Select
-            value={market}
-            onChange={setMarket}
-            style={{ width: 160 }}
-            options={MARKETS.map((c) => ({ value: c, label: marketLabel(c, locale) }))}
-          />
-        </Labeled>
-        <Labeled label={dict.subject}>
-          <Select
-            allowClear
-            placeholder={dict.allSubjects}
-            value={subject}
-            onChange={(v) => setSubject(v)}
-            style={{ width: 200 }}
-            options={subjects.map((s) => ({ value: s.id, label: subjectName(s) }))}
-          />
-        </Labeled>
-        <Labeled label={dict.gender}>
-          <Select
-            allowClear
-            placeholder={dict.anyGender}
-            value={gender}
-            onChange={(v) => setGender(v)}
-            style={{ width: 140 }}
-            options={[
-              { value: "MALE", label: dict.male },
-              { value: "FEMALE", label: dict.female },
-            ]}
-          />
-        </Labeled>
-        <Labeled label={dict.minRating}>
-          <Select
-            allowClear
-            placeholder="—"
-            value={minRating}
-            onChange={(v) => setMinRating(v)}
-            style={{ width: 110 }}
-            options={[3, 3.5, 4, 4.5].map((r) => ({ value: r, label: `${r}★+` }))}
-          />
-        </Labeled>
-        <Labeled label={dict.sortBy}>
-          <Select
-            value={ordering}
-            onChange={setOrdering}
-            style={{ width: 180 }}
-            options={[
-              { value: "-rating_avg", label: dict.sortRating },
-              { value: "from_price_minor", label: dict.sortPriceAsc },
-              { value: "-lessons_count", label: dict.sortLessons },
-            ]}
-          />
-        </Labeled>
-      </Space>
+  return (
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       {error ? (
         <Alert type="error" message={error} showIcon />
       ) : (
-        <Table<TeacherListItem>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          onRow={(t) => ({ onClick: () => openDetail(t.id), style: { cursor: "pointer" } })}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-          pagination={{
-            current: page,
-            pageSize: PAGE_SIZE,
-            total,
-            showSizeChanger: false,
-            onChange: setPage,
-            showTotal: () => dict.resultsCount.replace("{count}", String(total)),
-          }}
-        />
+        <Panel toolbar={filters}>
+          <Table<TeacherListItem>
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            loading={loading}
+            onRow={(t) => ({ onClick: () => openDetail(t.id), style: { cursor: "pointer" } })}
+            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            pagination={{
+              current: page,
+              pageSize: PAGE_SIZE,
+              total,
+              showSizeChanger: false,
+              onChange: setPage,
+              showTotal: () => dict.resultsCount.replace("{count}", String(total)),
+            }}
+          />
+        </Panel>
       )}
 
       <Drawer
@@ -237,15 +235,6 @@ export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: L
         )}
       </Drawer>
     </section>
-  );
-}
-
-function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs">
-      <span className="opacity-60">{label}</span>
-      {children}
-    </label>
   );
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "antd";
+import { usePathname } from "next/navigation";
+import { Avatar, Button } from "antd";
 
 import { useAuth } from "@/context/auth-context";
 
@@ -27,39 +28,93 @@ export default function AppHeader({
   signOut: string;
 }) {
   const { user, logout } = useAuth();
+  const pathname = usePathname();
   const isTeacher = user?.role === "TEACHER";
   const isStaff = user?.role === "MODERATOR" || user?.role === "SUPERADMIN";
 
+  const links: { href: string; label: string }[] = [{ href: `/${locale}`, label: home }];
+  if (isTeacher) links.push({ href: `/${locale}/teacher`, label: teacher });
+  if (isStaff) links.push({ href: `/${locale}/admin`, label: admin });
+
+  const isActive = (href: string) =>
+    href === `/${locale}` ? pathname === href : pathname.startsWith(href);
+
+  const initial = (user?.full_name || user?.phone || "?").trim().charAt(0).toUpperCase();
+
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-black/10 px-6 py-4 dark:border-white/10">
-      <Link href={`/${locale}`} className="text-lg font-semibold">
-        {brand}
-      </Link>
-      <nav className="flex items-center gap-5 text-sm">
-        <Link href={`/${locale}`}>{home}</Link>
-        {isTeacher && <Link href={`/${locale}/teacher`}>{teacher}</Link>}
-        {isStaff && <Link href={`/${locale}/admin`}>{admin}</Link>}
-        <Link
-          href={otherHref}
-          className="rounded-md border border-black/15 px-2 py-1 dark:border-white/20"
-        >
-          {otherLabel}
-        </Link>
-        {user ? (
-          <span className="flex items-center gap-2">
-            <span className="opacity-70">{user.full_name || user.phone}</span>
-            <Button size="small" onClick={logout}>
-              {signOut}
-            </Button>
-          </span>
-        ) : (
-          <Link href={`/${locale}/sign-in`}>
-            <Button type="primary" size="small">
-              {signIn}
-            </Button>
+    <header
+      className="sticky top-0 z-20 backdrop-blur"
+      style={{
+        background: "color-mix(in srgb, var(--surface) 88%, transparent)",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex items-center gap-7">
+          <Link
+            href={`/${locale}`}
+            className="flex items-center gap-2 text-lg font-semibold"
+            style={{ color: "var(--ink)" }}
+          >
+            <span
+              className="inline-block h-6 w-6 rounded-lg"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--brand) 0%, #12a894 100%)",
+              }}
+            />
+            {brand}
           </Link>
-        )}
-      </nav>
+          <nav className="hidden items-center gap-1 sm:flex">
+            {links.map(({ href, label }) => {
+              const active = isActive(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+                  style={{
+                    color: active ? "var(--brand)" : "var(--ink-muted)",
+                    background: active ? "var(--brand-tint)" : "transparent",
+                  }}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href={otherHref}
+            className="rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors"
+            style={{ color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+          >
+            {otherLabel}
+          </Link>
+          {user ? (
+            <div className="flex items-center gap-2.5">
+              <Avatar
+                size={32}
+                style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 600 }}
+              >
+                {initial}
+              </Avatar>
+              <span className="hidden text-sm font-medium sm:inline" style={{ color: "var(--ink)" }}>
+                {user.full_name || user.phone}
+              </span>
+              <Button size="small" onClick={logout}>
+                {signOut}
+              </Button>
+            </div>
+          ) : (
+            <Link href={`/${locale}/sign-in`}>
+              <Button type="primary">{signIn}</Button>
+            </Link>
+          )}
+        </div>
+      </div>
     </header>
   );
 }

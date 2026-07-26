@@ -13,7 +13,6 @@ import {
   Space,
   Table,
   Tabs,
-  Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
@@ -23,10 +22,9 @@ import { ApiError } from "@/lib/api";
 import { bookingActions, listBookings, type Booking } from "@/lib/bookings";
 
 import { PROVIDERS, StatusTag, formatWhen, subjectLabel } from "@/components/bookings/shared";
+import { PageHeader, Panel } from "@/components/ui";
 
 type Dict = Dictionary["bookings"];
-
-const { Title, Paragraph } = Typography;
 
 const PAST: Booking["status"][] = ["COMPLETED", "DECLINED", "CANCELLED", "DISPUTED", "NO_SHOW"];
 
@@ -126,28 +124,23 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
   ];
 
   const tab = (rows: Booking[], columns: ColumnsType<Booking>) => (
-    <Table<Booking>
-      rowKey="id"
-      columns={columns}
-      dataSource={rows}
-      loading={loading}
-      pagination={false}
-      locale={{ emptyText: <Empty description={dict.empty} /> }}
-    />
+    <Panel>
+      <Table<Booking>
+        rowKey="id"
+        columns={columns}
+        dataSource={rows}
+        loading={loading}
+        pagination={false}
+        locale={{ emptyText: <Empty description={dict.empty} /> }}
+      />
+    </Panel>
   );
 
   if (error) return <Alert type="error" message={error} showIcon />;
 
   return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.teacherTitle}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.teacherIntro}
-        </Paragraph>
-      </div>
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.teacherTitle} subtitle={dict.teacherIntro} />
 
       <Tabs
         items={[

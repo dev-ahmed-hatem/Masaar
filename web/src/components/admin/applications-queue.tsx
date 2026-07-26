@@ -20,6 +20,7 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 import {
   approveApplication,
   listApplications,
@@ -30,7 +31,7 @@ import {
 
 type Dict = Dictionary["adminApplications"];
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
   PENDING: "gold",
@@ -122,46 +123,40 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
   const isPending =
     selected?.status === "PENDING" || selected?.status === "CHANGES_REQUESTED";
 
-  return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.title}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.intro}
-        </Paragraph>
-      </div>
+  const filters = (
+    <FilterField label={dict.filterStatus}>
+      <Select
+        value={status}
+        onChange={setStatus}
+        style={{ width: 220 }}
+        options={[
+          { value: "", label: dict.allStatuses },
+          ...STATUSES.map((s) => ({ value: s, label: statusLabel(s) })),
+        ]}
+      />
+    </FilterField>
+  );
 
-      <Space>
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="opacity-60">{dict.filterStatus}</span>
-          <Select
-            value={status}
-            onChange={setStatus}
-            style={{ width: 200 }}
-            options={[
-              { value: "", label: dict.allStatuses },
-              ...STATUSES.map((s) => ({ value: s, label: statusLabel(s) })),
-            ]}
-          />
-        </label>
-      </Space>
+  return (
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       {error ? (
         <Alert type="error" message={error} showIcon />
       ) : (
-        <Table<TeacherApplication>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          onRow={(a) => ({ onClick: () => openDetail(a), style: { cursor: "pointer" } })}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-          pagination={{
-            showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)),
-          }}
-        />
+        <Panel toolbar={filters}>
+          <Table<TeacherApplication>
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            loading={loading}
+            onRow={(a) => ({ onClick: () => openDetail(a), style: { cursor: "pointer" } })}
+            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            pagination={{
+              showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)),
+            }}
+          />
+        </Panel>
       )}
 
       <Drawer
@@ -175,9 +170,9 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             <Tag color={STATUS_COLORS[selected.status]}>{statusLabel(selected.status)}</Tag>
 
-            <Field label={dict.colPhone} value={selected.phone} />
-            <Field label={dict.email} value={selected.email || "—"} />
-            <Field label={dict.colMarket} value={selected.market} />
+            <DetailRow label={dict.colPhone} value={selected.phone} />
+            <DetailRow label={dict.email} value={selected.email || "—"} />
+            <DetailRow label={dict.colMarket} value={selected.market} />
 
             {selected.bio && (
               <div>
@@ -193,7 +188,7 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
             )}
 
             {selected.reviewed_by && (
-              <Field label={dict.reviewedBy} value={selected.reviewed_by} />
+              <DetailRow label={dict.reviewedBy} value={selected.reviewed_by} />
             )}
 
             {isPending ? (
@@ -231,14 +226,5 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
         )}
       </Drawer>
     </section>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 text-sm">
-      <span className="opacity-60">{label}</span>
-      <span className="text-end">{value}</span>
-    </div>
   );
 }

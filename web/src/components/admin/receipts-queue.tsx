@@ -20,11 +20,12 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 import { approveReceipt, listReceipts, rejectReceipt, type Receipt, type ReceiptStatus } from "@/lib/receipts";
 
 type Dict = Dictionary["adminReceipts"];
 
-const { Title, Paragraph, Text } = Typography;
+const { Text } = Typography;
 
 const STATUS_COLORS: Record<ReceiptStatus, string> = {
   PENDING: "gold",
@@ -94,41 +95,38 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
     { title: dict.colSubmitted, key: "when", render: (_, r) => new Date(r.created_at).toLocaleDateString(locale) },
   ];
 
-  return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.title}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.intro}
-        </Paragraph>
-      </div>
+  const filters = (
+    <FilterField label={dict.filterStatus}>
+      <Select
+        value={status}
+        onChange={setStatus}
+        style={{ width: 220 }}
+        options={[
+          { value: "", label: dict.allStatuses },
+          ...STATUSES.map((s) => ({ value: s, label: tr("status", s) })),
+        ]}
+      />
+    </FilterField>
+  );
 
-      <label className="flex flex-col gap-1 text-xs" style={{ maxWidth: 220 }}>
-        <span className="opacity-60">{dict.filterStatus}</span>
-        <Select
-          value={status}
-          onChange={setStatus}
-          options={[
-            { value: "", label: dict.allStatuses },
-            ...STATUSES.map((s) => ({ value: s, label: tr("status", s) })),
-          ]}
-        />
-      </label>
+  return (
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       {error ? (
         <Alert type="error" message={error} showIcon />
       ) : (
-        <Table<Receipt>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          onRow={(r) => ({ onClick: () => { setSelected(r); setReason(""); }, style: { cursor: "pointer" } })}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-          pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
-        />
+        <Panel toolbar={filters}>
+          <Table<Receipt>
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            loading={loading}
+            onRow={(r) => ({ onClick: () => { setSelected(r); setReason(""); }, style: { cursor: "pointer" } })}
+            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+          />
+        </Panel>
       )}
 
       <Drawer
@@ -162,12 +160,12 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
               <Tag color={STATUS_COLORS[selected.status]} className="w-fit">
                 {tr("status", selected.status)}
               </Tag>
-              <Field label={dict.colAmount} value={selected.amount_display} />
-              <Field label={dict.phone} value={selected.user_phone} />
-              <Field label={dict.colMethod} value={tr("method", selected.method)} />
-              <Field label={dict.colPurpose} value={tr("purpose", selected.purpose)} />
-              {selected.reference && <Field label={dict.reference} value={selected.reference} />}
-              {selected.reviewed_by && <Field label={dict.reviewedBy} value={selected.reviewed_by} />}
+              <DetailRow label={dict.colAmount} value={selected.amount_display} />
+              <DetailRow label={dict.phone} value={selected.user_phone} />
+              <DetailRow label={dict.colMethod} value={tr("method", selected.method)} />
+              <DetailRow label={dict.colPurpose} value={tr("purpose", selected.purpose)} />
+              {selected.reference && <DetailRow label={dict.reference} value={selected.reference} />}
+              {selected.reviewed_by && <DetailRow label={dict.reviewedBy} value={selected.reviewed_by} />}
               {selected.reject_reason && (
                 <Text type="secondary">
                   {dict.rejectReason}: {selected.reject_reason}
@@ -199,14 +197,5 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
         )}
       </Drawer>
     </section>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 text-sm">
-      <span className="opacity-60">{label}</span>
-      <span className="text-end">{value}</span>
-    </div>
   );
 }

@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Empty, Spin, Table, Tag, Typography } from "antd";
+import { Alert, Empty, Spin, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { PageHeader, Panel } from "@/components/ui";
 import { myPayouts, type ItemStatus, type PayoutItem } from "@/lib/payouts";
 
 type Dict = Dictionary["teacherEarnings"];
-
-const { Title, Paragraph, Text } = Typography;
 
 const COLORS: Record<ItemStatus, string> = { PENDING: "gold", PAID: "green" };
 
@@ -53,32 +52,35 @@ export default function EarningsView({ dict }: { dict: Dict }) {
   }
 
   return (
-    <section className="flex flex-col gap-5">
-      <div>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.title}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          {dict.intro}
-        </Paragraph>
-      </div>
+    <section className="flex flex-col gap-6">
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       {error ? (
         <Alert type="error" message={error} showIcon />
       ) : (
         <>
           {totalPaid > 0 && (
-            <Text strong>
-              {dict.totalPaid}: {(totalPaid / 100).toFixed(2)} {currency}
-            </Text>
+            <div className="surface px-5 py-4" style={{ maxWidth: 260 }}>
+              <div className="text-xs font-medium" style={{ color: "var(--ink-muted)" }}>
+                {dict.totalPaid}
+              </div>
+              <div className="mt-1 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+                {(totalPaid / 100).toFixed(2)}{" "}
+                <span className="text-base font-normal" style={{ color: "var(--ink-muted)" }}>
+                  {currency}
+                </span>
+              </div>
+            </div>
           )}
-          <Table<PayoutItem>
-            rowKey="id"
-            columns={columns}
-            dataSource={rows}
-            pagination={false}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
-          />
+          <Panel>
+            <Table<PayoutItem>
+              rowKey="id"
+              columns={columns}
+              dataSource={rows}
+              pagination={false}
+              locale={{ emptyText: <Empty description={dict.empty} /> }}
+            />
+          </Panel>
         </>
       )}
     </section>
