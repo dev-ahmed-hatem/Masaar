@@ -35,6 +35,18 @@ class Command(BaseCommand):
             defaults={"name": "Saudi Arabia", "currency": "SAR", "timezone": "Asia/Riyadh"},
         )
 
+        # --- Super-admin so the dashboard is reachable on a fresh deploy ----
+        admin, admin_created = User.objects.get_or_create(
+            phone="+201000000000",
+            defaults={
+                "full_name": "Dev Admin", "role": User.Role.SUPERADMIN,
+                "market": eg, "is_verified": True, "is_staff": True, "is_superuser": True,
+            },
+        )
+        if admin_created:
+            admin.set_password("Admin12345")
+            admin.save(update_fields=["password"])
+
         # --- Verticals -----------------------------------------------------
         verticals = {}
         for order, (code, en, ar) in enumerate(
@@ -157,6 +169,65 @@ class Command(BaseCommand):
             teacher=t_ahmed, lesson_category=eg_science,
             defaults={"custom_student_price_minor": 7000, "is_approved": False},
         )
+
+        # --- Sample bookings so the teacher/admin screens have real activity,
+        #     since the student app (which would create these) is not built yet.
+        from datetime import timedelta as _td
+
+        from django.utils import timezone as _tz
+
+        from apps.bookings.models import Booking
+        from apps.reviews import services as review_services
+        from apps.reviews.models import Review
+
+        # A pending request Sara can Confirm/Decline from her Lessons screen
+        # (wallet reserved like a real booking so those actions settle cleanly).
+        if not Booking.objects.filter(
+            student=student, teacher=t_sara, status=Booking.Status.REQUESTED
+        ).exists():
+            pending = Booking.objects.create(
+                student=student, teacher=t_sara, lesson_category=eg_math,
+                scheduled_start=_tz.now() + _td(days=2, hours=1), duration_min=60,
+                price_minor=5500, teacher_wage_minor=3500, currency="EGP",
+                status=Booking.Status.REQUESTED,
+            )
+            wallet_services.reserve(
+                wallet_services.get_or_create_wallet(student), 5500, booking=pending
+            )
+
+        # A completed, settled lesson for Ahmed -> powers Payouts + Earnings,
+        # and carries a published review for the Reviews-moderation screen.
+        done = Booking.objects.filter(
+            student=student, teacher=t_ahmed, status=Booking.Status.COMPLETED
+        ).first()
+        if done is None:
+            done = Booking.objects.create(
+                student=student, teacher=t_ahmed, lesson_category=eg_math,
+                scheduled_start=_tz.now() - _td(days=3), duration_min=60,
+                completed_at=_tz.now() - _td(days=3),
+                price_minor=6000, teacher_wage_minor=3500, currency="EGP",
+                status=Booking.Status.COMPLETED, wage_settled=True,
+            )
+        if not Review.objects.filter(booking=done).exists():
+            review_services.create_review(
+                student, done, 5, "Clear explanations and very patient — highly recommended."
+            )
+
+        # A teacher who must set a new password on first sign-in, so the forced
+        # password-change screen is testable without reading a temp password.
+        nour, created = User.objects.get_or_create(
+            phone="+201444444401",
+            defaults={
+                "full_name": "Nour Hassan", "role": User.Role.TEACHER,
+                "market": eg, "is_verified": True, "must_change_password": True,
+            },
+        )
+        if created:
+            nour.set_password("Temp12345")
+            nour.save(update_fields=["password"])
+            TeacherProfile.objects.get_or_create(
+                user=nour, defaults={"market": eg, "is_published": False}
+            )
 
         # --- Sample lesson packages (EG) — priced at face value; discount
         #     structure is a §16 open item, so a grant equals what's paid. ----
