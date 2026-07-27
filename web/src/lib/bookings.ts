@@ -34,9 +34,17 @@ export interface Booking {
 const post = (path: string, body: unknown = {}) =>
   apiAuthed<Booking>(path, { method: "POST", body: JSON.stringify(body) });
 
-export function listBookings(status?: string): Promise<Paginated<Booking>> {
-  const qs = status ? `?status=${status}` : "";
-  return apiAuthed<Paginated<Booking>>(`/api/bookings/${qs}`);
+export function listBookings(
+  status?: string,
+  opts: { from?: string; to?: string; page_size?: number } = {},
+): Promise<Paginated<Booking>> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (opts.from) params.set("from", opts.from);
+  if (opts.to) params.set("to", opts.to);
+  if (opts.page_size) params.set("page_size", String(opts.page_size));
+  const qs = params.toString();
+  return apiAuthed<Paginated<Booking>>(`/api/bookings/${qs ? `?${qs}` : ""}`);
 }
 
 export const bookingActions = {

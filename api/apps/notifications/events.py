@@ -45,6 +45,21 @@ EVENTS = {
         "title": "Payment rejected",
         "body": "Your payment was rejected: {reason}",
     },
+    "price_request_approved": {
+        "channels": [Channel.WHATSAPP],
+        "title": "Custom price approved",
+        "body": "Your custom price of {amount} was approved and is now live.",
+    },
+    "price_request_rejected": {
+        "channels": [Channel.WHATSAPP],
+        "title": "Custom price rejected",
+        "body": "Your custom price request was rejected: {reason}",
+    },
+    "chat_message": {
+        "channels": [Channel.PUSH],
+        "title": "New message",
+        "body": "New message from {sender}: {preview}",
+    },
     "payout_paid": {
         "channels": [Channel.WHATSAPP],
         "title": "Payout sent",

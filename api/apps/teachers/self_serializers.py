@@ -13,6 +13,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 
     market = serializers.SlugRelatedField(slug_field="code", read_only=True)
     full_name = serializers.CharField(source="user.full_name", required=False)
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = TeacherProfile
@@ -20,6 +21,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             "id",
             "full_name",
             "market",
+            "photo_url",
             "gender",
             "languages",
             "bio_en",
@@ -34,11 +36,18 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "market",
+            "photo_url",
             "rating_avg",
             "rating_count",
             "lessons_count",
             "is_published",
         )
+
+    def get_photo_url(self, obj) -> str | None:
+        if not obj.photo:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
 
     def update(self, instance, validated):
         user_data = validated.pop("user", {})
@@ -46,6 +55,15 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             instance.user.full_name = user_data["full_name"]
             instance.user.save(update_fields=["full_name"])
         return super().update(instance, validated)
+
+
+class TeacherPhotoSerializer(serializers.Serializer):
+    photo = serializers.ImageField(max_length=200)
+
+    def validate_photo(self, value):
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Photo must be 5 MB or smaller.")
+        return value
 
 
 def _effective_price(category: LessonCategory, overrides: dict[int, int]) -> dict:

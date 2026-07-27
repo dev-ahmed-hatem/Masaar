@@ -1,5 +1,14 @@
-import { apiAuthed } from "./api";
+import { apiAuthed, apiPost } from "./api";
 import type { Paginated } from "./teachers";
+
+export interface ApplicationInput {
+  full_name: string;
+  phone: string;
+  email?: string;
+  market: string;
+  bio: string;
+  intro_video_url?: string;
+}
 
 export type ApplicationStatus =
   | "PENDING"
@@ -21,6 +30,11 @@ export interface TeacherApplication {
   reviewed_by: string | null;
   created_profile_id: number | null;
   created_at: string;
+}
+
+/** Public "become a teacher" submission (no auth required). */
+export function submitApplication(body: ApplicationInput): Promise<TeacherApplication> {
+  return apiPost<TeacherApplication>("/api/teacher-applications/", body);
 }
 
 export function listApplications(

@@ -16,6 +16,7 @@ export interface TeacherListItem {
   id: number;
   full_name: string;
   market: string;
+  photo_url: string | null;
   gender: "MALE" | "FEMALE" | "";
   languages: string[];
   intro_video_url: string;

@@ -163,6 +163,14 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
         />
       )}
 
+      <Card title={dict.photoSection}>
+        <PhotoSection
+          dict={dict}
+          profile={profile}
+          onChange={(updated) => setProfile(updated)}
+        />
+      </Card>
+
       <Card title={dict.profileSection}>
         <ProfileForm dict={dict} profile={profile} onSave={saveProfile} />
       </Card>
@@ -234,6 +242,87 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
         }}
       />
     </section>
+  );
+}
+
+function PhotoSection({
+  dict,
+  profile,
+  onChange,
+}: {
+  dict: Dict;
+  profile: TeacherProfile;
+  onChange: (profile: TeacherProfile) => void;
+}) {
+  const { message } = App.useApp();
+  const [busy, setBusy] = useState(false);
+
+  async function upload(file: File) {
+    setBusy(true);
+    try {
+      onChange(await teacherSelf.uploadPhoto(file));
+      message.success(dict.photoUpdated);
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : dict.actionError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      onChange(await teacherSelf.removePhoto());
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : dict.actionError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-5">
+      {profile.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={profile.photo_url}
+          alt={profile.full_name}
+          className="h-24 w-24 rounded-full object-cover"
+          style={{ border: "2px solid var(--border)" }}
+        />
+      ) : (
+        <span
+          className="flex h-24 w-24 items-center justify-center rounded-full text-3xl font-bold"
+          style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+        >
+          {(profile.full_name || "?").trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+      <div className="flex flex-col gap-2">
+        <Text type="secondary">{dict.photoHint}</Text>
+        <Space>
+          <label className="btn btn-primary" style={{ cursor: "pointer" }}>
+            {busy ? "…" : profile.photo_url ? dict.photoReplace : dict.photoUpload}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) upload(file);
+              }}
+            />
+          </label>
+          {profile.photo_url ? (
+            <Button danger onClick={remove} disabled={busy}>
+              {dict.photoRemove}
+            </Button>
+          ) : null}
+        </Space>
+      </div>
+    </div>
   );
 }
 

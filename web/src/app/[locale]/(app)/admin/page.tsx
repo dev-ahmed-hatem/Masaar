@@ -21,7 +21,7 @@ export default async function AdminPage({
     { label: d.admin.receipts, href: `/${locale}/admin/receipts` },
     { label: d.adminReviews.title, href: `/${locale}/admin/reviews` },
     { label: d.admin.payouts, href: `/${locale}/admin/payouts` },
-    { label: d.admin.pricing },
+    { label: d.admin.pricing, href: `/${locale}/admin/pricing` },
   ];
 
   return (

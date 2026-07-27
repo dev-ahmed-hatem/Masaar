@@ -35,6 +35,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
     languages = serializers.SerializerMethodField()
     subjects = serializers.SerializerMethodField()
     from_price = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = TeacherProfile
@@ -42,6 +43,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
             "id",
             "full_name",
             "market",
+            "photo_url",
             "gender",
             "languages",
             "intro_video_url",
@@ -55,6 +57,12 @@ class TeacherListSerializer(serializers.ModelSerializer):
 
     def get_languages(self, obj) -> list[str]:
         return _split_languages(obj.languages)
+
+    def get_photo_url(self, obj) -> str | None:
+        if not obj.photo:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
 
     def get_subjects(self, obj) -> list[dict]:
         seen: dict[int, dict] = {}

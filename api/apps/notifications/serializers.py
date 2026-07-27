@@ -19,6 +19,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "payload",
             "status",
             "sent_at",
+            "read_at",
             "created_at",
         )
         read_only_fields = fields

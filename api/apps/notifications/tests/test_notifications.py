@@ -67,3 +67,27 @@ def test_feed_lists_own(api, user):
     assert res.status_code == 200 and res.data["count"] == 1
     row = res.data["results"][0]
     assert row["title"] == "Payment approved" and "1.00 EGP" in row["body"]
+
+
+def test_mark_read_and_unread_count(api, user):
+    notify(user, "receipt_approved", {"amount": "1.00 EGP"})
+    notify(user, "receipt_rejected", {"reason": "blurry"})
+    other = User.objects.create_user(phone="+201000000710", role=User.Role.STUDENT)
+    notify(other, "receipt_approved", {"amount": "9.00 EGP"})
+
+    api.force_authenticate(user=user)
+    assert api.get(f"{FEED}unread-count/").data["unread_count"] == 2
+
+    first_id = api.get(FEED).data["results"][0]["id"]
+    res = api.post(f"{FEED}mark-read/", {"ids": [first_id]}, format="json")
+    assert res.data["marked_read"] == 1
+    assert api.get(f"{FEED}unread-count/").data["unread_count"] == 1
+
+    res = api.post(f"{FEED}mark-read/", {}, format="json")
+    assert res.data["marked_read"] == 1
+    assert api.get(f"{FEED}unread-count/").data["unread_count"] == 0
+    assert all(row["read_at"] for row in api.get(FEED).data["results"])
+
+    # other user's rows untouched
+    api.force_authenticate(user=other)
+    assert api.get(f"{FEED}unread-count/").data["unread_count"] == 1

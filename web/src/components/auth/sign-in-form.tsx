@@ -27,7 +27,11 @@ export default function SignInForm({ dict, locale }: { dict: AuthDict; locale: s
       const res = await authApi.login(phone, values.password);
       storeSession(res);
       setUser(res.user);
-      router.push(homePathForRole(locale, res.user.role));
+      router.push(
+        res.user.must_change_password
+          ? `/${locale}/change-password`
+          : homePathForRole(locale, res.user.role),
+      );
     } catch (err) {
       if (err instanceof ApiError && err.code === "phone_not_verified") {
         try {

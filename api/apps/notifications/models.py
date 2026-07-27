@@ -24,6 +24,8 @@ class Notification(TimeStampedModel):
     payload = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     sent_at = models.DateTimeField(null=True, blank=True)
+    # In-app feed read state (null = unread). Distinct from delivery `status`.
+    read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

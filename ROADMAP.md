@@ -194,7 +194,33 @@ email — for OTP, booking status, receipt approved/rejected, reminders, payout 
 - **Done:** ✅ live-verified — confirming a booking notifies both parties (feed + console dispatch).
   5 notification tests, 82 total. *(Reminders/scheduled sends + real channel providers are Track D.)*
 
-## Slice 9 — Mobile app (Track C, Flutter)
+## Slice 9 — Chat + teacher-portal Preply-parity pass  — ✅ **complete**
+Everything a tutor needs to run their business from the web portal, plus the spec §13 messaging slice.
+
+- **Chat API (`apps/chat`, `/api/chat/`):** 1:1 student↔teacher threads (student-initiated, published
+  same-market teachers only; idempotent create), messages (newest-first cursor pagination), per-side
+  read watermarks, `unread-count/` badge endpoint; staff read-only. New `chat_message` PUSH event,
+  throttled to the recipient's 0→1 unread transition per thread. 9 tests.
+- **Notifications:** `read_at` on `Notification`, `POST mark-read/` (all or ids), `GET unread-count/`.
+- **Teacher API:** `GET /api/teacher/dashboard/` (rating, pending requests, upcoming + next lesson,
+  earnings pending/paid, unread counts); `TeacherProfile.photo` + `POST/DELETE /api/teacher/profile/photo/`
+  (`photo_url` in discovery + self serializers); bookings `?from=&to=` date filters.
+- **Staff API:** `/api/price-requests/` queue + `approve|reject` (notifies teacher; §16 override flow
+  resolved as approve-or-delete); `/api/admin/lesson-categories/` list/create/patch (market by code,
+  currency inherited, wage ≤ price validated).
+- **Web (teacher):** real dashboard at `/teacher` (stats, next-lesson card, publish callout),
+  `/teacher/messages` two-pane chat (5s visibility-aware polling), `/teacher/calendar` weekly grid
+  (availability + bookings), photo upload in the profile editor.
+- **Web (chrome/auth):** notifications bell + unread badge in the header (30s poll, mark-all-read);
+  **forced password-change** page + guard (`must_change_password` → `/change-password`) closing the
+  approve→temp-password handoff; public **“Become a teacher”** application page linked from landing/nav.
+- **Web (admin):** `/admin/pricing` — category price editor + price-request approve/reject queue
+  (the last “Soon” card is now live). Teacher browser shows photos.
+- **Done:** ✅ live-verified end-to-end (16-check API smoke: booking→confirm→dashboard, chat reply +
+  unread, notification read-state, price approve, category patch, application→temp-password→forced
+  change, photo upload/delete). 102 tests; `manage.py check` + `npm run build` green. AR+EN, RTL.
+
+## Slice 10 — Mobile app (Track C, Flutter)
 Kick off once auth + discovery + booking + payments APIs are stable: install Flutter SDK, scaffold
 the student app (RTL/i18n), then build student flows against the existing API.
 

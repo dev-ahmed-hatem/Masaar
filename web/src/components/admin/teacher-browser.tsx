@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  Avatar,
   Drawer,
   Empty,
   Rate,
@@ -104,7 +105,18 @@ export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: L
   }
 
   const columns: ColumnsType<TeacherListItem> = [
-    { title: dict.colName, dataIndex: "full_name", key: "name" },
+    {
+      title: dict.colName,
+      key: "name",
+      render: (_, t) => (
+        <Space>
+          <Avatar src={t.photo_url ?? undefined} style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 600 }}>
+            {(t.full_name || "?").trim().charAt(0).toUpperCase()}
+          </Avatar>
+          {t.full_name}
+        </Space>
+      ),
+    },
     {
       title: dict.colSubjects,
       key: "subjects",

@@ -6,12 +6,14 @@
   "nav": {
     "home": "Home",
     "teacher": "Teacher portal",
-    "admin": "Admin"
+    "admin": "Admin",
+    "becomeTeacher": "Become a teacher"
   },
   "landing": {
     "subtitle": "Tutoring reservation marketplace",
     "teacherCta": "Teacher portal",
-    "adminCta": "Moderator / Admin"
+    "adminCta": "Moderator / Admin",
+    "applyCta": "Become a teacher"
   },
   "teacher": {
     "title": "Teacher portal",
@@ -66,7 +68,21 @@
     "noPrices": "No custom price requests.",
     "loadError": "Could not load your profile.",
     "actionError": "Something went wrong. Please try again.",
-    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    "weekdays": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "photoSection": "Profile photo",
+    "photoHint": "A clear, friendly photo helps students choose you. JPG/PNG/WebP, up to 5 MB.",
+    "photoUpload": "Upload photo",
+    "photoReplace": "Replace photo",
+    "photoRemove": "Remove",
+    "photoUpdated": "Photo updated."
   },
   "admin": {
     "title": "Moderator / Admin",
@@ -110,7 +126,15 @@
     "reviews": "Reviews",
     "noReviews": "No reviews yet.",
     "introVideo": "Intro video",
-    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    "weekdays": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ]
   },
   "bookings": {
     "teacherTitle": "My lessons",
@@ -332,6 +356,119 @@
     "verifiedSuccess": "Phone verified. Welcome!",
     "resetSent": "If the account exists, a reset code was sent.",
     "resetSuccess": "Password updated. Please sign in.",
+    "genericError": "Something went wrong. Please try again.",
+    "changeTitle": "Set a new password",
+    "changeIntro": "For your security, choose a new password before continuing.",
+    "currentPassword": "Current password",
+    "changeSubmit": "Update password and continue",
+    "changeSuccess": "Password updated."
+  },
+  "apply": {
+    "badge": "Teach on Masaar",
+    "title": "Become a teacher",
+    "intro": "Share your knowledge with students across Egypt and Saudi Arabia. Apply in minutes — our team reviews every application.",
+    "step1": "Submit your application with a short bio and an intro video.",
+    "step2": "Our team reviews it and sends your sign-in details on WhatsApp.",
+    "step3": "Complete your profile, set your availability, and start teaching.",
+    "formTitle": "Your application",
+    "market": "Country",
+    "marketEG": "Egypt",
+    "marketSA": "Saudi Arabia",
+    "fullName": "Full name",
+    "phone": "Phone number",
+    "phoneHint": "We'll contact you on WhatsApp at this number.",
+    "email": "Email (optional)",
+    "bio": "About you",
+    "bioHint": "Your experience, what you teach, and why students should pick you.",
+    "video": "Intro video URL (optional)",
+    "videoHint": "A short YouTube video introducing yourself.",
+    "invalidUrl": "Enter a valid URL",
+    "submit": "Submit application",
+    "successTitle": "Application received!",
+    "successBody": "Thank you — our team will review your application and contact you on WhatsApp.",
+    "backHome": "Back to home",
+    "duplicate": "You already have an application under review.",
+    "requiredName": "Enter your full name",
+    "requiredPhone": "Enter your phone number",
+    "requiredBio": "Tell us about yourself",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "teacherDashboard": {
+    "welcome": "Welcome back, {name}",
+    "lessonsTaught": "{n} lessons taught",
+    "published": "Published",
+    "draft": "Draft",
+    "unpublishedTitle": "Your profile is not published",
+    "unpublishedBody": "Students can't find you yet. Complete your profile and publish it to start receiving bookings.",
+    "completeProfile": "Complete profile",
+    "pendingRequests": "Lesson requests",
+    "upcoming": "Upcoming lessons",
+    "earningsPending": "Earnings pending",
+    "earningsPaid": "Earnings paid",
+    "nextLesson": "Next lesson",
+    "noUpcoming": "No upcoming lessons yet.",
+    "join": "Join lesson",
+    "allLessons": "All lessons",
+    "minutes": "min",
+    "linkProfile": "My profile",
+    "linkLessons": "Lessons",
+    "linkCalendar": "Calendar",
+    "linkMessages": "Messages",
+    "linkEarnings": "Earnings"
+  },
+  "chat": {
+    "title": "Messages",
+    "intro": "Chat with students before and after they book with you.",
+    "noThreads": "No conversations yet. Students can message you from your profile.",
+    "selectThread": "Select a conversation",
+    "noMessagesYet": "No messages yet",
+    "loadOlder": "Load older messages",
+    "composerPlaceholder": "Type a message…",
+    "send": "Send",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications yet"
+  },
+  "teacherCalendar": {
+    "title": "Calendar",
+    "intro": "Your weekly schedule: availability windows and booked lessons.",
+    "today": "Today",
+    "legendAvailability": "Availability window",
+    "editAvailability": "Edit availability"
+  },
+  "adminPricing": {
+    "title": "Pricing",
+    "intro": "Manage lesson-category prices per market and review teachers' custom-price requests.",
+    "tabCategories": "Categories",
+    "tabRequests": "Price requests",
+    "colCategory": "Category",
+    "colStudentPrice": "Student price",
+    "colTeacherWage": "Teacher wage",
+    "colMargin": "Margin",
+    "colActive": "Active",
+    "newCategory": "New category",
+    "vertical": "Vertical",
+    "grade": "Grade level",
+    "subject": "Subject",
+    "create": "Create category",
+    "saved": "Saved.",
+    "colTeacher": "Teacher",
+    "colMarket": "Market",
+    "colDefaultPrice": "Default price",
+    "colRequestedPrice": "Requested price",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approveConfirm": "Approve this custom price?",
+    "approved": "Price request approved.",
+    "rejected": "Price request rejected.",
+    "rejectTitle": "Reject price request",
+    "rejectReason": "Reason (sent to the teacher)",
+    "statusPending": "Pending",
+    "statusApproved": "Approved",
+    "noRequests": "No price requests",
     "genericError": "Something went wrong. Please try again."
   }
 }

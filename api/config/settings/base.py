@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.payouts",
     "apps.reviews",
     "apps.notifications",
+    "apps.chat",
 ]
 
 MIDDLEWARE = [

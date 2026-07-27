@@ -1,5 +1,7 @@
 """Teacher self-serve API (`/api/teacher/`): manage own profile, subjects,
 availability and custom-price requests, and publish/unpublish the profile."""
+from django.db.models import Sum
+from django.utils import timezone
 from rest_framework.generics import (
     DestroyAPIView,
     ListAPIView,
@@ -7,6 +9,7 @@ from rest_framework.generics import (
     RetrieveUpdateAPIView,
 )
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -18,6 +21,7 @@ from . import errors
 from .models import AvailabilityRule, TeacherPrice, TeacherProfile, TeacherSubject
 from .self_serializers import (
     AvailabilitySerializer,
+    TeacherPhotoSerializer,
     TeacherPriceCreateSerializer,
     TeacherPriceReadSerializer,
     TeacherProfileSerializer,
@@ -136,6 +140,87 @@ class AvailabilityListCreateView(_TeacherScoped, ListCreateAPIView):
 class AvailabilityDeleteView(_TeacherScoped, DestroyAPIView):
     def get_queryset(self):
         return AvailabilityRule.objects.filter(teacher=self.get_teacher())
+
+
+class TeacherPhotoView(_TeacherScoped, APIView):
+    """Upload (multipart `photo`) or remove the teacher's profile photo."""
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        teacher = self.get_teacher()
+        serializer = TeacherPhotoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if teacher.photo:
+            teacher.photo.delete(save=False)
+        teacher.photo = serializer.validated_data["photo"]
+        teacher.save(update_fields=["photo", "updated_at"])
+        return Response(TeacherProfileSerializer(teacher, context={"request": request}).data)
+
+    def delete(self, request):
+        teacher = self.get_teacher()
+        if teacher.photo:
+            teacher.photo.delete(save=False)
+            teacher.photo = None
+            teacher.save(update_fields=["photo", "updated_at"])
+        return Response(TeacherProfileSerializer(teacher, context={"request": request}).data)
+
+
+class TeacherDashboardView(_TeacherScoped, APIView):
+    """One-call summary powering the teacher portal home."""
+
+    def get(self, request):
+        from apps.bookings.models import Booking
+        from apps.bookings.serializers import BookingSerializer
+        from apps.chat.services import unread_total
+        from apps.notifications.models import Notification
+        from apps.payouts.models import PayoutItem
+
+        teacher = self.get_teacher()
+        now = timezone.now()
+        bookings = Booking.objects.filter(teacher=teacher)
+        upcoming = bookings.filter(status=Booking.Status.CONFIRMED, scheduled_start__gte=now)
+        next_booking = (
+            upcoming.order_by("scheduled_start")
+            .select_related(
+                "student", "teacher__user", "lesson_category__vertical",
+                "lesson_category__grade_level", "lesson_category__subject",
+            )
+            .first()
+        )
+        pending_minor = (
+            bookings.filter(wage_settled=True, payout_item__isnull=True)
+            .aggregate(s=Sum("teacher_wage_minor"))["s"]
+            or 0
+        )
+        paid_minor = (
+            PayoutItem.objects.filter(teacher=teacher, status=PayoutItem.Status.PAID)
+            .aggregate(s=Sum("amount_minor"))["s"]
+            or 0
+        )
+        return Response(
+            {
+                "profile": {
+                    "full_name": teacher.user.full_name,
+                    "is_published": teacher.is_published,
+                    "rating_avg": float(teacher.rating_avg),
+                    "rating_count": teacher.rating_count,
+                    "lessons_count": teacher.lessons_count,
+                },
+                "pending_requests": bookings.filter(status=Booking.Status.REQUESTED).count(),
+                "upcoming_count": upcoming.count(),
+                "next_lesson": BookingSerializer(next_booking).data if next_booking else None,
+                "earnings": {
+                    "pending_minor": pending_minor,
+                    "paid_minor": paid_minor,
+                    "currency": teacher.market.currency,
+                },
+                "unread_notifications": Notification.objects.filter(
+                    user=request.user, read_at__isnull=True
+                ).count(),
+                "unread_messages": unread_total(request.user),
+            }
+        )
 
 
 class TeacherPriceListCreateView(_TeacherScoped, ListCreateAPIView):

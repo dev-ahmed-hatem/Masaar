@@ -24,12 +24,17 @@ export default function RouteGuard({
 }) {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const allowed = user != null && allow.includes(user.role);
+  const allowed =
+    user != null && allow.includes(user.role) && !user.must_change_password;
 
   useEffect(() => {
     if (loading) return;
     if (!user) {
       router.replace(`/${locale}/sign-in`);
+    } else if (user.must_change_password) {
+      // Provisioned accounts (e.g. approved teachers holding a temporary
+      // password) must set their own password before using the portal.
+      router.replace(`/${locale}/change-password`);
     } else if (!allow.includes(user.role)) {
       router.replace(homePathForRole(locale, user.role));
     }

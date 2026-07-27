@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Avatar, Button } from "antd";
 
 import { useAuth } from "@/context/auth-context";
+import NotificationsBell, { type BellLabels } from "@/components/notifications-bell";
 
 export default function AppHeader({
   locale,
@@ -12,20 +13,24 @@ export default function AppHeader({
   home,
   teacher,
   admin,
+  becomeTeacher,
   otherHref,
   otherLabel,
   signIn,
   signOut,
+  bell,
 }: {
   locale: string;
   brand: string;
   home: string;
   teacher: string;
   admin: string;
+  becomeTeacher: string;
   otherHref: string;
   otherLabel: string;
   signIn: string;
   signOut: string;
+  bell: BellLabels;
 }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -35,6 +40,8 @@ export default function AppHeader({
   const links: { href: string; label: string }[] = [{ href: `/${locale}`, label: home }];
   if (isTeacher) links.push({ href: `/${locale}/teacher`, label: teacher });
   if (isStaff) links.push({ href: `/${locale}/admin`, label: admin });
+  if (!isTeacher && !isStaff)
+    links.push({ href: `/${locale}/become-a-teacher`, label: becomeTeacher });
 
   const isActive = (href: string) =>
     href === `/${locale}` ? pathname === href : pathname.startsWith(href);
@@ -93,6 +100,7 @@ export default function AppHeader({
           >
             {otherLabel}
           </Link>
+          {user ? <NotificationsBell labels={bell} locale={locale} /> : null}
           {user ? (
             <div className="flex items-center gap-2.5">
               <Avatar

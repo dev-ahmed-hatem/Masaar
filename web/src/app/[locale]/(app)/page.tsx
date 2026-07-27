@@ -29,7 +29,10 @@ export default async function LandingPage({
           {d.app.tagline}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href={`/${locale}/teacher`} className="btn btn-primary">
+          <Link href={`/${locale}/become-a-teacher`} className="btn btn-primary">
+            {d.landing.applyCta}
+          </Link>
+          <Link href={`/${locale}/teacher`} className="btn btn-ghost">
             {d.landing.teacherCta}
           </Link>
           <Link href={`/${locale}/admin`} className="btn btn-ghost">

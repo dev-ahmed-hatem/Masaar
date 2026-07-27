@@ -56,6 +56,7 @@ class TeacherProfile(TimeStampedModel):
     market = models.ForeignKey(
         "markets.Market", on_delete=models.PROTECT, related_name="teachers"
     )
+    photo = models.ImageField(upload_to="teacher_photos/", null=True, blank=True)
     gender = models.CharField(max_length=6, choices=Gender.choices, blank=True)
     languages = models.CharField(
         max_length=120, blank=True, help_text="Comma-separated, e.g. 'ar,en'"

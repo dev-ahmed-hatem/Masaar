@@ -138,6 +138,26 @@ class Command(BaseCommand):
                 purpose=Receipt.Purpose.TOPUP, status=Receipt.Status.PENDING,
             )
 
+        # --- Sample chat thread (student ↔ Sara) so the messages UI demos ---
+        from apps.chat import services as chat_services
+        from apps.chat.models import Thread
+
+        if not Thread.objects.filter(student=student, teacher=t_sara).exists():
+            thread, _ = chat_services.get_or_create_thread(student, t_sara)
+            chat_services.send_message(
+                thread, student, "Hello! Do you have availability for Grade 4 maths this week?"
+            )
+            chat_services.send_message(
+                thread, t_sara.user, "Hi Omar! Yes — Sunday or Tuesday after 4pm works."
+            )
+            chat_services.send_message(thread, student, "Great, I'll book a Sunday slot. Thanks!")
+
+        # --- A pending custom-price request (for the moderation queue) -----
+        TeacherPrice.objects.get_or_create(
+            teacher=t_ahmed, lesson_category=eg_science,
+            defaults={"custom_student_price_minor": 7000, "is_approved": False},
+        )
+
         # --- Sample lesson packages (EG) — priced at face value; discount
         #     structure is a §16 open item, so a grant equals what's paid. ----
         for name, credits in [("Starter — 5 lessons", 5), ("Value — 10 lessons", 10)]:

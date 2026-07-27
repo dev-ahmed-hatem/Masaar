@@ -81,6 +81,25 @@ async function refreshAccess(): Promise<boolean> {
   return true;
 }
 
+/** Authenticated multipart request (no JSON content-type; browser sets the boundary). */
+export async function apiAuthedForm<T = unknown>(
+  path: string,
+  form: FormData,
+  method: string = "POST",
+  retry = true,
+): Promise<T> {
+  const access = tokens.access();
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: access ? { Authorization: `Bearer ${access}` } : {},
+    body: form,
+  });
+  if (res.status === 401 && retry && (await refreshAccess())) {
+    return apiAuthedForm<T>(path, form, method, false);
+  }
+  return parse<T>(res);
+}
+
 /** Authenticated request; refreshes the access token once on 401. */
 export async function apiAuthed<T = unknown>(
   path: string,

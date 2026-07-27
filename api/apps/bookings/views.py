@@ -71,6 +71,11 @@ class BookingListCreateView(ListCreateAPIView):
         status_param = self.request.query_params.get("status")
         if status_param:
             qs = qs.filter(status=status_param.upper())
+        # Date-range filters (ISO datetimes/dates) for calendar views.
+        if from_param := self.request.query_params.get("from"):
+            qs = qs.filter(scheduled_start__gte=from_param)
+        if to_param := self.request.query_params.get("to"):
+            qs = qs.filter(scheduled_start__lt=to_param)
         return qs
 
     def create(self, request, *args, **kwargs):

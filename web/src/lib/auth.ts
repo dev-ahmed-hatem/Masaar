@@ -11,6 +11,7 @@ export interface AuthUser {
   locale: string;
   market: string | null;
   is_verified: boolean;
+  must_change_password: boolean;
 }
 
 interface TokenPair {
@@ -44,6 +45,11 @@ export const authApi = {
       new_password,
     }),
   me: () => apiAuthed<AuthUser>("/api/auth/me/"),
+  changePassword: (old_password: string, new_password: string) =>
+    apiAuthed<{ message: string }>("/api/auth/password/change/", {
+      method: "POST",
+      body: JSON.stringify({ old_password, new_password }),
+    }),
 };
 
 export function storeSession(pair: TokenPair) {
