@@ -41,12 +41,6 @@
   --shadow-md: 0 8px 30px rgba(109, 94, 252, 0.12), 0 2px 10px rgba(15, 23, 41, 0.05);
   --glow: 0 10px 34px rgba(109, 94, 252, 0.28);
 
-  /* Fonts (next/font variables injected on <html>).
-     Latin renders in Jakarta; Arabic glyphs fall through to Cairo. */
-  --font-sans: var(--font-jakarta), var(--font-cairo), system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: var(--font-jakarta), var(--font-cairo), system-ui, sans-serif;
-
   /* Tailwind bridge */
   --background: var(--bg);
   --foreground: var(--ink);
@@ -62,8 +56,12 @@
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-ink-faint: var(--ink-faint);
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-display);
+
+  /* Fonts: Latin renders in Jakarta; Arabic glyphs fall through to Cairo
+     (next/font injects --font-jakarta / --font-cairo on <html>). */
+  --font-sans: var(--font-jakarta), var(--font-cairo), system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-cairo), system-ui, sans-serif;
 }
 
 html {

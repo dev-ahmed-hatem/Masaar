@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Cairo } from "next/font/google";
+import localFont from "next/font/local";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const jakarta = localFont({
+  src: "../../public/fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-jakarta",
   display: "swap",
+  weight: "200 800",
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
 });
 
-const cairo = Cairo({
-  subsets: ["arabic"],
+const cairo = localFont({
+  src: "../../public/fonts/cairo-arabic.woff2",
   variable: "--font-cairo",
   display: "swap",
+  weight: "200 1000",
+  fallback: ["Segoe UI", "Tahoma", "sans-serif"],
 });
 
 export const metadata: Metadata = {
