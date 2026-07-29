@@ -73,6 +73,7 @@ export default function VerifyForm({
       <Button
         type="primary"
         block
+        size="large"
         loading={loading}
         disabled={code.length !== 6}
         onClick={() => submit(code)}

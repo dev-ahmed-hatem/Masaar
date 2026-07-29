@@ -113,7 +113,7 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={loading}>
+        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
           {dict.signUp}
         </Button>
       </Form>

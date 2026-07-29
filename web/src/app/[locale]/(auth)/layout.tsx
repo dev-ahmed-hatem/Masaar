@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GraduationCap } from "lucide-react";
 
 export default async function AuthLayout({
   children,
@@ -10,23 +11,19 @@ export default async function AuthLayout({
   const { locale } = await params;
 
   return (
-    <div
-      className="grid min-h-screen place-items-center px-4 py-12"
-      style={{
-        background:
-          "radial-gradient(1100px 500px at 50% -10%, var(--brand-tint) 0%, var(--bg) 60%)",
-      }}
-    >
+    <div className="mesh-bg grid min-h-screen place-items-center px-4 py-12">
       <div className="w-full" style={{ maxWidth: 420 }}>
         <Link
           href={`/${locale}`}
-          className="mb-6 flex items-center justify-center gap-2 text-xl font-semibold"
-          style={{ color: "var(--ink)" }}
+          className="mb-7 flex items-center justify-center gap-2.5 text-2xl font-bold"
+          style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
         >
           <span
-            className="inline-block h-7 w-7 rounded-lg"
-            style={{ background: "linear-gradient(135deg, var(--brand) 0%, #12a894 100%)" }}
-          />
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white"
+            style={{ background: "var(--grad-brand)", boxShadow: "var(--glow)" }}
+          >
+            <GraduationCap size={20} strokeWidth={2.4} />
+          </span>
           Masaar
         </Link>
         {children}

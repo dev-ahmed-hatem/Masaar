@@ -98,7 +98,7 @@ export default function ResetPasswordForm({
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={loading}>
+        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
           {dict.setPassword}
         </Button>
       </Form>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Empty, Popover, Spin } from "antd";
-import { BellOutlined } from "@ant-design/icons";
+import { Bell } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import { notificationsApi, type NotificationItem } from "@/lib/notifications";
@@ -89,11 +89,17 @@ export default function NotificationsBell({
           {items.map((n) => (
             <div
               key={n.id}
-              className="rounded-lg px-3 py-2"
+              className="rounded-xl px-3 py-2.5"
               style={{ background: n.read_at ? "transparent" : "var(--brand-tint)" }}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--ink)" }}>
+                  {!n.read_at && (
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: "var(--grad-brand)" }}
+                    />
+                  )}
                   {n.title}
                 </span>
                 <span className="shrink-0 text-xs" style={{ color: "var(--ink-muted)" }}>
@@ -126,11 +132,11 @@ export default function NotificationsBell({
       <button
         type="button"
         aria-label={labels.title}
-        className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
-        style={{ color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+        className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-[var(--brand-tint)]"
+        style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
       >
-        <Badge count={count} size="small" offset={[2, -2]}>
-          <BellOutlined style={{ fontSize: 16 }} />
+        <Badge count={count} size="small" offset={[2, -2]} color="var(--brand)">
+          <Bell size={17} />
         </Badge>
       </button>
     </Popover>

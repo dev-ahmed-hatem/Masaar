@@ -78,7 +78,7 @@ export default function ChangePasswordForm({ dict, locale }: { dict: AuthDict; l
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={saving}>
+        <Button type="primary" htmlType="submit" block size="large" loading={saving}>
           {dict.changeSubmit}
         </Button>
       </Form>

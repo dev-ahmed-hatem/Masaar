@@ -31,7 +31,17 @@ export default async function AppLayout({
         signOut={d.auth.signOut}
         bell={d.notifications}
       />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+      <main className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]"
+          style={{
+            background:
+              "radial-gradient(50% 60% at 15% 0%, rgba(109,94,252,0.10), transparent 70%), radial-gradient(45% 55% at 90% 0%, rgba(34,211,238,0.10), transparent 72%)",
+          }}
+        />
+        {children}
+      </main>
     </>
   );
 }

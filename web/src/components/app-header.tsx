@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, Button } from "antd";
+import { GraduationCap } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import NotificationsBell, { type BellLabels } from "@/components/notifications-bell";
@@ -50,26 +51,22 @@ export default function AppHeader({
 
   return (
     <header
-      className="sticky top-0 z-20 backdrop-blur"
-      style={{
-        background: "color-mix(in srgb, var(--surface) 88%, transparent)",
-        borderBottom: "1px solid var(--border)",
-      }}
+      className="glass sticky top-0 z-20"
+      style={{ borderInline: "none", borderTop: "none" }}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-7">
           <Link
             href={`/${locale}`}
-            className="flex items-center gap-2 text-lg font-semibold"
-            style={{ color: "var(--ink)" }}
+            className="flex items-center gap-2.5 text-lg font-bold"
+            style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
           >
             <span
-              className="inline-block h-6 w-6 rounded-lg"
-              style={{
-                background:
-                  "linear-gradient(135deg, var(--brand) 0%, #12a894 100%)",
-              }}
-            />
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-white"
+              style={{ background: "var(--grad-brand)", boxShadow: "var(--glow)" }}
+            >
+              <GraduationCap size={18} strokeWidth={2.4} />
+            </span>
             {brand}
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
@@ -79,9 +76,9 @@ export default function AppHeader({
                 <Link
                   key={href}
                   href={href}
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+                  className="rounded-xl px-3.5 py-1.5 text-sm font-semibold transition-colors"
                   style={{
-                    color: active ? "var(--brand)" : "var(--ink-muted)",
+                    color: active ? "var(--brand-dark)" : "var(--ink-muted)",
                     background: active ? "var(--brand-tint)" : "transparent",
                   }}
                 >
@@ -95,21 +92,31 @@ export default function AppHeader({
         <div className="flex items-center gap-3">
           <Link
             href={otherHref}
-            className="rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors"
-            style={{ color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+            className="rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors"
+            style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
           >
             {otherLabel}
           </Link>
           {user ? <NotificationsBell labels={bell} locale={locale} /> : null}
           {user ? (
             <div className="flex items-center gap-2.5">
-              <Avatar
-                size={32}
-                style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 600 }}
+              <span
+                className="inline-flex items-center justify-center rounded-full p-[2px]"
+                style={{ background: "var(--grad-brand)" }}
               >
-                {initial}
-              </Avatar>
-              <span className="hidden text-sm font-medium sm:inline" style={{ color: "var(--ink)" }}>
+                <Avatar
+                  size={30}
+                  style={{
+                    background: "#fff",
+                    color: "var(--brand)",
+                    fontWeight: 700,
+                    border: "2px solid #fff",
+                  }}
+                >
+                  {initial}
+                </Avatar>
+              </span>
+              <span className="hidden text-sm font-semibold sm:inline" style={{ color: "var(--ink)" }}>
                 {user.full_name || user.phone}
               </span>
               <Button size="small" onClick={logout}>

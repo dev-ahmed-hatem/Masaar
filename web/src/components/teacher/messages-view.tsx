@@ -235,7 +235,7 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                           className="max-w-[75%] rounded-2xl px-3.5 py-2 text-sm"
                           style={
                             mine
-                              ? { background: "var(--brand)", color: "#fff" }
+                              ? { background: "var(--grad-brand)", color: "#fff", boxShadow: "var(--glow)" }
                               : { background: "var(--brand-tint)", color: "var(--ink)" }
                           }
                         >

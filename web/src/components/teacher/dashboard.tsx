@@ -3,8 +3,19 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Button, Card, Rate, Spin, Tag } from "antd";
+import {
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  Inbox,
+  MessageSquare,
+  User,
+  Wallet,
+  Hourglass,
+} from "lucide-react";
 
 import { formatWhen, subjectLabel } from "@/components/bookings/shared";
+import { IconChip, StatCard } from "@/components/ui";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { teacherSelf, type TeacherDashboard } from "@/lib/teacher-self";
 
@@ -37,32 +48,54 @@ export default function TeacherDashboardView({
 
   const { profile, earnings, next_lesson } = data;
 
-  const stats: { label: string; value: React.ReactNode; href: string; badge?: number }[] = [
+  const stats: {
+    label: string;
+    value: React.ReactNode;
+    href: string;
+    icon: React.ReactNode;
+  }[] = [
     {
       label: dict.pendingRequests,
       value: data.pending_requests,
       href: `/${locale}/teacher/lessons`,
-      badge: data.pending_requests,
+      icon: <Inbox size={18} />,
     },
-    { label: dict.upcoming, value: data.upcoming_count, href: `/${locale}/teacher/calendar` },
+    {
+      label: dict.upcoming,
+      value: data.upcoming_count,
+      href: `/${locale}/teacher/calendar`,
+      icon: <CalendarClock size={18} />,
+    },
     {
       label: dict.earningsPending,
       value: money(earnings.pending_minor, earnings.currency),
       href: `/${locale}/teacher/earnings`,
+      icon: <Hourglass size={18} />,
     },
     {
       label: dict.earningsPaid,
       value: money(earnings.paid_minor, earnings.currency),
       href: `/${locale}/teacher/earnings`,
+      icon: <Wallet size={18} />,
     },
   ];
 
   const quickLinks = [
-    { label: dict.linkProfile, href: `/${locale}/teacher/profile` },
-    { label: dict.linkLessons, href: `/${locale}/teacher/lessons`, badge: data.pending_requests },
-    { label: dict.linkCalendar, href: `/${locale}/teacher/calendar` },
-    { label: dict.linkMessages, href: `/${locale}/teacher/messages`, badge: data.unread_messages },
-    { label: dict.linkEarnings, href: `/${locale}/teacher/earnings` },
+    { label: dict.linkProfile, href: `/${locale}/teacher/profile`, icon: <User size={18} /> },
+    {
+      label: dict.linkLessons,
+      href: `/${locale}/teacher/lessons`,
+      badge: data.pending_requests,
+      icon: <Inbox size={18} />,
+    },
+    { label: dict.linkCalendar, href: `/${locale}/teacher/calendar`, icon: <CalendarDays size={18} /> },
+    {
+      label: dict.linkMessages,
+      href: `/${locale}/teacher/messages`,
+      badge: data.unread_messages,
+      icon: <MessageSquare size={18} />,
+    },
+    { label: dict.linkEarnings, href: `/${locale}/teacher/earnings`, icon: <Wallet size={18} /> },
   ];
 
   return (
@@ -83,9 +116,14 @@ export default function TeacherDashboardView({
         />
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className="mesh-bg surface flex flex-wrap items-center justify-between gap-3 overflow-hidden p-7"
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--ink)" }}>
+          <h1
+            className="text-3xl font-bold tracking-tight"
+            style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
+          >
             {dict.welcome.replace("{name}", profile.full_name || "")}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" style={{ color: "var(--ink-muted)" }}>
@@ -96,24 +134,22 @@ export default function TeacherDashboardView({
             <span>·</span>
             <span>{dict.lessonsTaught.replace("{n}", String(profile.lessons_count))}</span>
             {profile.is_published ? (
-              <Tag color="green">{dict.published}</Tag>
+              <Tag color="green" bordered={false} style={{ borderRadius: 999, fontWeight: 600 }}>
+                {dict.published}
+              </Tag>
             ) : (
-              <Tag>{dict.draft}</Tag>
+              <Tag bordered={false} style={{ borderRadius: 999, fontWeight: 600 }}>
+                {dict.draft}
+              </Tag>
             )}
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value, href, badge }) => (
-          <Link key={label} href={href} className="surface surface-hover flex flex-col gap-1 p-5">
-            <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>
-              {label}
-              {badge ? <Badge count={badge} size="small" className="ms-2" /> : null}
-            </span>
-            <span className="text-2xl font-bold" style={{ color: "var(--ink)" }}>
-              {value}
-            </span>
+        {stats.map(({ label, value, href, icon }) => (
+          <Link key={label} href={href} className="block">
+            <StatCard label={label} value={value} icon={icon} />
           </Link>
         ))}
       </div>
@@ -121,14 +157,19 @@ export default function TeacherDashboardView({
       <Card title={dict.nextLesson}>
         {next_lesson ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-base font-semibold" style={{ color: "var(--ink)" }}>
-                {subjectLabel(next_lesson, locale)}
-              </span>
-              <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
-                {next_lesson.student_name} · {formatWhen(next_lesson.scheduled_start, locale)} ·{" "}
-                {next_lesson.duration_min} {dict.minutes}
-              </span>
+            <div className="flex items-center gap-4">
+              <IconChip size={48}>
+                <CalendarClock size={22} />
+              </IconChip>
+              <div className="flex flex-col gap-1">
+                <span className="text-base font-semibold" style={{ color: "var(--ink)" }}>
+                  {subjectLabel(next_lesson, locale)}
+                </span>
+                <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
+                  {next_lesson.student_name} · {formatWhen(next_lesson.scheduled_start, locale)} ·{" "}
+                  {next_lesson.duration_min} {dict.minutes}
+                </span>
+              </div>
             </div>
             <div className="flex gap-2">
               {next_lesson.meeting_link ? (
@@ -147,22 +188,24 @@ export default function TeacherDashboardView({
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {quickLinks.map(({ label, href, badge }) => (
+        {quickLinks.map(({ label, href, badge, icon }) => (
           <Link
             key={href}
             href={href}
-            className="surface surface-hover group flex items-center justify-between gap-2 p-4"
+            className="surface surface-hover group flex items-center gap-3 p-4"
           >
-            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+            <IconChip size={38} variant="soft">
+              {icon}
+            </IconChip>
+            <span className="flex-1 text-sm font-semibold" style={{ color: "var(--ink)" }}>
               {label}
               {badge ? <Badge count={badge} size="small" className="ms-2" /> : null}
             </span>
-            <span
-              className="transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1"
+            <ArrowRight
+              size={16}
+              className="transition-transform group-hover:translate-x-1 rtl:-scale-x-100 rtl:group-hover:-translate-x-1"
               style={{ color: "var(--brand)" }}
-            >
-              →
-            </span>
+            />
           </Link>
         ))}
       </div>

@@ -11,9 +11,27 @@
   },
   "landing": {
     "subtitle": "Tutoring reservation marketplace",
+    "heroLead": "Learn faster with the right teacher.",
+    "heroSub": "Masaar connects students with vetted tutors across Egypt & Saudi Arabia — browse, book, and learn on your schedule.",
     "teacherCta": "Teacher portal",
     "adminCta": "Moderator / Admin",
-    "applyCta": "Become a teacher"
+    "applyCta": "Become a teacher",
+    "featuresTitle": "Everything you need to learn",
+    "features": [
+      {
+        "title": "Vetted teachers",
+        "desc": "Every teacher is reviewed and approved before they can take a single booking."
+      },
+      {
+        "title": "Book in seconds",
+        "desc": "Pick a subject, choose a time that works, and reserve your lesson instantly."
+      },
+      {
+        "title": "Secure payments",
+        "desc": "Pay safely and track every lesson, receipt, and payout in one place."
+      }
+    ],
+    "portalsTitle": "Jump back in"
   },
   "teacher": {
     "title": "Teacher portal",

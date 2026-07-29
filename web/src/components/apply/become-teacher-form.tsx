@@ -78,7 +78,7 @@ export default function BecomeTeacherForm({
         >
           {dict.badge}
         </span>
-        <Title level={2} className="!mt-4">
+        <Title level={2} className="!mt-4" style={{ fontFamily: "var(--font-display)" }}>
           {dict.title}
         </Title>
         <Paragraph type="secondary" className="mx-auto max-w-prose text-base">
@@ -88,10 +88,10 @@ export default function BecomeTeacherForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[dict.step1, dict.step2, dict.step3].map((step, i) => (
-          <div key={step} className="surface flex items-start gap-3 p-4">
+          <div key={step} className="surface surface-hover flex items-start gap-3 p-5">
             <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+              style={{ background: "var(--grad-brand)", boxShadow: "var(--glow)" }}
             >
               {i + 1}
             </span>

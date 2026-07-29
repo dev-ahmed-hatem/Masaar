@@ -63,7 +63,7 @@ export default function ForgotPasswordForm({
         >
           <Input inputMode="tel" placeholder="01xxxxxxxxx" autoComplete="tel" />
         </Form.Item>
-        <Button type="primary" htmlType="submit" block loading={loading}>
+        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
           {dict.sendResetCode}
         </Button>
       </Form>

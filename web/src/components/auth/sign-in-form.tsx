@@ -82,7 +82,7 @@ export default function SignInForm({ dict, locale }: { dict: AuthDict; locale: s
         <div className="mb-3 text-end">
           <Link href={`/${locale}/forgot-password`}>{dict.forgotPassword}</Link>
         </div>
-        <Button type="primary" htmlType="submit" block loading={loading}>
+        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
           {dict.signIn}
         </Button>
       </Form>

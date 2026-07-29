@@ -22,7 +22,15 @@ export function statusLabel(dict: Dict, status: BookingStatus): string {
 }
 
 export function StatusTag({ dict, status }: { dict: Dict; status: BookingStatus }) {
-  return <Tag color={STATUS_COLORS[status]}>{statusLabel(dict, status)}</Tag>;
+  return (
+    <Tag
+      color={STATUS_COLORS[status]}
+      bordered={false}
+      style={{ borderRadius: 999, fontWeight: 600, paddingInline: 12 }}
+    >
+      {statusLabel(dict, status)}
+    </Tag>
+  );
 }
 
 export function formatWhen(iso: string, locale: string): string {
