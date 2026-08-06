@@ -14,7 +14,6 @@ export default function AppHeader({
   home,
   teacher,
   admin,
-  becomeTeacher,
   otherHref,
   otherLabel,
   signIn,
@@ -26,7 +25,6 @@ export default function AppHeader({
   home: string;
   teacher: string;
   admin: string;
-  becomeTeacher: string;
   otherHref: string;
   otherLabel: string;
   signIn: string;
@@ -41,8 +39,6 @@ export default function AppHeader({
   const links: { href: string; label: string }[] = [{ href: `/${locale}`, label: home }];
   if (isTeacher) links.push({ href: `/${locale}/teacher`, label: teacher });
   if (isStaff) links.push({ href: `/${locale}/admin`, label: admin });
-  if (!isTeacher && !isStaff)
-    links.push({ href: `/${locale}/become-a-teacher`, label: becomeTeacher });
 
   const isActive = (href: string) =>
     href === `/${locale}` ? pathname === href : pathname.startsWith(href);

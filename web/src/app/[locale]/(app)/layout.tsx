@@ -24,7 +24,6 @@ export default async function AppLayout({
         home={d.nav.home}
         teacher={d.nav.teacher}
         admin={d.nav.admin}
-        becomeTeacher={d.nav.becomeTeacher}
         otherHref={`/${other}`}
         otherLabel={other === "ar" ? "العربية" : "English"}
         signIn={d.auth.signIn}

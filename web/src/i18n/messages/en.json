@@ -6,16 +6,12 @@
   "nav": {
     "home": "Home",
     "teacher": "Teacher portal",
-    "admin": "Admin",
-    "becomeTeacher": "Become a teacher"
+    "admin": "Admin"
   },
   "landing": {
     "subtitle": "Tutoring reservation marketplace",
     "heroLead": "Learn faster with the right teacher.",
     "heroSub": "Masaar connects students with vetted tutors across Egypt & Saudi Arabia — browse, book, and learn on your schedule.",
-    "teacherCta": "Teacher portal",
-    "adminCta": "Moderator / Admin",
-    "applyCta": "Become a teacher",
     "featuresTitle": "Everything you need to learn",
     "features": [
       {
@@ -30,8 +26,7 @@
         "title": "Secure payments",
         "desc": "Pay safely and track every lesson, receipt, and payout in one place."
       }
-    ],
-    "portalsTitle": "Jump back in"
+    ]
   },
   "teacher": {
     "title": "Teacher portal",

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, CalendarClock, GraduationCap, ShieldCheck, Wallet } from "lucide-react";
+import { CalendarClock, ShieldCheck, Wallet } from "lucide-react";
 
+import LandingActions from "@/components/landing-actions";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -36,15 +36,7 @@ export default async function LandingPage({
         <p className="mx-auto mt-5 max-w-xl text-lg" style={{ color: "var(--ink-muted)" }}>
           {d.landing.heroSub}
         </p>
-        <div className="mt-9 flex flex-wrap justify-center gap-3">
-          <Link href={`/${locale}/become-a-teacher`} className="btn btn-primary">
-            {d.landing.applyCta}
-            <ArrowRight size={18} className="rtl:-scale-x-100" />
-          </Link>
-          <Link href={`/${locale}/teacher`} className="btn btn-ghost">
-            {d.landing.teacherCta}
-          </Link>
-        </div>
+        <LandingActions locale={locale} signUp={d.auth.signUp} signIn={d.auth.signIn} />
       </div>
 
       {/* Features */}
@@ -77,66 +69,6 @@ export default async function LandingPage({
           })}
         </div>
       </div>
-
-      {/* Portals */}
-      <div>
-        <h2
-          className="text-xl font-bold tracking-tight"
-          style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-        >
-          {d.landing.portalsTitle}
-        </h2>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <PortalCard
-            href={`/${locale}/teacher`}
-            title={d.landing.teacherCta}
-            desc={d.teacher.intro}
-            icon={<GraduationCap size={22} strokeWidth={2.2} />}
-          />
-          <PortalCard
-            href={`/${locale}/admin`}
-            title={d.landing.adminCta}
-            desc={d.admin.intro}
-            icon={<ShieldCheck size={22} strokeWidth={2.2} />}
-          />
-        </div>
-      </div>
     </section>
-  );
-}
-
-function PortalCard({
-  href,
-  title,
-  desc,
-  icon,
-}: {
-  href: string;
-  title: string;
-  desc: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <Link href={href} className="surface surface-hover group flex items-center gap-4 p-6">
-      <span
-        className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-        style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-      >
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <h3 className="text-lg font-semibold" style={{ color: "var(--ink)" }}>
-          {title}
-        </h3>
-        <p className="text-sm" style={{ color: "var(--ink-muted)" }}>
-          {desc}
-        </p>
-      </div>
-      <ArrowRight
-        size={20}
-        className="shrink-0 transition-transform group-hover:translate-x-1 rtl:-scale-x-100 rtl:group-hover:-translate-x-1"
-        style={{ color: "var(--brand)" }}
-      />
-    </Link>
   );
 }
