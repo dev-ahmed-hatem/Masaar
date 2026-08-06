@@ -1,11 +1,13 @@
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from .models import StudentProfile
+from .permissions import IsStudent
 from .serializers import (
     MasaarTokenObtainPairSerializer,
     PasswordChangeSerializer,
@@ -13,7 +15,9 @@ from .serializers import (
     PasswordResetRequestSerializer,
     ResendOtpSerializer,
     SignupSerializer,
+    StudentProfileSerializer,
     UserSerializer,
+    UserUpdateSerializer,
     VerifyOtpSerializer,
     tokens_for_user,
 )
@@ -105,9 +109,31 @@ class PasswordChangeView(APIView):
         return Response({"message": "Password updated."})
 
 
-class MeView(RetrieveAPIView):
+class MeView(RetrieveUpdateAPIView):
+    """GET the current user; PATCH self-service fields (name/email/locale)."""
+
     permission_classes = [IsAuthenticated]
-    serializer_class = UserSerializer
 
     def get_object(self):
         return self.request.user
+
+    def get_serializer_class(self):
+        return UserUpdateSerializer if self.request.method in ("PUT", "PATCH") else UserSerializer
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(instance).data)
+
+
+class StudentProfileView(RetrieveUpdateAPIView):
+    """A student's own learning profile (grade level, date of birth)."""
+
+    permission_classes = [IsStudent]
+    serializer_class = StudentProfileSerializer
+
+    def get_object(self):
+        profile, _ = StudentProfile.objects.get_or_create(user=self.request.user)
+        return profile

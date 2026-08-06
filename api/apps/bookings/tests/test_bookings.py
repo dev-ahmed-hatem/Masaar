@@ -234,6 +234,47 @@ def test_trial_is_free_and_single_use(api, world):
     assert second.status_code == 400 and second.data["error"]["code"] == "trial_unavailable"
 
 
+# --- Reschedule ------------------------------------------------------------
+
+def test_student_reschedule_moves_time_keeps_reserve(api, world):
+    booking_id = _book(api, world, slot_at(timedelta(days=3))).data["id"]
+    new_when = slot_at(timedelta(days=4))
+    api.force_authenticate(user=world["student"])
+    res = api.post(
+        f"{BOOKINGS}{booking_id}/reschedule/",
+        {"scheduled_start": new_when.isoformat()},
+        format="json",
+    )
+    assert res.status_code == 200 and res.data["status"] == "REQUESTED"
+    assert res.data["scheduled_start"][:19] == new_when.isoformat()[:19]
+    assert _wallet(world["student"]).reserved_minor == 6000  # reserve untouched
+
+
+def test_reschedule_rejects_past_time(api, world):
+    booking_id = _book(api, world, slot_at(timedelta(days=3))).data["id"]
+    api.force_authenticate(user=world["student"])
+    res = api.post(
+        f"{BOOKINGS}{booking_id}/reschedule/",
+        {"scheduled_start": (timezone.now() - timedelta(days=1)).isoformat()},
+        format="json",
+    )
+    assert res.status_code == 400 and res.data["error"]["code"] == "slot_unavailable"
+
+
+def test_reschedule_rejects_non_participant(api, world):
+    booking_id = _book(api, world, slot_at(timedelta(days=3))).data["id"]
+    intruder = User.objects.create_user(
+        phone="+201000000270", role=User.Role.STUDENT, market=world["eg"], is_verified=True
+    )
+    api.force_authenticate(user=intruder)
+    res = api.post(
+        f"{BOOKINGS}{booking_id}/reschedule/",
+        {"scheduled_start": slot_at(timedelta(days=4)).isoformat()},
+        format="json",
+    )
+    assert res.status_code == 403
+
+
 # --- Scoping ---------------------------------------------------------------
 
 def test_other_student_cannot_view_booking(api, world):

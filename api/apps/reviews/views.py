@@ -31,6 +31,10 @@ class ReviewListCreateView(ListCreateAPIView):
 
     def get_queryset(self):
         qs = Review.objects.select_related("student", "teacher__user")
+        # A student's own review history (published or not).
+        mine = self.request.query_params.get("mine")
+        if mine and mine.lower() == "true" and self.request.user.is_authenticated:
+            return qs.filter(student=self.request.user)
         teacher = self.request.query_params.get("teacher")
         if teacher:
             qs = qs.filter(teacher_id=teacher)

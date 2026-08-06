@@ -9,6 +9,7 @@ from .views import (
     PasswordResetRequestView,
     ResendOtpView,
     SignupView,
+    StudentProfileView,
     VerifyOtpView,
 )
 
@@ -24,4 +25,5 @@ urlpatterns = [
     path("password/reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("password/change/", PasswordChangeView.as_view(), name="password-change"),
     path("me/", MeView.as_view(), name="me"),
+    path("me/profile/", StudentProfileView.as_view(), name="me-profile"),
 ]

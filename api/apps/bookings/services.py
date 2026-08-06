@@ -149,6 +149,30 @@ def request_booking(student, teacher, category, scheduled_start, *, duration_min
 
 
 @transaction.atomic
+def reschedule_booking(booking, actor, new_start, *, duration_min=None):
+    """Move a REQUESTED/CONFIRMED lesson to a new time (same teacher, category,
+    and price — so the wallet reservation is untouched). Re-runs availability
+    and overlap checks, excluding this booking from the busy set."""
+    if booking.status not in ACTIVE:
+        raise errors.SlotUnavailable("This lesson can no longer be rescheduled.")
+    teacher = booking.teacher
+    duration = duration_min or booking.duration_min
+    if new_start <= timezone.now():
+        raise errors.SlotUnavailable("Choose a future time.")
+    if not _within_availability(teacher, new_start, duration):
+        raise errors.SlotUnavailable()
+    end = new_start + timedelta(minutes=duration)
+    if _overlaps(new_start, end, _busy_intervals(teacher, exclude_id=booking.id)):
+        raise errors.SlotUnavailable()
+    booking.scheduled_start = new_start
+    booking.duration_min = duration
+    booking.save(update_fields=["scheduled_start", "duration_min", "updated_at"])
+    recipient = teacher.user if actor == booking.student else booking.student
+    notify(recipient, "booking_rescheduled", {"booking_id": booking.id})
+    return booking
+
+
+@transaction.atomic
 def confirm_booking(booking, *, meeting_provider, meeting_link):
     _guard(booking, Booking.Status.CONFIRMED)
     booking.meeting_provider = meeting_provider

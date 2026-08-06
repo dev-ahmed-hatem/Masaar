@@ -30,6 +30,11 @@ EVENTS = {
         "title": "Lesson cancelled",
         "body": "A lesson has been cancelled.",
     },
+    "booking_rescheduled": {
+        "channels": [Channel.WHATSAPP],
+        "title": "Lesson rescheduled",
+        "body": "A lesson has been rescheduled to a new time.",
+    },
     "lesson_completed": {
         "channels": [Channel.WHATSAPP],
         "title": "Lesson completed",

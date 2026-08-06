@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import RouteGuard from "@/components/route-guard";
+import StudentShell from "@/components/students/shell";
 import MessagesView from "@/components/teacher/messages-view";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -16,7 +17,9 @@ export default async function StudentMessagesPage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <MessagesView dict={d.chat} locale={locale} />
+      <StudentShell active="messages" nav={d.nav} locale={locale}>
+        <MessagesView dict={d.chat} locale={locale} />
+      </StudentShell>
     </RouteGuard>
   );
 }

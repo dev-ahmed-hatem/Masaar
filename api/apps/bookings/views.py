@@ -17,6 +17,7 @@ from .serializers import (
     BookingSerializer,
     ConfirmSerializer,
     ReasonSerializer,
+    RescheduleSerializer,
     ResolveSerializer,
     SlotSerializer,
 )
@@ -177,6 +178,22 @@ class BookingCancelView(_BookingAction):
         return self.ok(
             services.cancel_booking(booking, request.user, reason=serializer.validated_data["reason"])
         )
+
+
+class BookingRescheduleView(_BookingAction):
+    @extend_schema(request=RescheduleSerializer, responses={200: BookingSerializer})
+    def post(self, request, pk):
+        booking = self.get_booking(pk)
+        _assert_participant(request.user, booking)
+        serializer = RescheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        booking = services.reschedule_booking(
+            booking,
+            request.user,
+            serializer.validated_data["scheduled_start"],
+            duration_min=serializer.validated_data.get("duration_min"),
+        )
+        return self.ok(booking)
 
 
 class BookingDisputeView(_BookingAction):

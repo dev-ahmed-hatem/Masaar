@@ -60,6 +60,17 @@ export function listSlots(teacherId: number, days = 14): Promise<Slot[]> {
   return apiAuthed<Slot[]>(`/api/bookings/slots/?teacher=${teacherId}&days=${days}`);
 }
 
+/** Move a REQUESTED/CONFIRMED lesson to a new time (price/reserve unchanged). */
+export function rescheduleBooking(
+  id: number,
+  input: { scheduled_start: string; duration_min?: number },
+): Promise<Booking> {
+  return apiAuthed<Booking>(`/api/bookings/${id}/reschedule/`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 const post = (path: string, body: unknown = {}) =>
   apiAuthed<Booking>(path, { method: "POST", body: JSON.stringify(body) });
 

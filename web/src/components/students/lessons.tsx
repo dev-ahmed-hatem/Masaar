@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, App, Button, Empty, Input, Modal, Rate, Space, Table, Tabs } from "antd";
+import { Alert, App, Button, Empty, Input, Modal, Rate, Select, Space, Spin, Table, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { bookingActions, listBookings, type Booking } from "@/lib/bookings";
+import { bookingActions, listBookings, listSlots, rescheduleBooking, type Booking, type Slot } from "@/lib/bookings";
 import { createReview } from "@/lib/reviews";
 import { StatusTag, formatWhen, subjectLabel } from "@/components/bookings/shared";
 import { PageHeader, Panel } from "@/components/ui";
@@ -31,6 +31,7 @@ export default function StudentLessons({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<Booking | null>(null);
+  const [rescheduling, setRescheduling] = useState<Booking | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(new Set());
 
   const load = useCallback(() => {
@@ -91,9 +92,14 @@ export default function StudentLessons({
       title: "",
       key: "actions",
       render: (_, b) => (
-        <Button size="small" danger onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}>
-          {dict.cancel}
-        </Button>
+        <Space wrap>
+          <Button size="small" onClick={() => setRescheduling(b)}>
+            {dict.reschedule}
+          </Button>
+          <Button size="small" danger onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}>
+            {dict.cancel}
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -110,6 +116,9 @@ export default function StudentLessons({
               {dict.join} ↗
             </a>
           )}
+          <Button size="small" onClick={() => setRescheduling(b)}>
+            {dict.reschedule}
+          </Button>
           <Button size="small" onClick={() => run(() => bookingActions.complete(b.id), dict.completed)}>
             {dict.complete}
           </Button>
@@ -173,7 +182,98 @@ export default function StudentLessons({
           }}
         />
       )}
+
+      {rescheduling && (
+        <RescheduleModal
+          booking={rescheduling}
+          dict={dict}
+          locale={locale}
+          onClose={() => setRescheduling(null)}
+          onDone={() => {
+            setRescheduling(null);
+            load();
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function RescheduleModal({
+  booking,
+  dict,
+  locale,
+  onClose,
+  onDone,
+}: {
+  booking: Booking;
+  dict: Dict;
+  locale: Locale;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { message } = App.useApp();
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(true);
+  const [start, setStart] = useState<string | undefined>();
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    listSlots(booking.teacher_id)
+      .then((s) => active && setSlots(s))
+      .catch(() => active && setSlots([]))
+      .finally(() => active && setLoadingSlots(false));
+    return () => {
+      active = false;
+    };
+  }, [booking.teacher_id]);
+
+  const groups = slots.reduce<Record<string, Slot[]>>((acc, s) => {
+    const key = new Date(s.start).toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric" });
+    (acc[key] ??= []).push(s);
+    return acc;
+  }, {});
+  const options = Object.entries(groups).map(([label, items]) => ({
+    label,
+    options: items.map((s) => ({
+      label: new Date(s.start).toLocaleTimeString(locale, { timeStyle: "short" }),
+      value: s.start,
+    })),
+  }));
+
+  async function submit() {
+    if (!start) return;
+    setSubmitting(true);
+    try {
+      await rescheduleBooking(booking.id, { scheduled_start: start });
+      message.success(dict.rescheduled);
+      onDone();
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : dict.actionError);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onCancel={onClose}
+      onOk={submit}
+      title={dict.rescheduleTitle}
+      okButtonProps={{ disabled: !start, loading: submitting }}
+    >
+      <div className="py-2">
+        {loadingSlots ? (
+          <div className="flex justify-center py-6"><Spin /></div>
+        ) : slots.length === 0 ? (
+          <Empty description="—" />
+        ) : (
+          <Select value={start} onChange={setStart} options={options} style={{ width: "100%" }} />
+        )}
+      </div>
+    </Modal>
   );
 }
 

@@ -39,6 +39,20 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """Self-service edit of safe account fields (name/email/locale)."""
+
+    class Meta:
+        model = User
+        fields = ("full_name", "email", "locale")
+
+
+class StudentProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentProfile
+        fields = ("date_of_birth", "grade_level")
+
+
 class SignupSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     full_name = serializers.CharField(max_length=150)

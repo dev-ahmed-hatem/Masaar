@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import RouteGuard from "@/components/route-guard";
 import StudentLessons from "@/components/students/lessons";
+import StudentShell from "@/components/students/shell";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -16,7 +17,9 @@ export default async function LessonsPage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <StudentLessons dict={d.myLessons} bookingsDict={d.bookings} locale={locale} />
+      <StudentShell active="lessons" nav={d.nav} locale={locale}>
+        <StudentLessons dict={d.myLessons} bookingsDict={d.bookings} locale={locale} />
+      </StudentShell>
     </RouteGuard>
   );
 }

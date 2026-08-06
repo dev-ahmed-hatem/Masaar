@@ -47,6 +47,11 @@ class BookingSerializer(serializers.ModelSerializer):
         return market.code if market else ""
 
 
+class RescheduleSerializer(serializers.Serializer):
+    scheduled_start = serializers.DateTimeField()
+    duration_min = serializers.IntegerField(required=False, min_value=15, max_value=240)
+
+
 class BookingCreateSerializer(serializers.Serializer):
     teacher = serializers.PrimaryKeyRelatedField(
         queryset=TeacherProfile.objects.filter(is_published=True)

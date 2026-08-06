@@ -110,6 +110,24 @@ class TeacherPrice(TimeStampedModel):
         return f"{self.teacher} · {self.lesson_category} = {self.custom_student_price_minor}"
 
 
+class FavoriteTeacher(TimeStampedModel):
+    """A teacher a student has saved/bookmarked."""
+
+    student = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="favorite_teachers"
+    )
+    teacher = models.ForeignKey(
+        TeacherProfile, on_delete=models.CASCADE, related_name="favorited_by"
+    )
+
+    class Meta:
+        unique_together = [("student", "teacher")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.student} ♥ {self.teacher}"
+
+
 class AvailabilityRule(TimeStampedModel):
     """Recurring weekly availability window for a teacher (local to their market TZ)."""
 

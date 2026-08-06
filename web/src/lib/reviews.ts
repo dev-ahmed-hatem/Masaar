@@ -34,6 +34,11 @@ export function listReviews(params: { teacher?: number; published?: string }): P
   return apiAuthed<Paginated<Review>>(`/api/reviews/${s ? `?${s}` : ""}`);
 }
 
+/** The current student's own review history (published or not). */
+export function listMyReviews(): Promise<Paginated<Review>> {
+  return apiAuthed<Paginated<Review>>(`/api/reviews/?mine=true`);
+}
+
 export function unpublishReview(id: number): Promise<Review> {
   return apiAuthed(`/api/reviews/${id}/unpublish/`, { method: "POST", body: JSON.stringify({}) });
 }

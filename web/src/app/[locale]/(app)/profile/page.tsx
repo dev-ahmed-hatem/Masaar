@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 
 import RouteGuard from "@/components/route-guard";
+import ProfileView from "@/components/students/profile";
 import StudentShell from "@/components/students/shell";
-import WalletView from "@/components/students/wallet";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
-export default async function WalletPage({
+export default async function ProfilePage({
   params,
 }: {
   params: Promise<{ locale: string }>;
@@ -17,8 +17,8 @@ export default async function WalletPage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <StudentShell active="wallet" nav={d.nav} locale={locale}>
-        <WalletView dict={d.wallet} locale={locale} />
+      <StudentShell active="profile" nav={d.nav} locale={locale}>
+        <ProfileView dict={d.profile} locale={locale} />
       </StudentShell>
     </RouteGuard>
   );

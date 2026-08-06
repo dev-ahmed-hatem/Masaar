@@ -9,6 +9,7 @@ from .views import (
     BookingDisputeView,
     BookingListCreateView,
     BookingNoShowView,
+    BookingRescheduleView,
     BookingResolveView,
     SlotListView,
 )
@@ -23,6 +24,7 @@ urlpatterns = [
     path("<int:pk>/decline/", BookingDeclineView.as_view(), name="decline"),
     path("<int:pk>/complete/", BookingCompleteView.as_view(), name="complete"),
     path("<int:pk>/cancel/", BookingCancelView.as_view(), name="cancel"),
+    path("<int:pk>/reschedule/", BookingRescheduleView.as_view(), name="reschedule"),
     path("<int:pk>/dispute/", BookingDisputeView.as_view(), name="dispute"),
     path("<int:pk>/no-show/", BookingNoShowView.as_view(), name="no-show"),
     path("<int:pk>/resolve/", BookingResolveView.as_view(), name="resolve"),
