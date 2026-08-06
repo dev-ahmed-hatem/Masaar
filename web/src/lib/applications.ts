@@ -39,9 +39,14 @@ export function submitApplication(body: ApplicationInput): Promise<TeacherApplic
 
 export function listApplications(
   status?: string,
+  page = 1,
+  page_size = 20,
 ): Promise<Paginated<TeacherApplication>> {
-  const qs = status ? `?status=${status}` : "";
-  return apiAuthed<Paginated<TeacherApplication>>(`/api/teacher-applications/${qs}`);
+  const qs = new URLSearchParams();
+  if (status) qs.set("status", status);
+  qs.set("page", String(page));
+  qs.set("page_size", String(page_size));
+  return apiAuthed<Paginated<TeacherApplication>>(`/api/teacher-applications/?${qs}`);
 }
 
 export function approveApplication(

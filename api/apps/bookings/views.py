@@ -72,6 +72,22 @@ class BookingListCreateView(ListCreateAPIView):
         status_param = self.request.query_params.get("status")
         if status_param:
             qs = qs.filter(status=status_param.upper())
+        # Tab grouping for lesson lists (composes with role scoping + pagination).
+        group = self.request.query_params.get("group")
+        if group == "requested":
+            qs = qs.filter(status=Booking.Status.REQUESTED)
+        elif group == "upcoming":
+            qs = qs.filter(status=Booking.Status.CONFIRMED)
+        elif group == "past":
+            qs = qs.filter(
+                status__in=[
+                    Booking.Status.COMPLETED,
+                    Booking.Status.DECLINED,
+                    Booking.Status.CANCELLED,
+                    Booking.Status.DISPUTED,
+                    Booking.Status.NO_SHOW,
+                ]
+            )
         # Date-range filters (ISO datetimes/dates) for calendar views.
         if from_param := self.request.query_params.get("from"):
             qs = qs.filter(scheduled_start__gte=from_param)

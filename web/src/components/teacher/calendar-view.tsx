@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { Button, Spin, Tag } from "antd";
+import { Alert, Button, Spin, Tag } from "antd";
 
 import { STATUS_COLORS, statusLabel } from "@/components/bookings/shared";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -34,10 +34,17 @@ export default function CalendarView({
   const [weekStart, setWeekStart] = useState(() => startOfWeek(dayjs()));
   const [rules, setRules] = useState<AvailabilityRule[] | null>(null);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    teacherSelf.listAvailability().then(setRules).catch(() => setRules([]));
-  }, []);
+    teacherSelf
+      .listAvailability()
+      .then(setRules)
+      .catch(() => {
+        setRules([]);
+        setError(bookingsDict.loadError);
+      });
+  }, [bookingsDict.loadError]);
 
   useEffect(() => {
     setBookings(null);
@@ -47,8 +54,11 @@ export default function CalendarView({
       page_size: 100,
     })
       .then((res) => setBookings(res.results))
-      .catch(() => setBookings([]));
-  }, [weekStart]);
+      .catch(() => {
+        setBookings([]);
+        setError(bookingsDict.loadError);
+      });
+  }, [weekStart, bookingsDict.loadError]);
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
@@ -56,6 +66,8 @@ export default function CalendarView({
   );
 
   const loading = rules == null || bookings == null;
+
+  if (error) return <Alert type="error" showIcon message={error} />;
 
   return (
     <section className="flex flex-col gap-6">

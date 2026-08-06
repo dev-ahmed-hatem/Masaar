@@ -211,6 +211,8 @@ def _cancel_is_free(booking, actor) -> bool:
 
 @transaction.atomic
 def cancel_booking(booking, actor, *, reason=""):
+    if booking.status == Booking.Status.DISPUTED:
+        raise errors.InvalidTransition("A disputed lesson can only be resolved by a moderator.")
     _guard(booking, Booking.Status.CANCELLED)
     if booking.price_minor > 0:
         w = wallet.get_or_create_wallet(booking.student)
@@ -242,6 +244,8 @@ def _credit_teacher(booking):
 
 @transaction.atomic
 def complete_booking(booking):
+    if booking.status == Booking.Status.DISPUTED:
+        raise errors.InvalidTransition("A disputed lesson can only be resolved by a moderator.")
     _guard(booking, Booking.Status.COMPLETED)
     if booking.price_minor > 0:
         wallet.capture(

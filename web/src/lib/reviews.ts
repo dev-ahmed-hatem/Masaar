@@ -26,12 +26,15 @@ export function createReview(input: CreateReviewInput): Promise<Review> {
   });
 }
 
-export function listReviews(params: { teacher?: number; published?: string }): Promise<Paginated<Review>> {
+export function listReviews(
+  params: { teacher?: number; published?: string; page?: number; page_size?: number },
+): Promise<Paginated<Review>> {
   const qs = new URLSearchParams();
   if (params.teacher) qs.set("teacher", String(params.teacher));
   if (params.published) qs.set("published", params.published);
-  const s = qs.toString();
-  return apiAuthed<Paginated<Review>>(`/api/reviews/${s ? `?${s}` : ""}`);
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 20));
+  return apiAuthed<Paginated<Review>>(`/api/reviews/?${qs}`);
 }
 
 /** The current student's own review history (published or not). */

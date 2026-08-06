@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Badge, Button, Card, Rate, Spin, Tag } from "antd";
 import {
   ArrowRight,
@@ -17,6 +17,7 @@ import {
 import { formatWhen, subjectLabel } from "@/components/bookings/shared";
 import { IconChip, StatCard } from "@/components/ui";
 import type { Dictionary } from "@/i18n/dictionaries";
+import { ApiError } from "@/lib/api";
 import { teacherSelf, type TeacherDashboard } from "@/lib/teacher-self";
 
 type Dict = Dictionary["teacherDashboard"];
@@ -33,10 +34,32 @@ export default function TeacherDashboardView({
   locale: string;
 }) {
   const [data, setData] = useState<TeacherDashboard | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    teacherSelf.dashboard().then(setData).catch(() => setData(null));
-  }, []);
+  const load = useCallback(() => {
+    setError(null);
+    teacherSelf
+      .dashboard()
+      .then(setData)
+      .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError));
+  }, [dict.loadError]);
+
+  useEffect(() => load(), [load]);
+
+  if (error) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message={error}
+        action={
+          <Button size="small" onClick={load}>
+            {dict.retry}
+          </Button>
+        }
+      />
+    );
+  }
 
   if (!data) {
     return (

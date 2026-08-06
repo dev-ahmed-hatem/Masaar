@@ -139,6 +139,16 @@ class TeacherPriceCreateSerializer(serializers.Serializer):
     lesson_category = _MarketCategoryField()
     custom_student_price_minor = serializers.IntegerField(min_value=1)
 
+    def validate(self, attrs):
+        # A custom price must still cover the teacher's wage, otherwise the
+        # platform would pay out more than it collects for the lesson.
+        wage = attrs["lesson_category"].teacher_wage_minor
+        if attrs["custom_student_price_minor"] < wage:
+            raise serializers.ValidationError(
+                {"custom_student_price_minor": f"Price must be at least the teacher wage ({wage})."}
+            )
+        return attrs
+
     def create(self, validated):
         teacher = self.context["teacher"]
         # One request per category; a new/changed request resets approval.

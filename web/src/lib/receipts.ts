@@ -21,9 +21,12 @@ export interface Receipt {
   created_at: string;
 }
 
-export function listReceipts(status?: string): Promise<Paginated<Receipt>> {
-  const qs = status ? `?status=${status}` : "";
-  return apiAuthed<Paginated<Receipt>>(`/api/receipts/${qs}`);
+export function listReceipts(status?: string, page = 1, page_size = 20): Promise<Paginated<Receipt>> {
+  const qs = new URLSearchParams();
+  if (status) qs.set("status", status);
+  qs.set("page", String(page));
+  qs.set("page_size", String(page_size));
+  return apiAuthed<Paginated<Receipt>>(`/api/receipts/?${qs}`);
 }
 
 export function approveReceipt(id: number): Promise<Receipt> {

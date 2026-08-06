@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Alert,
   App,
@@ -9,6 +9,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -19,53 +20,38 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { bookingActions, listBookings, type Booking } from "@/lib/bookings";
+import { bookingActions, type Booking } from "@/lib/bookings";
 
-import { PROVIDERS, StatusTag, formatWhen, subjectLabel } from "@/components/bookings/shared";
+import {
+  LESSONS_PAGE_SIZE,
+  PROVIDERS,
+  StatusTag,
+  formatWhen,
+  subjectLabel,
+  useGroupedBookings,
+  type BookingGroup,
+} from "@/components/bookings/shared";
 import { PageHeader, Panel } from "@/components/ui";
 
 type Dict = Dictionary["bookings"];
 
-const PAST: Booking["status"][] = ["COMPLETED", "DECLINED", "CANCELLED", "DISPUTED", "NO_SHOW"];
-
 export default function LessonsManager({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { groups, loading, error, reload, setPage } = useGroupedBookings(dict.loadError);
   const [confirming, setConfirming] = useState<Booking | null>(null);
   const [form] = Form.useForm();
-
-  const load = useCallback(() => {
-    setLoading(true);
-    listBookings()
-      .then((res) => setBookings(res.results))
-      .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError))
-      .finally(() => setLoading(false));
-  }, [dict.loadError]);
-
-  useEffect(() => load(), [load]);
 
   const run = useCallback(
     async (fn: () => Promise<unknown>, ok: string) => {
       try {
         await fn();
         message.success(ok);
-        load();
+        reload();
       } catch (err) {
         message.error(err instanceof ApiError ? err.message : dict.actionError);
       }
     },
-    [message, load, dict.actionError],
-  );
-
-  const groups = useMemo(
-    () => ({
-      REQUESTED: bookings.filter((b) => b.status === "REQUESTED"),
-      CONFIRMED: bookings.filter((b) => b.status === "CONFIRMED"),
-      PAST: bookings.filter((b) => PAST.includes(b.status)),
-    }),
-    [bookings],
+    [message, reload, dict.actionError],
   );
 
   function baseColumns(): ColumnsType<Booking> {
@@ -112,29 +98,50 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
               {dict.join} ↗
             </a>
           )}
-          <Button size="small" danger onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}>
-            {dict.cancel}
-          </Button>
-          <Button size="small" onClick={() => run(() => bookingActions.noShow(b.id), dict.noShowDone)}>
-            {dict.noShow}
-          </Button>
+          <Popconfirm
+            title={dict.cancelConfirm}
+            okText={dict.cancel}
+            okButtonProps={{ danger: true }}
+            onConfirm={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}
+          >
+            <Button size="small" danger>
+              {dict.cancel}
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title={dict.noShowConfirm}
+            okText={dict.noShow}
+            onConfirm={() => run(() => bookingActions.noShow(b.id), dict.noShowDone)}
+          >
+            <Button size="small">{dict.noShow}</Button>
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
-  const tab = (rows: Booking[], columns: ColumnsType<Booking>) => (
-    <Panel>
-      <Table<Booking>
-        rowKey="id"
-        columns={columns}
-        dataSource={rows}
-        loading={loading}
-        pagination={false}
-        locale={{ emptyText: <Empty description={dict.empty} /> }}
-      />
-    </Panel>
-  );
+  const renderTab = (name: BookingGroup, columns: ColumnsType<Booking>) => {
+    const g = groups[name];
+    return (
+      <Panel>
+        <Table<Booking>
+          rowKey="id"
+          columns={columns}
+          dataSource={g.rows}
+          loading={loading}
+          pagination={{
+            current: g.page,
+            pageSize: LESSONS_PAGE_SIZE,
+            total: g.total,
+            showSizeChanger: false,
+            hideOnSinglePage: true,
+            onChange: (p) => setPage(name, p),
+          }}
+          locale={{ emptyText: <Empty description={dict.empty} /> }}
+        />
+      </Panel>
+    );
+  };
 
   if (error) return <Alert type="error" message={error} showIcon />;
 
@@ -144,17 +151,9 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
 
       <Tabs
         items={[
-          {
-            key: "requests",
-            label: `${dict.tabRequests} (${groups.REQUESTED.length})`,
-            children: tab(groups.REQUESTED, requestColumns),
-          },
-          {
-            key: "upcoming",
-            label: `${dict.tabUpcoming} (${groups.CONFIRMED.length})`,
-            children: tab(groups.CONFIRMED, upcomingColumns),
-          },
-          { key: "past", label: dict.tabPast, children: tab(groups.PAST, baseColumns()) },
+          { key: "requests", label: `${dict.tabRequests} (${groups.requested.total})`, children: renderTab("requested", requestColumns) },
+          { key: "upcoming", label: `${dict.tabUpcoming} (${groups.upcoming.total})`, children: renderTab("upcoming", upcomingColumns) },
+          { key: "past", label: dict.tabPast, children: renderTab("past", baseColumns()) },
         ]}
       />
 

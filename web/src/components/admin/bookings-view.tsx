@@ -51,6 +51,8 @@ const STATUSES: BookingStatus[] = [
 export default function BookingsView({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
   const [status, setStatus] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +61,18 @@ export default function BookingsView({ dict, locale }: { dict: Dict; locale: Loc
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    listBookings(status || undefined)
-      .then((res) => setRows(res.results))
+    listBookings(status || undefined, { page, page_size: 20 })
+      .then((res) => {
+        setRows(res.results);
+        setTotal(res.count);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError))
       .finally(() => setLoading(false));
-  }, [status, dict.loadError]);
+  }, [status, page, dict.loadError]);
 
   useEffect(() => load(), [load]);
+
+  useEffect(() => setPage(1), [status]);
 
   async function resolve(id: number, complete: boolean) {
     try {
@@ -117,7 +124,14 @@ export default function BookingsView({ dict, locale }: { dict: Dict; locale: Loc
             loading={loading}
             onRow={(b) => ({ onClick: () => setSelected(b), style: { cursor: "pointer" } })}
             locale={{ emptyText: <Empty description={dict.empty} /> }}
-            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+            pagination={{
+              current: page,
+              pageSize: 20,
+              total,
+              showSizeChanger: false,
+              onChange: setPage,
+              showTotal: () => dict.resultsCount.replace("{count}", String(total)),
+            }}
           />
         </Panel>
       )}

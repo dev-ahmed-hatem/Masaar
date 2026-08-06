@@ -427,6 +427,8 @@
     "cancelled": "Booking cancelled.",
     "disputed": "Dispute opened.",
     "noShowDone": "Marked as no-show.",
+    "cancelConfirm": "Cancel this lesson? The student's payment will be refunded.",
+    "noShowConfirm": "Mark this lesson as a no-show? The student will be charged.",
     "resolved": "Dispute resolved.",
     "actionError": "Action failed. Please try again.",
     "empty": "Nothing here yet.",
@@ -554,8 +556,9 @@
     "email": "Email",
     "bio": "About",
     "introVideo": "Intro video",
+    "document": "Document",
     "reviewNotes": "Review notes",
-    "notesPlaceholder": "Optional note (shown on rejection)",
+    "notesPlaceholder": "Reason (required to reject)",
     "reviewedBy": "Reviewed by",
     "approve": "Approve",
     "reject": "Reject",
@@ -668,7 +671,9 @@
     "linkLessons": "Lessons",
     "linkCalendar": "Calendar",
     "linkMessages": "Messages",
-    "linkEarnings": "Earnings"
+    "linkEarnings": "Earnings",
+    "loadError": "Could not load your dashboard.",
+    "retry": "Retry"
   },
   "chat": {
     "title": "Messages",

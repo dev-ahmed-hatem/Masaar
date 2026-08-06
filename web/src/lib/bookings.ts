@@ -76,12 +76,14 @@ const post = (path: string, body: unknown = {}) =>
 
 export function listBookings(
   status?: string,
-  opts: { from?: string; to?: string; page_size?: number } = {},
+  opts: { from?: string; to?: string; page?: number; page_size?: number; group?: string } = {},
 ): Promise<Paginated<Booking>> {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
+  if (opts.group) params.set("group", opts.group);
   if (opts.from) params.set("from", opts.from);
   if (opts.to) params.set("to", opts.to);
+  if (opts.page) params.set("page", String(opts.page));
   if (opts.page_size) params.set("page_size", String(opts.page_size));
   const qs = params.toString();
   return apiAuthed<Paginated<Booking>>(`/api/bookings/${qs ? `?${qs}` : ""}`);

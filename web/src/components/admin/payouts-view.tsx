@@ -22,6 +22,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
+import { MARKETS, marketLabel } from "@/lib/markets";
 import {
   generateCycle,
   getCycle,
@@ -40,7 +41,6 @@ const { Title } = Typography;
 
 const CYCLE_COLORS: Record<CycleStatus, string> = { OPEN: "gold", PROCESSING: "blue", PAID: "green" };
 const ITEM_COLORS: Record<ItemStatus, string> = { PENDING: "gold", PAID: "green" };
-const MARKETS = ["EG", "SA"];
 
 function money(minor: number): string {
   return (minor / 100).toFixed(2);
@@ -53,6 +53,8 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
   const [end, setEnd] = useState<dayjs.Dayjs | null>(null);
   const [generating, setGenerating] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<PayoutCycle[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,13 +65,18 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    listCycles({})
-      .then((data) => setRows(data.results))
+    listCycles({ market: market || undefined, page, page_size: 20 })
+      .then((data) => {
+        setRows(data.results);
+        setTotal(data.count);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError))
       .finally(() => setLoading(false));
-  }, [dict.loadError]);
+  }, [market, page, dict.loadError]);
 
   useEffect(() => load(), [load]);
+
+  useEffect(() => setPage(1), [market]);
 
   async function generate() {
     if (!start || !end) return;
@@ -161,7 +168,7 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
   const filters = (
     <>
       <FilterField label={dict.market}>
-        <Select value={market} onChange={setMarket} style={{ width: 120 }} options={MARKETS.map((m) => ({ value: m, label: m }))} />
+        <Select value={market} onChange={setMarket} style={{ width: 120 }} options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))} />
       </FilterField>
       <FilterField label={dict.periodStart}>
         <DatePicker value={start} onChange={setStart} />
@@ -190,7 +197,14 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
             loading={loading}
             onRow={(c) => ({ onClick: () => openCycle(c.id), style: { cursor: "pointer" } })}
             locale={{ emptyText: <Empty description={dict.empty} /> }}
-            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+            pagination={{
+              current: page,
+              pageSize: 20,
+              total,
+              showSizeChanger: false,
+              onChange: setPage,
+              showTotal: () => dict.resultsCount.replace("{count}", String(total)),
+            }}
           />
         </Panel>
       )}

@@ -223,6 +223,49 @@ def test_dispute_resolve_cancel_refunds(api, world):
     assert _wallet(world["student"]).available_minor == 100000  # refunded
 
 
+# --- Disputes are staff-only to resolve ------------------------------------
+
+def test_disputed_booking_blocks_participant_complete_and_cancel(api, world):
+    booking_id = _book(api, world, slot_at(timedelta(days=3))).data["id"]
+    _confirm(api, world, booking_id)
+    api.force_authenticate(user=world["student"])
+    api.post(f"{BOOKINGS}{booking_id}/dispute/", {"reason": "no show"}, format="json")
+
+    # Student cannot self-complete a disputed lesson.
+    res = api.post(f"{BOOKINGS}{booking_id}/complete/", format="json")
+    assert res.status_code == 400 and res.data["error"]["code"] == "invalid_transition"
+
+    # Teacher cannot cancel (which would auto-refund and nullify the dispute).
+    api.force_authenticate(user=world["tuser"])
+    res = api.post(f"{BOOKINGS}{booking_id}/cancel/", format="json")
+    assert res.status_code == 400 and res.data["error"]["code"] == "invalid_transition"
+
+    # Only a moderator can resolve it.
+    staff = User.objects.create_user(phone="+201000000280", role=User.Role.MODERATOR, is_verified=True)
+    api.force_authenticate(user=staff)
+    res = api.post(f"{BOOKINGS}{booking_id}/resolve/", {"complete": True}, format="json")
+    assert res.status_code == 200 and res.data["status"] == "COMPLETED"
+
+
+# --- Group filter ----------------------------------------------------------
+
+def test_group_past_returns_only_terminal(api, world):
+    # One requested (active) + one declined (terminal).
+    _book(api, world, slot_at(timedelta(days=3)))
+    declined_id = _book(api, world, slot_at(timedelta(days=4))).data["id"]
+    api.force_authenticate(user=world["tuser"])
+    api.post(f"{BOOKINGS}{declined_id}/decline/", format="json")
+
+    api.force_authenticate(user=world["student"])
+    res = api.get(BOOKINGS, {"group": "past"})
+    assert res.status_code == 200
+    statuses = {r["status"] for r in res.data["results"]}
+    assert statuses == {"DECLINED"}
+    # Requested tab excludes the declined one.
+    req = api.get(BOOKINGS, {"group": "requested"})
+    assert all(r["status"] == "REQUESTED" for r in req.data["results"])
+
+
 # --- Trials ----------------------------------------------------------------
 
 def test_trial_is_free_and_single_use(api, world):

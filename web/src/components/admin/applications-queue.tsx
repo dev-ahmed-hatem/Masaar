@@ -20,6 +20,7 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { marketLabel } from "@/lib/markets";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 import {
   approveApplication,
@@ -55,6 +56,8 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
   );
 
   const [status, setStatus] = useState<string>("PENDING");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<TeacherApplication[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,18 +69,23 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    listApplications(status || undefined)
-      .then((data) => setRows(data.results))
+    listApplications(status || undefined, page)
+      .then((data) => {
+        setRows(data.results);
+        setTotal(data.count);
+      })
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : dict.loadError);
         setRows([]);
       })
       .finally(() => setLoading(false));
-  }, [status, dict.loadError]);
+  }, [status, page, dict.loadError]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => setPage(1), [status]);
 
   function openDetail(app: TeacherApplication) {
     setSelected(app);
@@ -107,7 +115,7 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
   const columns: ColumnsType<TeacherApplication> = [
     { title: dict.colName, dataIndex: "full_name", key: "name" },
     { title: dict.colPhone, dataIndex: "phone", key: "phone" },
-    { title: dict.colMarket, dataIndex: "market", key: "market" },
+    { title: dict.colMarket, key: "market", render: (_, a) => marketLabel(a.market, locale) },
     {
       title: dict.colStatus,
       key: "status",
@@ -153,7 +161,12 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
             onRow={(a) => ({ onClick: () => openDetail(a), style: { cursor: "pointer" } })}
             locale={{ emptyText: <Empty description={dict.empty} /> }}
             pagination={{
-              showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)),
+              current: page,
+              pageSize: 20,
+              total,
+              showSizeChanger: false,
+              onChange: setPage,
+              showTotal: () => dict.resultsCount.replace("{count}", String(total)),
             }}
           />
         </Panel>
@@ -172,7 +185,7 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
 
             <DetailRow label={dict.colPhone} value={selected.phone} />
             <DetailRow label={dict.email} value={selected.email || "—"} />
-            <DetailRow label={dict.colMarket} value={selected.market} />
+            <DetailRow label={dict.colMarket} value={marketLabel(selected.market, locale)} />
 
             {selected.bio && (
               <div>
@@ -184,6 +197,12 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
             {selected.intro_video_url && (
               <a href={selected.intro_video_url} target="_blank" rel="noreferrer">
                 {dict.introVideo} ↗
+              </a>
+            )}
+
+            {selected.document && (
+              <a href={selected.document} target="_blank" rel="noreferrer">
+                {dict.document} ↗
               </a>
             )}
 
@@ -209,9 +228,11 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
                       {dict.approve}
                     </Button>
                   </Popconfirm>
-                  <Button danger loading={acting} onClick={() => act("reject")}>
-                    {dict.reject}
-                  </Button>
+                  <Popconfirm title={dict.reject} onConfirm={() => act("reject")}>
+                    <Button danger loading={acting} disabled={!notes.trim()}>
+                      {dict.reject}
+                    </Button>
+                  </Popconfirm>
                 </Space>
               </>
             ) : (

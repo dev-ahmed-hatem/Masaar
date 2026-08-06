@@ -12,9 +12,11 @@ import { listReviews, republishReview, unpublishReview, type Review } from "@/li
 
 type Dict = Dictionary["adminReviews"];
 
-export default function ReviewsModeration({ dict, locale }: { dict: Dict; locale: Locale }) {
+export default function ReviewsModeration({ dict }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
   const [published, setPublished] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,16 +24,21 @@ export default function ReviewsModeration({ dict, locale }: { dict: Dict; locale
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    listReviews({ published: published || undefined })
-      .then((data) => setRows(data.results))
+    listReviews({ published: published || undefined, page, page_size: 20 })
+      .then((data) => {
+        setRows(data.results);
+        setTotal(data.count);
+      })
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : dict.loadError);
         setRows([]);
       })
       .finally(() => setLoading(false));
-  }, [published, dict.loadError]);
+  }, [published, page, dict.loadError]);
 
   useEffect(() => load(), [load]);
+
+  useEffect(() => setPage(1), [published]);
 
   async function toggle(review: Review) {
     try {
@@ -110,7 +117,14 @@ export default function ReviewsModeration({ dict, locale }: { dict: Dict; locale
             dataSource={rows}
             loading={loading}
             locale={{ emptyText: <Empty description={dict.empty} /> }}
-            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+            pagination={{
+              current: page,
+              pageSize: 20,
+              total,
+              showSizeChanger: false,
+              onChange: setPage,
+              showTotal: () => dict.resultsCount.replace("{count}", String(total)),
+            }}
           />
         </Panel>
       )}

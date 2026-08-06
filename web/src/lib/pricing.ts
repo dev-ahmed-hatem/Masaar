@@ -74,8 +74,10 @@ export const pricingApi = {
       body: JSON.stringify(patch),
     }),
 
-  listPriceRequests: (status: "pending" | "approved" = "pending") =>
-    apiAuthed<Paginated<PriceRequestAdmin>>(`/api/price-requests/?status=${status}`),
+  listPriceRequests: (status: "pending" | "approved" = "pending", page = 1, page_size = 20) =>
+    apiAuthed<Paginated<PriceRequestAdmin>>(
+      `/api/price-requests/?status=${status}&page=${page}&page_size=${page_size}`,
+    ),
   approvePriceRequest: (id: number) =>
     apiAuthed<PriceRequestAdmin>(`/api/price-requests/${id}/approve/`, {
       method: "POST",

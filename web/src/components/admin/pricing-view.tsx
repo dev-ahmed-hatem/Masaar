@@ -22,6 +22,8 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { MARKETS, marketLabel } from "@/lib/markets";
+import { PageHeader } from "@/components/ui";
 import {
   pricingApi,
   type GradeLevel,
@@ -33,8 +35,6 @@ import {
 
 type Dict = Dictionary["adminPricing"];
 
-const MARKETS = ["EG", "SA"];
-
 function money(minor: number, currency: string): string {
   return `${(minor / 100).toFixed(2)} ${currency}`;
 }
@@ -44,14 +44,7 @@ export default function PricingView({ dict, locale }: { dict: Dict; locale: Loca
 
   return (
     <section className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--ink)" }}>
-          {dict.title}
-        </h1>
-        <p className="mt-1.5 text-base" style={{ color: "var(--ink-muted)" }}>
-          {dict.intro}
-        </p>
-      </div>
+      <PageHeader title={dict.title} subtitle={dict.intro} />
 
       <Tabs
         items={[
@@ -157,7 +150,7 @@ function CategoriesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
         <Select
           value={market}
           onChange={setMarket}
-          options={MARKETS.map((m) => ({ value: m, label: m }))}
+          options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))}
           style={{ width: 120 }}
         />
         <Button type="primary" onClick={() => setCreating(true)}>
@@ -197,9 +190,19 @@ function PriceCell({
   onSave: (minor: number) => Promise<void>;
 }) {
   const [value, setValue] = useState(minor / 100);
+  const [loading, setLoading] = useState(false);
   const dirty = Math.round(value * 100) !== minor;
 
   useEffect(() => setValue(minor / 100), [minor]);
+
+  async function save() {
+    setLoading(true);
+    try {
+      await onSave(Math.round(value * 100));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Space.Compact>
@@ -212,7 +215,7 @@ function PriceCell({
         style={{ width: 140 }}
       />
       {dirty && (
-        <Button type="primary" onClick={() => onSave(Math.round(value * 100))}>
+        <Button type="primary" loading={loading} onClick={save}>
           ✓
         </Button>
       )}
@@ -331,7 +334,6 @@ function NewCategoryModal({
 
 function RequestsTab({
   dict,
-  locale,
   onPendingCount,
 }: {
   dict: Dict;
@@ -340,6 +342,8 @@ function RequestsTab({
 }) {
   const { message } = App.useApp();
   const [status, setStatus] = useState<"pending" | "approved">("pending");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<PriceRequestAdmin[] | null>(null);
   const [rejecting, setRejecting] = useState<PriceRequestAdmin | null>(null);
   const [reason, setReason] = useState("");
@@ -347,15 +351,18 @@ function RequestsTab({
   const load = useCallback(() => {
     setRows(null);
     pricingApi
-      .listPriceRequests(status)
+      .listPriceRequests(status, page, 20)
       .then((res) => {
         setRows(res.results);
+        setTotal(res.count);
         if (status === "pending") onPendingCount(res.count);
       })
       .catch(() => setRows([]));
-  }, [status, onPendingCount]);
+  }, [status, page, onPendingCount]);
 
   useEffect(load, [load]);
+
+  useEffect(() => setPage(1), [status]);
 
   async function approve(row: PriceRequestAdmin) {
     try {
@@ -437,7 +444,13 @@ function RequestsTab({
         columns={columns}
         dataSource={rows ?? []}
         loading={rows == null}
-        pagination={false}
+        pagination={{
+          current: page,
+          pageSize: 20,
+          total,
+          showSizeChanger: false,
+          onChange: setPage,
+        }}
         size="middle"
         locale={{ emptyText: dict.noRequests }}
       />

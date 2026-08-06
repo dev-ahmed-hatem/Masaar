@@ -364,7 +364,7 @@ function ProfileForm({
       }}
     >
       <div className="grid gap-x-4 sm:grid-cols-2">
-        <Form.Item name="full_name" label={dict.fullName}>
+        <Form.Item name="full_name" label={dict.fullName} rules={[{ required: true, whitespace: true }]}>
           <Input />
         </Form.Item>
         <Form.Item name="gender" label={dict.gender}>

@@ -32,12 +32,15 @@ export interface PayoutCycleDetail extends PayoutCycle {
   items: PayoutItem[];
 }
 
-export function listCycles(params: { market?: string; status?: string }): Promise<Paginated<PayoutCycle>> {
+export function listCycles(
+  params: { market?: string; status?: string; page?: number; page_size?: number },
+): Promise<Paginated<PayoutCycle>> {
   const qs = new URLSearchParams();
   if (params.market) qs.set("market", params.market);
   if (params.status) qs.set("status", params.status);
-  const s = qs.toString();
-  return apiAuthed<Paginated<PayoutCycle>>(`/api/payout-cycles/${s ? `?${s}` : ""}`);
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 20));
+  return apiAuthed<Paginated<PayoutCycle>>(`/api/payout-cycles/?${qs}`);
 }
 
 export function getCycle(id: number): Promise<PayoutCycleDetail> {

@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from drf_spectacular.utils import extend_schema
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,7 +17,7 @@ from .serializers import (
 )
 
 
-class PayoutCycleListCreateView(ListAPIView):
+class PayoutCycleListCreateView(ListCreateAPIView):
     """Staff: list payout cycles and generate a new one."""
 
     permission_classes = [IsStaff]
@@ -32,6 +33,7 @@ class PayoutCycleListCreateView(ListAPIView):
             qs = qs.filter(status=status_param.upper())
         return qs
 
+    @extend_schema(request=GenerateCycleSerializer, responses={201: PayoutCycleDetailSerializer})
     def post(self, request):
         serializer = GenerateCycleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

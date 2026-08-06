@@ -67,7 +67,7 @@ class TeacherProfilePublishView(_TeacherScoped, APIView):
         if not teacher.is_published:
             teacher.is_published = True
             teacher.save(update_fields=["is_published"])
-        return Response(TeacherProfileSerializer(teacher).data)
+        return Response(TeacherProfileSerializer(teacher, context={"request": request}).data)
 
 
 class TeacherProfileUnpublishView(_TeacherScoped, APIView):
@@ -76,7 +76,7 @@ class TeacherProfileUnpublishView(_TeacherScoped, APIView):
         if teacher.is_published:
             teacher.is_published = False
             teacher.save(update_fields=["is_published"])
-        return Response(TeacherProfileSerializer(teacher).data)
+        return Response(TeacherProfileSerializer(teacher, context={"request": request}).data)
 
 
 class LessonCategoryListView(_TeacherScoped, ListAPIView):

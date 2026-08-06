@@ -82,6 +82,11 @@ class PriceRequestApproveView(APIView):
 
     def post(self, request, pk):
         price = get_object_or_404(_QS, pk=pk)
+        wage = price.lesson_category.teacher_wage_minor
+        if price.custom_student_price_minor < wage:
+            raise serializers.ValidationError(
+                f"Custom price is below the teacher wage ({wage}); reject and ask for a new price."
+            )
         if not price.is_approved:
             price.is_approved = True
             price.save(update_fields=["is_approved", "updated_at"])

@@ -38,6 +38,8 @@ const STATUSES: ReceiptStatus[] = ["PENDING", "APPROVED", "REJECTED"];
 export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
   const [status, setStatus] = useState<string>("PENDING");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rows, setRows] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,16 +52,21 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    listReceipts(status || undefined)
-      .then((data) => setRows(data.results))
+    listReceipts(status || undefined, page, 20)
+      .then((data) => {
+        setRows(data.results);
+        setTotal(data.count);
+      })
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : dict.loadError);
         setRows([]);
       })
       .finally(() => setLoading(false));
-  }, [status, dict.loadError]);
+  }, [status, page, dict.loadError]);
 
   useEffect(() => load(), [load]);
+
+  useEffect(() => setPage(1), [status]);
 
   async function act(kind: "approve" | "reject") {
     if (!selected) return;
@@ -124,7 +131,14 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
             loading={loading}
             onRow={(r) => ({ onClick: () => { setSelected(r); setReason(""); }, style: { cursor: "pointer" } })}
             locale={{ emptyText: <Empty description={dict.empty} /> }}
-            pagination={{ showTotal: () => dict.resultsCount.replace("{count}", String(rows.length)) }}
+            pagination={{
+              current: page,
+              pageSize: 20,
+              total,
+              showSizeChanger: false,
+              onChange: setPage,
+              showTotal: () => dict.resultsCount.replace("{count}", String(total)),
+            }}
           />
         </Panel>
       )}
@@ -186,9 +200,11 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
                         {dict.approve}
                       </Button>
                     </Popconfirm>
-                    <Button danger loading={acting} onClick={() => act("reject")}>
-                      {dict.reject}
-                    </Button>
+                    <Popconfirm title={dict.reject} onConfirm={() => act("reject")}>
+                      <Button danger loading={acting} disabled={!reason.trim()}>
+                        {dict.reject}
+                      </Button>
+                    </Popconfirm>
                   </Space>
                 </div>
               )}

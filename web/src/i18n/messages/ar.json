@@ -427,6 +427,8 @@
     "cancelled": "تم إلغاء الحجز.",
     "disputed": "تم فتح نزاع.",
     "noShowDone": "تم التعليم كعدم حضور.",
+    "cancelConfirm": "إلغاء هذا الدرس؟ سيُسترد مبلغ الطالب.",
+    "noShowConfirm": "تعليم هذا الدرس كعدم حضور؟ سيُحتسب على الطالب.",
     "resolved": "تم حل النزاع.",
     "actionError": "فشل الإجراء. يرجى المحاولة مرة أخرى.",
     "empty": "لا يوجد شيء هنا بعد.",
@@ -554,8 +556,9 @@
     "email": "البريد الإلكتروني",
     "bio": "نبذة",
     "introVideo": "فيديو التعريف",
+    "document": "المستند",
     "reviewNotes": "ملاحظات المراجعة",
-    "notesPlaceholder": "ملاحظة اختيارية (تظهر عند الرفض)",
+    "notesPlaceholder": "السبب (مطلوب للرفض)",
     "reviewedBy": "روجع بواسطة",
     "approve": "قبول",
     "reject": "رفض",
@@ -668,7 +671,9 @@
     "linkLessons": "الحصص",
     "linkCalendar": "التقويم",
     "linkMessages": "الرسائل",
-    "linkEarnings": "الأرباح"
+    "linkEarnings": "الأرباح",
+    "loadError": "تعذّر تحميل لوحة التحكم.",
+    "retry": "إعادة المحاولة"
   },
   "chat": {
     "title": "الرسائل",

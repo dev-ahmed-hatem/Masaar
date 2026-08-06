@@ -10,6 +10,7 @@ pytestmark = pytest.mark.django_db
 
 PRICE_REQUESTS = "/api/price-requests/"
 CATEGORIES = "/api/admin/lesson-categories/"
+PRICES = "/api/teacher/prices/"
 
 
 @pytest.fixture
@@ -67,6 +68,31 @@ def test_price_request_reject_deletes_and_notifies(api, world):
     assert not TeacherPrice.objects.filter(id=price.id).exists()
     n = Notification.objects.get(user=world["teacher"].user, event_type="price_request_rejected")
     assert n.payload["reason"] == "too high"
+
+
+def test_custom_price_below_wage_rejected_on_create(api, world):
+    # cat wage = 3500; a request below that is money-losing and must be blocked.
+    api.force_authenticate(user=world["teacher"].user)
+    res = api.post(
+        PRICES,
+        {"lesson_category": world["cat"].id, "custom_student_price_minor": 3000},
+        format="json",
+    )
+    assert res.status_code == 400
+    assert not TeacherPrice.objects.filter(teacher=world["teacher"]).exists()
+
+
+def test_approve_below_wage_price_rejected(api, world):
+    # A stale below-wage request cannot be approved into effect.
+    price = TeacherPrice.objects.create(
+        teacher=world["teacher"], lesson_category=world["cat"],
+        custom_student_price_minor=2000, is_approved=False,
+    )
+    api.force_authenticate(user=world["staff"])
+    res = api.post(f"{PRICE_REQUESTS}{price.id}/approve/")
+    assert res.status_code == 400
+    price.refresh_from_db()
+    assert price.is_approved is False
 
 
 def test_price_requests_staff_only(api, world):
