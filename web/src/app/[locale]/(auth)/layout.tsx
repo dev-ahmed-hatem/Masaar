@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 
+import ThemeToggle from "@/components/theme-toggle";
+
 export default async function AuthLayout({
   children,
   params,
@@ -11,7 +13,10 @@ export default async function AuthLayout({
   const { locale } = await params;
 
   return (
-    <div className="mesh-bg grid min-h-screen place-items-center px-4 py-12">
+    <div className="mesh-bg relative grid min-h-screen place-items-center px-4 py-12">
+      <div className="absolute end-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full" style={{ maxWidth: 420 }}>
         <Link
           href={`/${locale}`}

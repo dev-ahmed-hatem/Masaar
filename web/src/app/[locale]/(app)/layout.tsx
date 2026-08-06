@@ -36,7 +36,7 @@ export default async function AppLayout({
           className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]"
           style={{
             background:
-              "radial-gradient(50% 60% at 15% 0%, rgba(109,94,252,0.10), transparent 70%), radial-gradient(45% 55% at 90% 0%, rgba(34,211,238,0.10), transparent 72%)",
+              "radial-gradient(60% 60% at 50% 0%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 70%)",
           }}
         />
         {children}

@@ -7,6 +7,7 @@ import { GraduationCap } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import NotificationsBell, { type BellLabels } from "@/components/notifications-bell";
+import ThemeToggle from "@/components/theme-toggle";
 
 export default function AppHeader({
   locale,
@@ -86,6 +87,7 @@ export default function AppHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link
             href={otherHref}
             className="rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors"

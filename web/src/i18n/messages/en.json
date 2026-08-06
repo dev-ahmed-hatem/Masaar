@@ -10,8 +10,40 @@
   },
   "landing": {
     "subtitle": "Tutoring reservation marketplace",
-    "heroLead": "Learn faster with the right teacher.",
-    "heroSub": "Masaar connects students with vetted tutors across Egypt & Saudi Arabia — browse, book, and learn on your schedule.",
+    "heroLead": "Learn faster with the right",
+    "heroAccent": "teacher.",
+    "heroSub": "Masaar connects students with vetted tutors across Egypt & Saudi Arabia. Browse profiles, book a time that fits, and learn live — all in one place.",
+    "trust": ["Vetted teachers", "Flexible scheduling", "Secure payments"],
+    "steps": {
+      "title": "How Masaar works",
+      "subtitle": "Three simple steps from sign-up to your first lesson.",
+      "items": [
+        {
+          "title": "Browse teachers",
+          "desc": "Explore vetted tutors by subject, price, and availability, and read reviews from real students."
+        },
+        {
+          "title": "Book a lesson",
+          "desc": "Pick a time that fits your schedule and reserve your spot in seconds — no back-and-forth."
+        },
+        {
+          "title": "Learn live",
+          "desc": "Meet your teacher online, learn at your own pace, and track every lesson in your account."
+        }
+      ]
+    },
+    "subjects": {
+      "title": "Popular subjects",
+      "subtitle": "Find expert teachers across the subjects students book most.",
+      "items": [
+        { "name": "Mathematics", "caption": "Algebra to calculus" },
+        { "name": "English", "caption": "Speaking & exam prep" },
+        { "name": "Physics", "caption": "Mechanics to modern" },
+        { "name": "Chemistry", "caption": "Labs made simple" },
+        { "name": "Qur'an & Arabic", "caption": "Recitation & grammar" },
+        { "name": "Programming", "caption": "Web, Python & more" }
+      ]
+    },
     "featuresTitle": "Everything you need to learn",
     "features": [
       {
@@ -26,7 +58,16 @@
         "title": "Secure payments",
         "desc": "Pay safely and track every lesson, receipt, and payout in one place."
       }
-    ]
+    ],
+    "cta": {
+      "title": "Ready to start learning?",
+      "desc": "Create your free account and book your first lesson today.",
+      "button": "Get started"
+    },
+    "footer": {
+      "tagline": "Book lessons with vetted teachers across Egypt & Saudi Arabia.",
+      "rights": "© 2026 Masaar. All rights reserved."
+    }
   },
   "teacher": {
     "title": "Teacher portal",

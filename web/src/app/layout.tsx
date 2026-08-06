@@ -24,14 +24,23 @@ export const metadata: Metadata = {
   description: "Tutoring reservation marketplace — Egypt & Saudi Arabia.",
 };
 
+// Runs before first paint to set the theme class from localStorage / system,
+// preventing a light-to-dark flash on load. Mirrors ThemeProvider's logic.
+const noFlashTheme = `(function(){try{var t=localStorage.getItem("masaar-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var r=document.documentElement;if(t==="dark"){r.classList.add("dark");}r.style.colorScheme=t;}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${cairo.variable}`}>
+    <html
+      lang="en"
+      className={`${jakarta.variable} ${cairo.variable}`}
+      suppressHydrationWarning
+    >
       <body>
+        <script dangerouslySetInnerHTML={{ __html: noFlashTheme }} />
         <AntdRegistry>{children}</AntdRegistry>
       </body>
     </html>
