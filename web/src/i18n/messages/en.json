@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Masaar",
-    "tagline": "Book lessons with vetted teachers across Egypt & Saudi Arabia."
+    "tagline": "Book lessons with vetted teachers across the Arab world."
   },
   "nav": {
     "home": "Home",
@@ -12,7 +12,7 @@
     "subtitle": "Tutoring reservation marketplace",
     "heroLead": "Learn faster with the right",
     "heroAccent": "teacher.",
-    "heroSub": "Masaar connects students with vetted tutors across Egypt & Saudi Arabia. Browse profiles, book a time that fits, and learn live — all in one place.",
+    "heroSub": "Masaar connects students with vetted tutors across the Arab world. Browse profiles, book a time that fits, and learn live — all in one place.",
     "trust": ["Vetted teachers", "Flexible scheduling", "Secure payments"],
     "steps": {
       "title": "How Masaar works",
@@ -65,7 +65,7 @@
       "button": "Get started"
     },
     "footer": {
-      "tagline": "Book lessons with vetted teachers across Egypt & Saudi Arabia.",
+      "tagline": "Book lessons with vetted teachers across the Arab world.",
       "rights": "© 2026 Masaar. All rights reserved."
     }
   },
@@ -209,6 +209,7 @@
     "statusNO_SHOW": "No-show",
     "colWhen": "When",
     "colStudent": "Student",
+    "colCountry": "Country",
     "colTeacher": "Teacher",
     "colSubject": "Subject",
     "colPrice": "Price",
@@ -383,6 +384,11 @@
     "market": "Country",
     "marketEG": "Egypt",
     "marketSA": "Saudi Arabia",
+    "chooseCountryTitle": "Where are you based?",
+    "chooseCountrySubtitle": "This sets the currency for your lessons and the format of your phone number.",
+    "changeCountry": "Change",
+    "continueBtn": "Continue",
+    "invalidPhoneForCountry": "Enter a valid {country} mobile number",
     "language": "Language",
     "code": "Verification code",
     "signIn": "Sign in",
@@ -420,7 +426,7 @@
   "apply": {
     "badge": "Teach on Masaar",
     "title": "Become a teacher",
-    "intro": "Share your knowledge with students across Egypt and Saudi Arabia. Apply in minutes — our team reviews every application.",
+    "intro": "Share your knowledge with students across the Arab world. Apply in minutes — our team reviews every application.",
     "step1": "Submit your application with a short bio and an intro video.",
     "step2": "Our team reviews it and sends your sign-in details on WhatsApp.",
     "step3": "Complete your profile, set your availability, and start teaching.",

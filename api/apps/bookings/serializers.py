@@ -10,6 +10,7 @@ from .models import Booking
 
 class BookingSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name", read_only=True)
+    student_market = serializers.SerializerMethodField()
     teacher_id = serializers.IntegerField(source="teacher.id", read_only=True)
     teacher_name = serializers.CharField(source="teacher.user.full_name", read_only=True)
     lesson_category = LessonCategorySerializer(read_only=True)
@@ -20,6 +21,7 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "student_name",
+            "student_market",
             "teacher_id",
             "teacher_name",
             "lesson_category",
@@ -39,6 +41,10 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_price_display(self, obj) -> str:
         return format_money(obj.price_minor, obj.currency)
+
+    def get_student_market(self, obj) -> str:
+        market = getattr(obj.student, "market", None)
+        return market.code if market else ""
 
 
 class BookingCreateSerializer(serializers.Serializer):

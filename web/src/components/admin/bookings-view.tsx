@@ -18,6 +18,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { bookingActions, listBookings, type Booking, type BookingStatus } from "@/lib/bookings";
+import { findMarket, marketLabel } from "@/lib/markets";
 
 import { StatusTag, formatWhen, subjectLabel } from "@/components/bookings/shared";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
@@ -25,6 +26,17 @@ import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 type Dict = Dictionary["bookings"];
 
 const { Text } = Typography;
+
+function CountryTag({ code, locale }: { code: string; locale: Locale }) {
+  if (!code) return <>—</>;
+  const m = findMarket(code);
+  return (
+    <span className="whitespace-nowrap">
+      {m ? `${m.flag} ` : ""}
+      {marketLabel(code, locale)}
+    </span>
+  );
+}
 
 const STATUSES: BookingStatus[] = [
   "REQUESTED",
@@ -69,6 +81,7 @@ export default function BookingsView({ dict, locale }: { dict: Dict; locale: Loc
   const columns: ColumnsType<Booking> = [
     { title: dict.colWhen, key: "when", render: (_, b) => formatWhen(b.scheduled_start, locale) },
     { title: dict.colStudent, dataIndex: "student_name", key: "student" },
+    { title: dict.colCountry, key: "country", render: (_, b) => <CountryTag code={b.student_market} locale={locale} /> },
     { title: dict.colTeacher, dataIndex: "teacher_name", key: "teacher" },
     { title: dict.colSubject, key: "subject", render: (_, b) => subjectLabel(b, locale) },
     { title: dict.colPrice, key: "price", render: (_, b) => (b.is_trial ? dict.trial : b.price_display) },
@@ -121,6 +134,7 @@ export default function BookingsView({ dict, locale }: { dict: Dict; locale: Loc
             <StatusTag dict={dict} status={selected.status} />
             <DetailRow label={dict.colWhen} value={formatWhen(selected.scheduled_start, locale)} />
             <DetailRow label={dict.colStudent} value={selected.student_name} />
+            <DetailRow label={dict.colCountry} value={<CountryTag code={selected.student_market} locale={locale} />} />
             <DetailRow label={dict.colTeacher} value={selected.teacher_name} />
             <DetailRow label={dict.colSubject} value={subjectLabel(selected, locale)} />
             <DetailRow label={dict.colPrice} value={selected.is_trial ? dict.trial : selected.price_display} />

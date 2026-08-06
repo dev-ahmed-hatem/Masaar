@@ -14,6 +14,7 @@ export type BookingStatus =
 export interface Booking {
   id: number;
   student_name: string;
+  student_market: string;
   teacher_id: number;
   teacher_name: string;
   lesson_category: LessonCategoryOption;

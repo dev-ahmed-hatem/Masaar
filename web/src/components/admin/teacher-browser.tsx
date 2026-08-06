@@ -19,6 +19,7 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { MARKETS, marketLabel } from "@/lib/markets";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
 import {
   getTeacher,
@@ -33,14 +34,6 @@ type Dict = Dictionary["adminTeachers"];
 
 const { Paragraph, Text } = Typography;
 const PAGE_SIZE = 20;
-
-const MARKETS = ["EG", "SA"] as const;
-
-function marketLabel(code: string, locale: Locale): string {
-  if (code === "EG") return locale === "ar" ? "مصر" : "Egypt";
-  if (code === "SA") return locale === "ar" ? "السعودية" : "Saudi Arabia";
-  return code;
-}
 
 export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: Locale }) {
   const ar = locale === "ar";
@@ -153,7 +146,7 @@ export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: L
           value={market}
           onChange={setMarket}
           style={{ width: 160 }}
-          options={MARKETS.map((c) => ({ value: c, label: marketLabel(c, locale) }))}
+          options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))}
         />
       </FilterField>
       <FilterField label={dict.subject}>

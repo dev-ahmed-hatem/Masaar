@@ -21,7 +21,7 @@ const cairo = localFont({
 
 export const metadata: Metadata = {
   title: "Masaar",
-  description: "Tutoring reservation marketplace — Egypt & Saudi Arabia.",
+  description: "Tutoring reservation marketplace — the Arab world.",
 };
 
 // Runs before first paint to set the theme class from localStorage / system,
