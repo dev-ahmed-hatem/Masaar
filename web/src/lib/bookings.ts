@@ -32,6 +32,34 @@ export interface Booking {
   created_at: string;
 }
 
+/** A concrete bookable time slot (already excludes past + taken times). */
+export interface Slot {
+  start: string;
+  end: string;
+  duration_min: number;
+}
+
+export interface CreateBookingInput {
+  teacher: number;
+  lesson_category: number;
+  scheduled_start: string;
+  duration_min?: number;
+  is_trial?: boolean;
+}
+
+/** Student books a lesson. Reserves wallet funds server-side for paid lessons. */
+export function createBooking(input: CreateBookingInput): Promise<Booking> {
+  return apiAuthed<Booking>("/api/bookings/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Concrete open slots for a teacher over the next `days` (default 14). */
+export function listSlots(teacherId: number, days = 14): Promise<Slot[]> {
+  return apiAuthed<Slot[]>(`/api/bookings/slots/?teacher=${teacherId}&days=${days}`);
+}
+
 const post = (path: string, body: unknown = {}) =>
   apiAuthed<Booking>(path, { method: "POST", body: JSON.stringify(body) });
 

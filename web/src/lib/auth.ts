@@ -59,5 +59,6 @@ export function storeSession(pair: TokenPair) {
 export function homePathForRole(locale: string, role: Role): string {
   if (role === "TEACHER") return `/${locale}/teacher`;
   if (role === "MODERATOR" || role === "SUPERADMIN") return `/${locale}/admin`;
+  if (role === "STUDENT") return `/${locale}/teachers`;
   return `/${locale}`;
 }

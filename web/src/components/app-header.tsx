@@ -15,6 +15,10 @@ export default function AppHeader({
   home,
   teacher,
   admin,
+  browse,
+  lessons,
+  messages,
+  wallet,
   otherHref,
   otherLabel,
   signIn,
@@ -26,6 +30,10 @@ export default function AppHeader({
   home: string;
   teacher: string;
   admin: string;
+  browse: string;
+  lessons: string;
+  messages: string;
+  wallet: string;
   otherHref: string;
   otherLabel: string;
   signIn: string;
@@ -36,10 +44,18 @@ export default function AppHeader({
   const pathname = usePathname();
   const isTeacher = user?.role === "TEACHER";
   const isStaff = user?.role === "MODERATOR" || user?.role === "SUPERADMIN";
+  const isStudent = user?.role === "STUDENT";
 
   const links: { href: string; label: string }[] = [{ href: `/${locale}`, label: home }];
   if (isTeacher) links.push({ href: `/${locale}/teacher`, label: teacher });
   if (isStaff) links.push({ href: `/${locale}/admin`, label: admin });
+  // Discovery is public; students also get their lessons/messages/wallet.
+  if (!isTeacher && !isStaff) links.push({ href: `/${locale}/teachers`, label: browse });
+  if (isStudent) {
+    links.push({ href: `/${locale}/lessons`, label: lessons });
+    links.push({ href: `/${locale}/messages`, label: messages });
+    links.push({ href: `/${locale}/wallet`, label: wallet });
+  }
 
   const isActive = (href: string) =>
     href === `/${locale}` ? pathname === href : pathname.startsWith(href);

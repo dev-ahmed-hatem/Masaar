@@ -38,6 +38,12 @@ function toPath(url: string): string {
 
 export const chatApi = {
   threads: () => apiAuthed<Paginated<ChatThread>>("/api/chat/threads/"),
+  /** Start (or fetch existing) 1:1 thread with a teacher by TeacherProfile id. */
+  startThread: (teacherProfileId: number) =>
+    apiAuthed<ChatThread>("/api/chat/threads/", {
+      method: "POST",
+      body: JSON.stringify({ teacher: teacherProfileId }),
+    }),
   messages: (threadId: number) =>
     apiAuthed<CursorPage<ChatMessage>>(`/api/chat/threads/${threadId}/messages/`),
   messagesPage: (url: string) => apiAuthed<CursorPage<ChatMessage>>(toPath(url)),

@@ -60,7 +60,12 @@ export default async function LandingPage({
           >
             {L.heroSub}
           </p>
-          <LandingActions locale={locale} signUp={d.auth.signUp} signIn={d.auth.signIn} />
+          <LandingActions
+            locale={locale}
+            signUp={d.auth.signUp}
+            signIn={d.auth.signIn}
+            browse={d.nav.browse}
+          />
           <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
             {L.trust.map((t) => (
               <li key={t} className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--ink-muted)" }}>
