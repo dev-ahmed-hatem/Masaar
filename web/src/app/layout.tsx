@@ -11,13 +11,9 @@ const jakarta = localFont({
   fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
 });
 
-const cairo = localFont({
-  src: "../../public/fonts/cairo-arabic.woff2",
-  variable: "--font-cairo",
-  display: "swap",
-  weight: "200 1000",
-  fallback: ["Segoe UI", "Tahoma", "sans-serif"],
-});
+// Cairo (Arabic) is self-hosted via plain @font-face rules in globals.css,
+// pointing at static files in /public/fonts/cairo — more reliable in prod
+// than next/font for the Arabic subset.
 
 export const metadata: Metadata = {
   title: "Masaar",
@@ -36,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jakarta.variable} ${cairo.variable}`}
+      className={jakarta.variable}
       suppressHydrationWarning
     >
       <body>
