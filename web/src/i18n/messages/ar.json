@@ -684,6 +684,7 @@
     "loadOlder": "تحميل رسائل أقدم",
     "composerPlaceholder": "اكتب رسالة…",
     "send": "إرسال",
+    "back": "العودة إلى المحادثات",
     "genericError": "حدث خطأ ما. حاول مرة أخرى."
   },
   "notifications": {

@@ -684,6 +684,7 @@
     "loadOlder": "Load older messages",
     "composerPlaceholder": "Type a message…",
     "send": "Send",
+    "back": "Back to conversations",
     "genericError": "Something went wrong. Please try again."
   },
   "notifications": {
