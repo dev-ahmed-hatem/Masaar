@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Avatar, Empty, Pagination, Rate, Select, Spin, Tag } from "antd";
-import { GraduationCap } from "lucide-react";
+import { Alert, Avatar, Empty, Pagination, Select, Spin, Tag } from "antd";
+import { ArrowRight, GraduationCap, Languages, Star } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { MARKETS, marketLabel } from "@/lib/markets";
 import {
   listSubjects,
   listTeachers,
@@ -83,16 +82,6 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
       <PageHeader title={dict.title} subtitle={dict.intro} />
 
       <div className="flex flex-wrap items-end gap-4">
-        {!lockedMarket && (
-          <FilterField label={dict.market}>
-            <Select
-              value={market}
-              onChange={setMarket}
-              style={{ width: 160 }}
-              options={MARKETS.map((m) => ({ value: m.code, label: `${m.flag} ${marketLabel(m.code, locale)}` }))}
-            />
-          </FilterField>
-        )}
         <FilterField label={dict.subject}>
           <Select
             allowClear
@@ -150,7 +139,7 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
         <Empty description={dict.empty} className="py-16" />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-4">
             {rows.map((t) => (
               <TeacherCard key={t.id} teacher={t} locale={locale} dict={dict} subjectName={subjectName} />
             ))}
@@ -183,54 +172,114 @@ function TeacherCard({
   dict: Dict;
   subjectName: (s: SubjectSummary) => string;
 }) {
+  const ar = locale === "ar";
+  const rating = Number(t.rating_avg);
+  const bio = (ar ? t.bio_ar : t.bio_en) || t.bio_en || t.bio_ar || "";
+  const langs = t.languages.filter(Boolean);
+
   return (
     <Link
       href={`/${locale}/teachers/${t.id}`}
-      className="surface surface-hover flex flex-col gap-4 p-5"
+      className="surface surface-hover group flex gap-4 p-4 sm:gap-5 sm:p-5"
     >
-      <div className="flex items-center gap-3">
-        <Avatar
-          size={52}
-          src={t.photo_url ?? undefined}
-          style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700 }}
-        >
-          {(t.full_name || "?").trim().charAt(0).toUpperCase()}
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-semibold" style={{ color: "var(--ink)" }}>
-            {t.full_name}
+      {/* Photo */}
+      <Avatar
+        shape="square"
+        src={t.photo_url ?? undefined}
+        className="h-20 w-20 shrink-0 sm:h-28 sm:w-28"
+        style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700, fontSize: 30, borderRadius: 16 }}
+      >
+        {(t.full_name || "?").trim().charAt(0).toUpperCase()}
+      </Avatar>
+
+      {/* Body */}
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {/* Name + price */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3
+              className="truncate text-base font-bold sm:text-lg"
+              style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
+            >
+              {t.full_name}
+            </h3>
+            {langs.length > 0 && (
+              <p className="mt-0.5 flex items-center gap-1 truncate text-xs" style={{ color: "var(--ink-muted)" }}>
+                <Languages size={13} className="shrink-0" />
+                <span className="truncate">{langs.join(" · ")}</span>
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <Rate disabled allowHalf value={Number(t.rating_avg)} style={{ fontSize: 12 }} />
-            <span className="text-xs" style={{ color: "var(--ink-muted)" }}>
-              {Number(t.rating_avg).toFixed(1)} ({t.rating_count})
-            </span>
-          </div>
+          {t.from_price && (
+            <div className="shrink-0 text-end">
+              <div className="text-lg font-bold leading-tight" style={{ color: "var(--ink)" }}>
+                {t.from_price.display}
+              </div>
+              <div className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                {dict.perLesson}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-1">
-        {t.subjects.slice(0, 4).map((s) => (
-          <Tag key={s.id} bordered={false} style={{ background: "var(--surface-2)" }}>
-            {subjectName(s)}
-          </Tag>
-        ))}
-      </div>
+        {/* Rating + lessons */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span className="flex items-center gap-1 font-semibold" style={{ color: "var(--ink)" }}>
+            <Star size={15} fill="var(--warning)" stroke="var(--warning)" />
+            {rating > 0 ? rating.toFixed(1) : "—"}
+          </span>
+          {t.rating_count > 0 && (
+            <span className="text-xs" style={{ color: "var(--ink-muted)" }}>
+              {dict.reviewsCount.replace("{n}", String(t.rating_count))}
+            </span>
+          )}
+          <span aria-hidden style={{ color: "var(--ink-faint)" }}>·</span>
+          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--ink-muted)" }}>
+            <GraduationCap size={14} />
+            {t.lessons_count} {dict.lessons}
+          </span>
+        </div>
 
-      {t.free_lessons_offered > 0 && (
-        <Tag color="green" bordered={false} style={{ width: "fit-content" }}>
-          {dict.freeLessons.replace("{n}", String(t.free_lessons_offered))}
-        </Tag>
-      )}
+        {/* Subjects */}
+        {t.subjects.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {t.subjects.slice(0, 4).map((s) => (
+              <Tag key={s.id} bordered={false} style={{ background: "var(--surface-2)", margin: 0 }}>
+                {subjectName(s)}
+              </Tag>
+            ))}
+            {t.subjects.length > 4 && (
+              <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
+                +{t.subjects.length - 4}
+              </span>
+            )}
+          </div>
+        )}
 
-      <div className="mt-auto flex items-center justify-between pt-1">
-        <span className="flex items-center gap-1 text-xs" style={{ color: "var(--ink-muted)" }}>
-          <GraduationCap size={14} />
-          {t.lessons_count} {dict.lessons}
-        </span>
-        <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
-          {t.from_price ? `${dict.from} ${t.from_price.display}` : ""}
-        </span>
+        {/* Description */}
+        {bio && (
+          <p className="line-clamp-2 text-sm" style={{ color: "var(--ink-muted)" }}>
+            {bio}
+          </p>
+        )}
+
+        {/* Footer: free-trial badge + view CTA */}
+        <div className="mt-1 flex items-center justify-between gap-3">
+          {t.free_lessons_offered > 0 ? (
+            <Tag color="green" bordered={false} style={{ margin: 0 }}>
+              {dict.freeLessons.replace("{n}", String(t.free_lessons_offered))}
+            </Tag>
+          ) : (
+            <span />
+          )}
+          <span
+            className="flex items-center gap-1 text-sm font-semibold transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5"
+            style={{ color: "var(--brand)" }}
+          >
+            {dict.viewProfile}
+            <ArrowRight size={15} className="rtl:-scale-x-100" />
+          </span>
+        </div>
       </div>
     </Link>
   );

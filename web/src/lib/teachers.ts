@@ -20,6 +20,8 @@ export interface TeacherListItem {
   gender: "MALE" | "FEMALE" | "";
   languages: string[];
   intro_video_url: string;
+  bio_en: string;
+  bio_ar: string;
   rating_avg: string | number;
   rating_count: number;
   lessons_count: number;

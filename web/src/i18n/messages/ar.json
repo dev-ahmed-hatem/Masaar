@@ -32,6 +32,8 @@
     "sortLessons": "الأكثر دروسًا",
     "from": "يبدأ من",
     "lessons": "درس",
+    "reviewsCount": "{n} تقييم",
+    "perLesson": "للدرس",
     "resultsCount": "{count} معلم",
     "empty": "لا يوجد معلمون مطابقون لهذه الفلاتر.",
     "loadError": "تعذّر تحميل المعلمين.",

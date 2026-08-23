@@ -32,6 +32,8 @@
     "sortLessons": "Most lessons",
     "from": "From",
     "lessons": "lessons",
+    "reviewsCount": "{n} reviews",
+    "perLesson": "per lesson",
     "resultsCount": "{count} teachers",
     "empty": "No teachers match these filters.",
     "loadError": "Could not load teachers.",

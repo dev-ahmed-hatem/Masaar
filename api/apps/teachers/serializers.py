@@ -47,6 +47,8 @@ class TeacherListSerializer(serializers.ModelSerializer):
             "gender",
             "languages",
             "intro_video_url",
+            "bio_en",
+            "bio_ar",
             "rating_avg",
             "rating_count",
             "lessons_count",
@@ -119,9 +121,8 @@ class TeacherDetailSerializer(TeacherListSerializer):
     recent_reviews = serializers.SerializerMethodField()
 
     class Meta(TeacherListSerializer.Meta):
+        # bio_en / bio_ar are inherited from TeacherListSerializer.Meta.fields.
         fields = TeacherListSerializer.Meta.fields + (
-            "bio_en",
-            "bio_ar",
             "offerings",
             "availability",
             "reviews_summary",
