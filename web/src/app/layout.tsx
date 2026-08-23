@@ -3,12 +3,19 @@ import localFont from "next/font/local";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
+// Jakarta covers Latin only. We deliberately give it NO fallback fonts here:
+// next/font would otherwise bake Arabic-capable system fonts (Segoe UI, Arial,
+// its metric-adjusted "Fallback") into --font-jakarta, and those would catch
+// Arabic glyphs before the stack ever reached Cairo. With the variable holding
+// just the Jakarta face, Arabic falls straight through to "Cairo" (see the
+// --font-sans / --font-display chains + @font-face rules in globals.css).
 const jakarta = localFont({
   src: "../../public/fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-jakarta",
   display: "swap",
   weight: "200 800",
-  fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
+  adjustFontFallback: false,
+  fallback: [],
 });
 
 // Cairo (Arabic) is self-hosted via plain @font-face rules in globals.css,
