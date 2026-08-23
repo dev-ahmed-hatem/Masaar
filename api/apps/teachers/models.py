@@ -102,6 +102,39 @@ class TeacherSubject(TimeStampedModel):
         return f"{self.teacher} · {self.lesson_category}"
 
 
+class TeacherSpecialization(TimeStampedModel):
+    """A discovery tag: a stage → (branch/faculty) → subject the teacher specializes in.
+
+    Separate from TeacherSubject (which drives pricing/bookings). Powers search
+    filters and the profile/card specialization tags. `track` is optional (null
+    for stages with no branch/faculty grouping, e.g. Primary)."""
+
+    teacher = models.ForeignKey(
+        TeacherProfile, on_delete=models.CASCADE, related_name="specializations"
+    )
+    vertical = models.ForeignKey(
+        "catalog.Vertical", on_delete=models.PROTECT, related_name="teacher_specializations"
+    )
+    track = models.ForeignKey(
+        "catalog.Track",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="teacher_specializations",
+    )
+    subject = models.ForeignKey(
+        "catalog.Subject", on_delete=models.PROTECT, related_name="teacher_specializations"
+    )
+
+    class Meta:
+        ordering = ["vertical", "track", "subject"]
+        unique_together = [("teacher", "vertical", "track", "subject")]
+
+    def __str__(self):
+        track = f" · {self.track.name_en}" if self.track else ""
+        return f"{self.teacher} · {self.vertical.code}{track} · {self.subject.name_en}"
+
+
 class TeacherPrice(TimeStampedModel):
     """Per-teacher price override for a lesson category (moderator-approved)."""
 

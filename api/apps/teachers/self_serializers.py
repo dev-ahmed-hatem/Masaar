@@ -1,11 +1,17 @@
 """Serializers for the teacher self-serve API (`/api/teacher/`)."""
 from rest_framework import serializers
 
-from apps.catalog.models import LessonCategory
+from apps.catalog.models import LessonCategory, StageSubject, Vertical
 from apps.catalog.serializers import LessonCategorySerializer
 from apps.common.models import format_money
 
-from .models import AvailabilityRule, TeacherPrice, TeacherProfile, TeacherSubject
+from .models import (
+    AvailabilityRule,
+    TeacherPrice,
+    TeacherProfile,
+    TeacherSpecialization,
+    TeacherSubject,
+)
 
 # Résumé JSON sections: the string keys allowed on each record. Anything else is
 # dropped; every value is coerced to a trimmed string. Records with no content
@@ -173,6 +179,56 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 
     def create(self, validated):
         return AvailabilityRule.objects.create(teacher=self.context["teacher"], **validated)
+
+
+class TeacherSpecializationSerializer(serializers.ModelSerializer):
+    stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
+    stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
+    track_name_en = serializers.CharField(source="track.name_en", read_only=True, default=None)
+    track_name_ar = serializers.CharField(source="track.name_ar", read_only=True, default=None)
+    subject_name_en = serializers.CharField(source="subject.name_en", read_only=True)
+    subject_name_ar = serializers.CharField(source="subject.name_ar", read_only=True)
+
+    class Meta:
+        model = TeacherSpecialization
+        fields = (
+            "id",
+            "vertical",
+            "track",
+            "subject",
+            "stage_name_en",
+            "stage_name_ar",
+            "track_name_en",
+            "track_name_ar",
+            "subject_name_en",
+            "subject_name_ar",
+        )
+        extra_kwargs = {"track": {"required": False, "allow_null": True}}
+
+    def validate(self, attrs):
+        teacher = self.context["teacher"]
+        vertical = attrs["vertical"]
+        track = attrs.get("track")
+        subject = attrs["subject"]
+
+        # Track must belong to the stage and be required when the stage groups.
+        if vertical.child_kind != Vertical.ChildKind.NONE and track is None:
+            raise serializers.ValidationError({"track": "This stage requires a branch/faculty."})
+        if track is not None and track.vertical_id != vertical.id:
+            raise serializers.ValidationError({"track": "Track belongs to a different stage."})
+        # The (stage, track, subject) triple must be an active catalog assignment.
+        if not StageSubject.objects.filter(
+            vertical=vertical, track=track, subject=subject, is_active=True
+        ).exists():
+            raise serializers.ValidationError("This subject is not offered under that stage/branch.")
+        if TeacherSpecialization.objects.filter(
+            teacher=teacher, vertical=vertical, track=track, subject=subject
+        ).exists():
+            raise serializers.ValidationError("You already added this specialization.")
+        return attrs
+
+    def create(self, validated):
+        return TeacherSpecialization.objects.create(teacher=self.context["teacher"], **validated)
 
 
 class TeacherPriceReadSerializer(serializers.ModelSerializer):

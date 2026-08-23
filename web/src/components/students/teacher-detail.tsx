@@ -38,7 +38,7 @@ import { ApiError, apiAuthed } from "@/lib/api";
 import { createBooking } from "@/lib/bookings";
 import { chatApi } from "@/lib/chat";
 import { addFavorite, listFavorites, removeFavorite } from "@/lib/favorites";
-import type { Paginated } from "@/lib/teachers";
+import type { Paginated, Specialization } from "@/lib/teachers";
 import { getTeacher, type Offering, type TeacherDetail as Teacher } from "@/lib/teachers";
 import { DetailRow } from "@/components/ui";
 import TeacherSchedule from "@/components/students/teacher-schedule";
@@ -69,6 +69,32 @@ function yearRange(start: string, end: string, present: string): string {
   if (!start && !end) return "";
   if (start && !end) return `${start} – ${present}`;
   return [start, end].filter(Boolean).join(" – ");
+}
+
+interface SpecGroup {
+  key: string;
+  label: string;
+  subjects: { id: number; name: string }[];
+}
+
+/** Group specialization tags by stage → (branch/faculty) for the profile. */
+function groupSpecializations(specs: Specialization[], ar: boolean): SpecGroup[] {
+  const groups = new Map<string, SpecGroup>();
+  for (const sp of specs) {
+    const key = `${sp.stage.id}:${sp.track?.id ?? 0}`;
+    const stageName = ar ? sp.stage.name_ar : sp.stage.name_en;
+    const trackName = sp.track ? (ar ? sp.track.name_ar : sp.track.name_en) : "";
+    const label = trackName ? `${stageName} · ${trackName}` : stageName;
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, label, subjects: [] };
+      groups.set(key, group);
+    }
+    if (!group.subjects.some((s) => s.id === sp.subject.id)) {
+      group.subjects.push({ id: sp.subject.id, name: ar ? sp.subject.name_ar : sp.subject.name_en });
+    }
+  }
+  return [...groups.values()];
 }
 
 export default function TeacherDetail({
@@ -253,6 +279,26 @@ export default function TeacherDetail({
                   <Tag key={i} bordered={false} style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", margin: 0 }}>
                     {s}
                   </Tag>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Specializations (catalog): grouped stage → branch/faculty → subjects */}
+          {teacher.specializations.length > 0 && (
+            <Section icon={<GraduationCap size={18} />} title={dict.specializationsTitle}>
+              <div className="flex flex-col gap-4">
+                {groupSpecializations(teacher.specializations, ar).map((g) => (
+                  <div key={g.key} className="flex flex-col gap-2">
+                    <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{g.label}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {g.subjects.map((s) => (
+                        <Tag key={s.id} bordered={false} style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", margin: 0 }}>
+                          {s.name}
+                        </Tag>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </Section>

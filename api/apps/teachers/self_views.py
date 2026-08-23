@@ -18,13 +18,20 @@ from apps.catalog.models import LessonCategory
 from apps.catalog.serializers import LessonCategorySerializer
 
 from . import errors
-from .models import AvailabilityRule, TeacherPrice, TeacherProfile, TeacherSubject
+from .models import (
+    AvailabilityRule,
+    TeacherPrice,
+    TeacherProfile,
+    TeacherSpecialization,
+    TeacherSubject,
+)
 from .self_serializers import (
     AvailabilitySerializer,
     TeacherPhotoSerializer,
     TeacherPriceCreateSerializer,
     TeacherPriceReadSerializer,
     TeacherProfileSerializer,
+    TeacherSpecializationSerializer,
     TeacherSubjectCreateSerializer,
     TeacherSubjectReadSerializer,
 )
@@ -140,6 +147,21 @@ class AvailabilityListCreateView(_TeacherScoped, ListCreateAPIView):
 class AvailabilityDeleteView(_TeacherScoped, DestroyAPIView):
     def get_queryset(self):
         return AvailabilityRule.objects.filter(teacher=self.get_teacher())
+
+
+class TeacherSpecializationListCreateView(_TeacherScoped, ListCreateAPIView):
+    serializer_class = TeacherSpecializationSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return TeacherSpecialization.objects.filter(
+            teacher=self.get_teacher()
+        ).select_related("vertical", "track", "subject")
+
+
+class TeacherSpecializationDeleteView(_TeacherScoped, DestroyAPIView):
+    def get_queryset(self):
+        return TeacherSpecialization.objects.filter(teacher=self.get_teacher())
 
 
 class TeacherPhotoView(_TeacherScoped, APIView):

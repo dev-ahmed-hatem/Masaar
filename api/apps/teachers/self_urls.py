@@ -11,6 +11,8 @@ from .self_views import (
     TeacherProfilePublishView,
     TeacherProfileUnpublishView,
     TeacherProfileView,
+    TeacherSpecializationDeleteView,
+    TeacherSpecializationListCreateView,
     TeacherSubjectDeleteView,
     TeacherSubjectListCreateView,
 )
@@ -28,6 +30,8 @@ urlpatterns = [
     path("subjects/<int:pk>/", TeacherSubjectDeleteView.as_view(), name="subject-delete"),
     path("availability/", AvailabilityListCreateView.as_view(), name="availability"),
     path("availability/<int:pk>/", AvailabilityDeleteView.as_view(), name="availability-delete"),
+    path("specializations/", TeacherSpecializationListCreateView.as_view(), name="specializations"),
+    path("specializations/<int:pk>/", TeacherSpecializationDeleteView.as_view(), name="specialization-delete"),
     path("prices/", TeacherPriceListCreateView.as_view(), name="prices"),
     path("prices/<int:pk>/", TeacherPriceDeleteView.as_view(), name="price-delete"),
 ]

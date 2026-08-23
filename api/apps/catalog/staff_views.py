@@ -1,11 +1,33 @@
-"""Staff-facing catalog/pricing management (`/api/admin/lesson-categories/`)."""
+"""Staff-facing catalog/pricing management (`/api/admin/`)."""
+from django.db.models import ProtectedError
 from rest_framework import serializers
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView
+from rest_framework.exceptions import APIException
+from rest_framework.generics import (
+    ListCreateAPIView,
+    RetrieveUpdateAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 
 from apps.accounts.permissions import IsStaff
 from apps.markets.models import Market
 
-from .models import LessonCategory
+from .models import LessonCategory, StageSubject, Subject, Track, Vertical
+
+
+class InUse(APIException):
+    status_code = 409
+    default_detail = "This item is in use and cannot be deleted. Deactivate it instead."
+    default_code = "in_use"
+
+
+class _ProtectedDestroyMixin:
+    """Turn a PROTECT-guarded delete (row still referenced) into a clean 409."""
+
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError as exc:
+            raise InUse() from exc
 
 
 class LessonCategoryAdminSerializer(serializers.ModelSerializer):
@@ -78,3 +100,113 @@ class LessonCategoryAdminDetailView(RetrieveUpdateAPIView):
     permission_classes = [IsStaff]
     serializer_class = LessonCategoryAdminSerializer
     queryset = LessonCategory.objects.select_related("market", "vertical", "grade_level", "subject")
+
+
+# --- Taxonomy management: Stage / Track / Subject / StageSubject -----------
+
+
+class StageAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vertical
+        fields = ("id", "code", "name_en", "name_ar", "child_kind", "order", "is_active")
+
+
+class TrackAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Track
+        fields = ("id", "vertical", "name_en", "name_ar", "order", "is_active")
+
+
+class SubjectAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = ("id", "name_en", "name_ar", "is_active")
+
+
+class StageSubjectAdminSerializer(serializers.ModelSerializer):
+    subject_name_en = serializers.CharField(source="subject.name_en", read_only=True)
+    subject_name_ar = serializers.CharField(source="subject.name_ar", read_only=True)
+
+    class Meta:
+        model = StageSubject
+        fields = (
+            "id",
+            "vertical",
+            "track",
+            "subject",
+            "subject_name_en",
+            "subject_name_ar",
+            "order",
+            "is_active",
+        )
+        extra_kwargs = {"track": {"required": False, "allow_null": True}}
+
+    def validate(self, attrs):
+        vertical = attrs.get("vertical") or getattr(self.instance, "vertical", None)
+        track = attrs.get("track", getattr(self.instance, "track", None))
+        if track is not None and track.vertical_id != vertical.id:
+            raise serializers.ValidationError({"track": "Track belongs to a different stage."})
+        return attrs
+
+
+class StageAdminListCreateView(ListCreateAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StageAdminSerializer
+    queryset = Vertical.objects.all().order_by("order")
+
+
+class StageAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StageAdminSerializer
+    queryset = Vertical.objects.all()
+
+
+class TrackAdminListCreateView(ListCreateAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = TrackAdminSerializer
+
+    def get_queryset(self):
+        qs = Track.objects.select_related("vertical").order_by("vertical__order", "order")
+        if vertical := self.request.query_params.get("vertical"):
+            qs = qs.filter(vertical_id=vertical)
+        return qs
+
+
+class TrackAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = TrackAdminSerializer
+    queryset = Track.objects.all()
+
+
+class SubjectAdminListCreateView(ListCreateAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = SubjectAdminSerializer
+    queryset = Subject.objects.all().order_by("name_en")
+
+
+class SubjectAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = SubjectAdminSerializer
+    queryset = Subject.objects.all()
+
+
+class StageSubjectAdminListCreateView(ListCreateAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StageSubjectAdminSerializer
+
+    def get_queryset(self):
+        qs = StageSubject.objects.select_related("vertical", "track", "subject").order_by(
+            "vertical__order", "track__order", "order", "subject__name_en"
+        )
+        params = self.request.query_params
+        if vertical := params.get("vertical"):
+            qs = qs.filter(vertical_id=vertical)
+        if track := params.get("track"):
+            qs = qs.filter(track_id=track)
+        return qs
+
+
+class StageSubjectAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StageSubjectAdminSerializer
+    queryset = StageSubject.objects.all()

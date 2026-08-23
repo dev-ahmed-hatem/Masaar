@@ -70,8 +70,16 @@ def from_price_subquery() -> Subquery:
 
 
 class TeacherFilter(filters.FilterSet):
+    # Discovery filters run off the teacher's specialization tags (stage → track
+    # → subject), which are seeded from offerings and refined by the teacher.
     subject = filters.NumberFilter(
-        field_name="subjects__lesson_category__subject_id", distinct=True
+        field_name="specializations__subject_id", distinct=True
+    )
+    stage = filters.NumberFilter(
+        field_name="specializations__vertical_id", distinct=True
+    )
+    track = filters.NumberFilter(
+        field_name="specializations__track_id", distinct=True
     )
     grade = filters.NumberFilter(
         field_name="subjects__lesson_category__grade_level_id", distinct=True
@@ -110,9 +118,11 @@ class _MarketScopedMixin:
 @extend_schema(
     parameters=[
         OpenApiParameter("market", str, description="Market code (EG/SA). Falls back to the signed-in user's market."),
-        OpenApiParameter("subject", int, description="Subject id"),
+        OpenApiParameter("subject", int, description="Subject id (from specialization tags)"),
+        OpenApiParameter("stage", int, description="Stage id (from specialization tags)"),
+        OpenApiParameter("track", int, description="Branch/faculty id (from specialization tags)"),
         OpenApiParameter("grade", int, description="Grade level id"),
-        OpenApiParameter("vertical", str, description="Vertical code"),
+        OpenApiParameter("vertical", str, description="Vertical code (from offerings)"),
         OpenApiParameter("gender", str, description="MALE / FEMALE"),
         OpenApiParameter("language", str, description="Language code substring, e.g. 'en'"),
         OpenApiParameter("min_rating", float, description="Minimum average rating"),
@@ -142,7 +152,10 @@ class TeacherListView(_MarketScopedMixin, ListAPIView):
                     queryset=TeacherSubject.objects.select_related(
                         "lesson_category__subject"
                     ),
-                )
+                ),
+                "specializations__vertical",
+                "specializations__track",
+                "specializations__subject",
             )
             .annotate(from_price_minor=from_price_subquery())
         )
@@ -178,6 +191,9 @@ class TeacherDetailView(RetrieveAPIView):
                         "student"
                     ),
                 ),
+                "specializations__vertical",
+                "specializations__track",
+                "specializations__subject",
             )
             .annotate(from_price_minor=from_price_subquery())
         )

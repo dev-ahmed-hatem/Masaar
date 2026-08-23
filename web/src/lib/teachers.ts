@@ -12,6 +12,13 @@ export interface SubjectSummary {
   name_ar: string;
 }
 
+/** A stage → (branch/faculty) → subject discovery tag on a teacher. */
+export interface Specialization {
+  stage: SubjectSummary;
+  track: SubjectSummary | null;
+  subject: SubjectSummary;
+}
+
 export interface TeacherListItem {
   id: number;
   full_name: string;
@@ -27,6 +34,7 @@ export interface TeacherListItem {
   lessons_count: number;
   free_lessons_offered: number;
   subjects: SubjectSummary[];
+  specializations: Specialization[];
   from_price: Money | null;
 }
 
@@ -97,6 +105,8 @@ export interface Paginated<T> {
 
 export interface TeacherQuery {
   market: string;
+  stage?: number;
+  track?: number;
   subject?: number;
   gender?: string;
   min_rating?: number;

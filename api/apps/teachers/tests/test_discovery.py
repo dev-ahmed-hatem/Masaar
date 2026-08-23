@@ -7,6 +7,7 @@ from apps.teachers.models import (
     AvailabilityRule,
     TeacherPrice,
     TeacherProfile,
+    TeacherSpecialization,
     TeacherSubject,
 )
 
@@ -49,14 +50,22 @@ def world():
             is_published=published,
         )
 
+    # Mirror offerings into specialization tags (as the backfill migration does),
+    # since discovery's subject/stage filters run off specializations.
+    def specialize(t, subject):
+        TeacherSpecialization.objects.create(teacher=t, vertical=primary, track=None, subject=subject)
+
     # T1: Math (6000) + Physics (8000) -> from 6000
     t1 = teacher("+201000000001", eg, "Ahmed Ali", 4.5)
     TeacherSubject.objects.create(teacher=t1, lesson_category=eg_math)
     TeacherSubject.objects.create(teacher=t1, lesson_category=eg_physics)
+    specialize(t1, math)
+    specialize(t1, physics)
 
     # T2: Math with an APPROVED override to 5000 -> from 5000
     t2 = teacher("+201000000002", eg, "Sara Nabil", 4.0)
     TeacherSubject.objects.create(teacher=t2, lesson_category=eg_math)
+    specialize(t2, math)
     TeacherPrice.objects.create(
         teacher=t2, lesson_category=eg_math, custom_student_price_minor=5000, is_approved=True
     )
@@ -170,6 +179,21 @@ def test_detail_includes_resume_fields(api, world):
     assert res.data["education"][0]["degree"] == "BSc Math"
     assert res.data["work_experience"][0]["title"] == "Tutor"
     assert res.data["certifications"][0]["name"] == "TEFL"
+
+
+def test_filter_by_stage(api, world):
+    stage_id = world["primary"].id
+    res = api.get(TEACHERS, {"market": "EG", "stage": stage_id})
+    assert res.status_code == 200
+    assert {r["full_name"] for r in res.data["results"]} == {"Ahmed Ali", "Sara Nabil"}
+
+
+def test_list_exposes_specializations(api, world):
+    res = api.get(TEACHERS, {"market": "EG", "subject": world["physics"].id})
+    row = next(r for r in res.data["results"] if r["full_name"] == "Ahmed Ali")
+    subjects = {s["subject"]["name_en"] for s in row["specializations"]}
+    assert {"Mathematics", "Physics"} <= subjects
+    assert row["specializations"][0]["stage"]["name_en"] == "Primary"
 
 
 def test_slots_endpoint_public_for_anonymous(api, world):

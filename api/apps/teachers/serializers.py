@@ -34,6 +34,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
     market = serializers.SlugRelatedField(slug_field="code", read_only=True)
     languages = serializers.SerializerMethodField()
     subjects = serializers.SerializerMethodField()
+    specializations = serializers.SerializerMethodField()
     from_price = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
 
@@ -54,6 +55,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
             "lessons_count",
             "free_lessons_offered",
             "subjects",
+            "specializations",
             "from_price",
         )
 
@@ -75,6 +77,32 @@ class TeacherListSerializer(serializers.ModelSerializer):
                 {"id": subject.id, "name_en": subject.name_en, "name_ar": subject.name_ar},
             )
         return list(seen.values())
+
+    def get_specializations(self, obj) -> list[dict]:
+        # Flat list of stage → (track) → subject tags. The frontend groups them
+        # for the profile and briefs them for the card.
+        out = []
+        for sp in obj.specializations.all():
+            out.append(
+                {
+                    "stage": {
+                        "id": sp.vertical_id,
+                        "name_en": sp.vertical.name_en,
+                        "name_ar": sp.vertical.name_ar,
+                    },
+                    "track": (
+                        {"id": sp.track_id, "name_en": sp.track.name_en, "name_ar": sp.track.name_ar}
+                        if sp.track_id
+                        else None
+                    ),
+                    "subject": {
+                        "id": sp.subject_id,
+                        "name_en": sp.subject.name_en,
+                        "name_ar": sp.subject.name_ar,
+                    },
+                }
+            )
+        return out
 
     def get_from_price(self, obj) -> dict | None:
         # `from_price_minor` is annotated on the queryset (min effective price).

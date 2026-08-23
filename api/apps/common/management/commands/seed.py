@@ -7,7 +7,14 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.accounts.models import User
-from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
+from apps.catalog.models import (
+    GradeLevel,
+    LessonCategory,
+    StageSubject,
+    Subject,
+    Track,
+    Vertical,
+)
 from apps.markets.models import Market, PaymentAccount
 from apps.payments import services as wallet_services
 from apps.payments.models import Package, Receipt, Wallet
@@ -16,6 +23,7 @@ from apps.teachers.models import (
     TeacherApplication,
     TeacherPrice,
     TeacherProfile,
+    TeacherSpecialization,
     TeacherSubject,
 )
 
@@ -47,33 +55,28 @@ class Command(BaseCommand):
             admin.set_password("Admin12345")
             admin.save(update_fields=["password"])
 
-        # --- Verticals -----------------------------------------------------
+        # --- Stages (verticals) -------------------------------------------
         verticals = {}
-        for order, (code, en, ar) in enumerate(
+        for order, (code, en, ar, kind) in enumerate(
             [
-                (Vertical.Code.PRIMARY, "Primary (KG–G12)", "المرحلة الابتدائية والثانوية"),
-                (Vertical.Code.UNIVERSITY, "University", "الجامعة"),
-                (Vertical.Code.HIGHER_ED, "Higher education", "الدراسات العليا"),
+                (Vertical.Code.PRIMARY, "Primary", "المرحلة الابتدائية", Vertical.ChildKind.NONE),
+                (Vertical.Code.SECONDARY, "Secondary", "المرحلة الثانوية", Vertical.ChildKind.BRANCH),
+                (Vertical.Code.COLLEGE, "College", "الكلية", Vertical.ChildKind.FACULTY),
             ]
         ):
             v, _ = Vertical.objects.get_or_create(
-                code=code, defaults={"name_en": en, "name_ar": ar, "order": order}
+                code=code,
+                defaults={"name_en": en, "name_ar": ar, "order": order, "child_kind": kind},
             )
             verticals[code] = v
+        primary = verticals[Vertical.Code.PRIMARY]
+        secondary = verticals[Vertical.Code.SECONDARY]
+        college = verticals[Vertical.Code.COLLEGE]
 
-        # --- Grade levels --------------------------------------------------
-        primary_levels = [("KG", "روضة")] + [
-            (f"Grade {i}", f"الصف {i}") for i in range(1, 13)
-        ]
-        self._levels(verticals[Vertical.Code.PRIMARY], primary_levels)
-        self._levels(
-            verticals[Vertical.Code.UNIVERSITY],
-            [(f"Year {i}", f"السنة {i}") for i in range(1, 6)],
-        )
-        self._levels(
-            verticals[Vertical.Code.HIGHER_ED],
-            [("BSc", "بكالوريوس"), ("Master", "ماجستير"), ("PhD", "دكتوراه")],
-        )
+        # --- Grade levels (optional refinement) ---------------------------
+        self._levels(primary, [("KG", "روضة")] + [(f"Grade {i}", f"الصف {i}") for i in range(1, 10)])
+        self._levels(secondary, [(f"Grade {i}", f"الصف {i}") for i in range(10, 13)])
+        self._levels(college, [(f"Year {i}", f"السنة {i}") for i in range(1, 5)])
 
         # --- Subjects ------------------------------------------------------
         subjects = {}
@@ -88,6 +91,34 @@ class Command(BaseCommand):
         ]:
             s, _ = Subject.objects.get_or_create(name_en=en, defaults={"name_ar": ar})
             subjects[en] = s
+
+        # --- Tracks (branches / faculties) --------------------------------
+        def track(vertical, en, ar, order):
+            t, _ = Track.objects.get_or_create(
+                vertical=vertical, name_en=en, defaults={"name_ar": ar, "order": order}
+            )
+            return t
+
+        science = track(secondary, "Science", "علمي", 1)
+        literature = track(secondary, "Literature", "أدبي", 2)
+        eng_fac = track(college, "Engineering", "الهندسة", 1)
+        med_fac = track(college, "Medicine", "الطب", 2)
+        biz_fac = track(college, "Business", "التجارة", 3)
+
+        # --- Stage ↔ subject links ----------------------------------------
+        def link(vertical, track_obj, names):
+            for i, name in enumerate(names):
+                StageSubject.objects.get_or_create(
+                    vertical=vertical, track=track_obj, subject=subjects[name],
+                    defaults={"order": i},
+                )
+
+        link(primary, None, ["Mathematics", "Science", "English", "Arabic"])
+        link(secondary, science, ["Mathematics", "Physics", "Chemistry", "Biology"])
+        link(secondary, literature, ["Arabic", "English"])
+        link(college, eng_fac, ["Mathematics", "Physics"])
+        link(college, med_fac, ["Biology", "Chemistry"])
+        link(college, biz_fac, ["English", "Mathematics"])
 
         # --- Sample lesson categories -------------------------------------
         g4_eg = GradeLevel.objects.get(
@@ -126,6 +157,17 @@ class Command(BaseCommand):
             defaults={"custom_student_price_minor": 5500, "is_approved": True},
         )
         self._availability(t_sara, [AvailabilityRule.Weekday.SUN, AvailabilityRule.Weekday.TUE])
+
+        # --- Sample specialization tags (discovery) -----------------------
+        def specialize(teacher, vertical, track_obj, subject_name):
+            TeacherSpecialization.objects.get_or_create(
+                teacher=teacher, vertical=vertical, track=track_obj, subject=subjects[subject_name]
+            )
+
+        specialize(t_ahmed, primary, None, "Mathematics")
+        specialize(t_ahmed, primary, None, "Science")
+        specialize(t_ahmed, secondary, science, "Physics")
+        specialize(t_sara, primary, None, "Mathematics")
 
         # --- Sample student with a funded wallet (for booking demos) ------
         student, created = User.objects.get_or_create(

@@ -1,12 +1,35 @@
 from rest_framework import serializers
 
-from .models import GradeLevel, LessonCategory, Subject, Vertical
+from .models import GradeLevel, LessonCategory, StageSubject, Subject, Track, Vertical
 
 
 class VerticalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vertical
-        fields = ("id", "code", "name_en", "name_ar", "order")
+        fields = ("id", "code", "name_en", "name_ar", "child_kind", "order", "is_active")
+
+
+class TrackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Track
+        fields = ("id", "vertical", "name_en", "name_ar", "order", "is_active")
+
+
+class StageSubjectSerializer(serializers.ModelSerializer):
+    subject_name_en = serializers.CharField(source="subject.name_en", read_only=True)
+    subject_name_ar = serializers.CharField(source="subject.name_ar", read_only=True)
+
+    class Meta:
+        model = StageSubject
+        fields = (
+            "id",
+            "vertical",
+            "track",
+            "subject",
+            "subject_name_en",
+            "subject_name_ar",
+            "order",
+        )
 
 
 class GradeLevelSerializer(serializers.ModelSerializer):

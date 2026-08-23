@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   DollarSign,
   FileCheck,
+  Layers,
   Star,
   Tags,
   UserCheck,
@@ -66,6 +67,12 @@ export default async function AdminPage({
       desc: d.adminPricing.intro,
       href: `/${locale}/admin/pricing`,
       icon: <Tags size={22} strokeWidth={2.2} />,
+    },
+    {
+      label: d.adminCatalog.title,
+      desc: d.adminCatalog.intro,
+      href: `/${locale}/admin/catalog`,
+      icon: <Layers size={22} strokeWidth={2.2} />,
     },
   ];
 

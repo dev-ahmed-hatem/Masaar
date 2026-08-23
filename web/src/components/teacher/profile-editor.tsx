@@ -28,8 +28,16 @@ import {
   type LessonCategoryOption,
   type PriceRequest,
   type TeacherProfile,
+  type TeacherSpecialization,
   type TeacherSubject,
 } from "@/lib/teacher-self";
+import {
+  catalog,
+  catalogName,
+  type Stage,
+  type StageSubject,
+  type Track as CatalogTrack,
+} from "@/lib/catalog";
 
 type Dict = Dictionary["teacherProfile"];
 
@@ -53,6 +61,7 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
   const [subjects, setSubjects] = useState<TeacherSubject[]>([]);
   const [availability, setAvailability] = useState<AvailabilityRule[]>([]);
   const [prices, setPrices] = useState<PriceRequest[]>([]);
+  const [specializations, setSpecializations] = useState<TeacherSpecialization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
@@ -64,13 +73,15 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
       teacherSelf.listSubjects(),
       teacherSelf.listAvailability(),
       teacherSelf.listPrices(),
+      teacherSelf.listSpecializations(),
     ])
-      .then(([p, c, s, a, pr]) => {
+      .then(([p, c, s, a, pr, sp]) => {
         setProfile(p);
         setCategories(c);
         setSubjects(s);
         setAvailability(a);
         setPrices(pr);
+        setSpecializations(sp);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError))
       .finally(() => setLoading(false));
@@ -192,6 +203,28 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
           try {
             await teacherSelf.removeSubject(id);
             setSubjects((prev) => prev.filter((s) => s.id !== id));
+          } catch (err) {
+            fail(err);
+          }
+        }}
+      />
+
+      <SpecializationsCard
+        dict={dict}
+        locale={locale}
+        specializations={specializations}
+        onAdd={async (body) => {
+          try {
+            const created = await teacherSelf.addSpecialization(body);
+            setSpecializations((prev) => [...prev, created]);
+          } catch (err) {
+            fail(err);
+          }
+        }}
+        onRemove={async (id) => {
+          try {
+            await teacherSelf.removeSpecialization(id);
+            setSpecializations((prev) => prev.filter((s) => s.id !== id));
           } catch (err) {
             fail(err);
           }
@@ -514,6 +547,133 @@ function ResumeListField({
         )}
       </Form.List>
     </div>
+  );
+}
+
+function SpecializationsCard({
+  dict,
+  locale,
+  specializations,
+  onAdd,
+  onRemove,
+}: {
+  dict: Dict;
+  locale: Locale;
+  specializations: TeacherSpecialization[];
+  onAdd: (body: { vertical: number; track: number | null; subject: number }) => Promise<void>;
+  onRemove: (id: number) => Promise<void>;
+}) {
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [stageId, setStageId] = useState<number | undefined>();
+  const [trackId, setTrackId] = useState<number | null>(null);
+  const [tracks, setTracks] = useState<CatalogTrack[]>([]);
+  const [subs, setSubs] = useState<StageSubject[]>([]);
+  const [subjectId, setSubjectId] = useState<number | undefined>();
+
+  useEffect(() => {
+    catalog.listStages().then(setStages).catch(() => {});
+  }, []);
+
+  const stage = stages.find((s) => s.id === stageId);
+  const needsTrack = stage != null && stage.child_kind !== "NONE";
+
+  useEffect(() => {
+    setTrackId(null);
+    setTracks([]);
+    setSubs([]);
+    setSubjectId(undefined);
+    if (!stageId) return;
+    if (needsTrack) catalog.listTracks(stageId).then(setTracks).catch(() => {});
+    else catalog.listStageSubjects(stageId).then(setSubs).catch(() => {});
+  }, [stageId, needsTrack]);
+
+  useEffect(() => {
+    setSubjectId(undefined);
+    if (stageId && needsTrack && trackId) {
+      catalog.listStageSubjects(stageId, trackId).then(setSubs).catch(() => {});
+    }
+  }, [trackId, stageId, needsTrack]);
+
+  const existing = new Set(
+    specializations.map((s) => `${s.vertical}|${s.track ?? 0}|${s.subject}`),
+  );
+  const addableSubs = subs.filter(
+    (ss) => !existing.has(`${stageId}|${(needsTrack ? trackId : null) ?? 0}|${ss.subject}`),
+  );
+  const canAdd = Boolean(stageId && (!needsTrack || trackId) && subjectId);
+
+  const specLabel = (s: TeacherSpecialization) => {
+    const ar = locale === "ar";
+    return [
+      ar ? s.stage_name_ar : s.stage_name_en,
+      s.track_name_en ? (ar ? s.track_name_ar : s.track_name_en) : null,
+      ar ? s.subject_name_ar : s.subject_name_en,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  };
+
+  return (
+    <Card title={dict.specializationsSection}>
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <Text type="secondary">{dict.specializationsHint}</Text>
+
+        {specializations.length === 0 ? (
+          <Text type="secondary">{dict.noSpecializations}</Text>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {specializations.map((s) => (
+              <Tag key={s.id} closable onClose={() => onRemove(s.id)} style={{ marginInlineEnd: 0 }}>
+                {specLabel(s)}
+              </Tag>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            style={{ minWidth: 170 }}
+            placeholder={dict.chooseStage}
+            value={stageId}
+            onChange={setStageId}
+            options={stages.map((st) => ({ value: st.id, label: catalogName(st, locale) }))}
+          />
+          {needsTrack && (
+            <Select
+              style={{ minWidth: 170 }}
+              placeholder={stage?.child_kind === "FACULTY" ? dict.chooseFaculty : dict.chooseBranch}
+              value={trackId ?? undefined}
+              onChange={(v) => setTrackId(v)}
+              options={tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))}
+            />
+          )}
+          <Select
+            style={{ minWidth: 190 }}
+            showSearch
+            optionFilterProp="label"
+            placeholder={dict.chooseSubject}
+            value={subjectId}
+            onChange={setSubjectId}
+            disabled={needsTrack && !trackId}
+            options={addableSubs.map((ss) => ({
+              value: ss.subject,
+              label: locale === "ar" ? ss.subject_name_ar : ss.subject_name_en,
+            }))}
+          />
+          <Button
+            type="primary"
+            disabled={!canAdd}
+            onClick={async () => {
+              if (!stageId || !subjectId) return;
+              await onAdd({ vertical: stageId, track: needsTrack ? trackId : null, subject: subjectId });
+              setSubjectId(undefined);
+            }}
+          >
+            {dict.addSpecialization}
+          </Button>
+        </div>
+      </Space>
+    </Card>
   );
 }
 

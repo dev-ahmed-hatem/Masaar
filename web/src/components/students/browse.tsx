@@ -15,6 +15,13 @@ import {
   type SubjectSummary,
   type TeacherListItem,
 } from "@/lib/teachers";
+import {
+  catalog,
+  catalogName,
+  type Stage,
+  type StageSubject,
+  type Track as CatalogTrack,
+} from "@/lib/catalog";
 import { FilterField, PageHeader } from "@/components/ui";
 
 type Dict = Dictionary["browse"];
@@ -33,6 +40,8 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   // anonymous visitors can browse either market.
   const lockedMarket = user?.market ?? null;
   const [market, setMarket] = useState<string>(lockedMarket ?? "EG");
+  const [stage, setStage] = useState<number | undefined>();
+  const [track, setTrack] = useState<number | undefined>();
   const [subject, setSubject] = useState<number | undefined>();
   const [gender, setGender] = useState<string | undefined>();
   const [minRating, setMinRating] = useState<number | undefined>();
@@ -40,10 +49,16 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   const [page, setPage] = useState(1);
 
   const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [tracks, setTracks] = useState<CatalogTrack[]>([]);
+  const [scopedSubjects, setScopedSubjects] = useState<StageSubject[]>([]);
   const [rows, setRows] = useState<TeacherListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const activeStage = stages.find((s) => s.id === stage);
+  const needsTrack = activeStage != null && activeStage.child_kind !== "NONE";
 
   useEffect(() => {
     if (lockedMarket) setMarket(lockedMarket);
@@ -51,13 +66,32 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
 
   useEffect(() => {
     listSubjects().then(setSubjects).catch(() => setSubjects([]));
+    catalog.listStages().then(setStages).catch(() => setStages([]));
   }, []);
+
+  // Cascade: stage → tracks (if grouped) or scoped subjects; reset children.
+  useEffect(() => {
+    setTrack(undefined);
+    setSubject(undefined);
+    setTracks([]);
+    setScopedSubjects([]);
+    if (!stage) return;
+    if (needsTrack) catalog.listTracks(stage).then(setTracks).catch(() => {});
+    else catalog.listStageSubjects(stage).then(setScopedSubjects).catch(() => {});
+  }, [stage, needsTrack]);
+
+  useEffect(() => {
+    setSubject(undefined);
+    if (stage && needsTrack && track) {
+      catalog.listStageSubjects(stage, track).then(setScopedSubjects).catch(() => {});
+    }
+  }, [track, stage, needsTrack]);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
-    listTeachers({ market, subject, gender, min_rating: minRating, ordering, page, page_size: PAGE_SIZE })
+    listTeachers({ market, stage, track, subject, gender, min_rating: minRating, ordering, page, page_size: PAGE_SIZE })
       .then((data) => {
         if (!active) return;
         setRows(data.results);
@@ -73,23 +107,55 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     return () => {
       active = false;
     };
-  }, [market, subject, gender, minRating, ordering, page, dict.loadError]);
+  }, [market, stage, track, subject, gender, minRating, ordering, page, dict.loadError]);
 
-  useEffect(() => setPage(1), [market, subject, gender, minRating, ordering]);
+  useEffect(() => setPage(1), [market, stage, track, subject, gender, minRating, ordering]);
+
+  // Subject options: scoped to the chosen stage/track when set, else the full list.
+  const subjectOptions = stage
+    ? scopedSubjects.map((ss) => ({
+        value: ss.subject,
+        label: ar ? ss.subject_name_ar : ss.subject_name_en,
+      }))
+    : subjects.map((s) => ({ value: s.id, label: subjectName(s) }));
 
   return (
     <section className="flex flex-col gap-6">
       <PageHeader title={dict.title} subtitle={dict.intro} />
 
       <div className="flex flex-wrap items-end gap-4">
+        <FilterField label={dict.stageFilter}>
+          <Select
+            allowClear
+            placeholder={dict.allStages}
+            value={stage}
+            onChange={(v) => setStage(v)}
+            style={{ width: 160 }}
+            options={stages.map((s) => ({ value: s.id, label: catalogName(s, locale) }))}
+          />
+        </FilterField>
+        {needsTrack && (
+          <FilterField label={activeStage?.child_kind === "FACULTY" ? dict.facultyFilter : dict.branchFilter}>
+            <Select
+              allowClear
+              placeholder={activeStage?.child_kind === "FACULTY" ? dict.allFaculties : dict.allBranches}
+              value={track}
+              onChange={(v) => setTrack(v)}
+              style={{ width: 160 }}
+              options={tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))}
+            />
+          </FilterField>
+        )}
         <FilterField label={dict.subject}>
           <Select
             allowClear
+            showSearch
+            optionFilterProp="label"
             placeholder={dict.allSubjects}
             value={subject}
             onChange={(v) => setSubject(v)}
             style={{ width: 200 }}
-            options={subjects.map((s) => ({ value: s.id, label: subjectName(s) }))}
+            options={subjectOptions}
           />
         </FilterField>
         <FilterField label={dict.gender}>
@@ -177,6 +243,15 @@ function TeacherCard({
   const bio = (ar ? t.bio_ar : t.bio_en) || t.bio_en || t.bio_ar || "";
   const langs = t.languages.filter(Boolean);
 
+  // Brief chips: unique specialization subjects, falling back to plain subjects.
+  const specById = new Map<number, string>();
+  for (const sp of t.specializations ?? []) {
+    specById.set(sp.subject.id, ar ? sp.subject.name_ar : sp.subject.name_en);
+  }
+  const specChips = specById.size
+    ? [...specById].map(([id, label]) => ({ id, label }))
+    : t.subjects.map((s) => ({ id: s.id, label: subjectName(s) }));
+
   return (
     <Link
       href={`/${locale}/teachers/${t.id}`}
@@ -240,17 +315,17 @@ function TeacherCard({
           </span>
         </div>
 
-        {/* Subjects */}
-        {t.subjects.length > 0 && (
+        {/* Specialization chips (brief): unique subjects, falling back to subjects */}
+        {specChips.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {t.subjects.slice(0, 4).map((s) => (
-              <Tag key={s.id} bordered={false} style={{ background: "var(--surface-2)", margin: 0 }}>
-                {subjectName(s)}
+            {specChips.slice(0, 4).map((c) => (
+              <Tag key={c.id} bordered={false} style={{ background: "var(--surface-2)", margin: 0 }}>
+                {c.label}
               </Tag>
             ))}
-            {t.subjects.length > 4 && (
+            {specChips.length > 4 && (
               <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
-                +{t.subjects.length - 4}
+                +{specChips.length - 4}
               </span>
             )}
           </div>

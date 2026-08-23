@@ -54,6 +54,25 @@ export interface PriceRequest {
   is_approved: boolean;
 }
 
+export interface TeacherSpecialization {
+  id: number;
+  vertical: number;
+  track: number | null;
+  subject: number;
+  stage_name_en: string;
+  stage_name_ar: string;
+  track_name_en: string | null;
+  track_name_ar: string | null;
+  subject_name_en: string;
+  subject_name_ar: string;
+}
+
+export interface SpecializationInput {
+  vertical: number;
+  track?: number | null;
+  subject: number;
+}
+
 export interface TeacherDashboard {
   profile: {
     full_name: string;
@@ -103,6 +122,13 @@ export const teacherSelf = {
     post("/api/teacher/availability/", body) as Promise<AvailabilityRule>,
   removeAvailability: (id: number) =>
     apiAuthed(`/api/teacher/availability/${id}/`, { method: "DELETE" }),
+
+  listSpecializations: () =>
+    apiAuthed<TeacherSpecialization[]>("/api/teacher/specializations/"),
+  addSpecialization: (body: SpecializationInput) =>
+    post("/api/teacher/specializations/", body) as Promise<TeacherSpecialization>,
+  removeSpecialization: (id: number) =>
+    apiAuthed(`/api/teacher/specializations/${id}/`, { method: "DELETE" }),
 
   listPrices: () => apiAuthed<PriceRequest[]>("/api/teacher/prices/"),
   requestPrice: (lesson_category: number, custom_student_price_minor: number) =>
