@@ -7,6 +7,31 @@ from apps.common.models import format_money
 
 from .models import AvailabilityRule, TeacherPrice, TeacherProfile, TeacherSubject
 
+# Résumé JSON sections: the string keys allowed on each record. Anything else is
+# dropped; every value is coerced to a trimmed string. Records with no content
+# are removed. Lengths are capped to keep the payload small and renderable.
+_RESUME_KEYS = {
+    "education": ("degree", "institution", "start_year", "end_year", "description"),
+    "work_experience": ("title", "organization", "start_year", "end_year", "description"),
+    "certifications": ("name", "issuer", "year", "description"),
+}
+_MAX_RECORDS = 20
+_MAX_SPECIALTIES = 30
+_MAX_FIELD_LEN = 300
+
+
+def _clean_records(value, keys: tuple[str, ...]) -> list[dict]:
+    if not isinstance(value, list):
+        raise serializers.ValidationError("Expected a list.")
+    cleaned: list[dict] = []
+    for item in value[:_MAX_RECORDS]:
+        if not isinstance(item, dict):
+            raise serializers.ValidationError("Each entry must be an object.")
+        record = {k: str(item.get(k, "")).strip()[:_MAX_FIELD_LEN] for k in keys}
+        if any(record.values()):
+            cleaned.append(record)
+    return cleaned
+
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
     """The authenticated teacher's own, editable profile."""
@@ -27,6 +52,10 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             "bio_en",
             "bio_ar",
             "intro_video_url",
+            "specialties",
+            "education",
+            "work_experience",
+            "certifications",
             "free_lessons_offered",
             "rating_avg",
             "rating_count",
@@ -42,6 +71,25 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             "lessons_count",
             "is_published",
         )
+
+    def validate_specialties(self, value) -> list[str]:
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Expected a list.")
+        seen: list[str] = []
+        for item in value[:_MAX_SPECIALTIES]:
+            tag = str(item).strip()[:_MAX_FIELD_LEN]
+            if tag and tag not in seen:
+                seen.append(tag)
+        return seen
+
+    def validate_education(self, value) -> list[dict]:
+        return _clean_records(value, _RESUME_KEYS["education"])
+
+    def validate_work_experience(self, value) -> list[dict]:
+        return _clean_records(value, _RESUME_KEYS["work_experience"])
+
+    def validate_certifications(self, value) -> list[dict]:
+        return _clean_records(value, _RESUME_KEYS["certifications"])
 
     def get_photo_url(self, obj) -> str | None:
         if not obj.photo:

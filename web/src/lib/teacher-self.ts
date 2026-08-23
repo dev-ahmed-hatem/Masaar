@@ -1,5 +1,5 @@
 import { apiAuthed, apiAuthedForm } from "./api";
-import type { Money } from "./teachers";
+import type { Certification, Education, Experience, Money } from "./teachers";
 
 export interface TeacherProfile {
   id: number;
@@ -11,6 +11,10 @@ export interface TeacherProfile {
   bio_en: string;
   bio_ar: string;
   intro_video_url: string;
+  specialties: string[];
+  education: Education[];
+  work_experience: Experience[];
+  certifications: Certification[];
   free_lessons_offered: number;
   rating_avg: string | number;
   rating_count: number;

@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,9 +24,13 @@ from .serializers import (
 
 
 class SlotListView(APIView):
-    """Bookable slots generated from a teacher's recurring availability."""
+    """Bookable slots generated from a teacher's recurring availability.
 
-    permission_classes = [IsAuthenticated]
+    Public: anonymous visitors browsing a teacher's profile see real open times
+    (booking itself still requires a signed-in student).
+    """
+
+    permission_classes = [AllowAny]
 
     @extend_schema(
         parameters=[

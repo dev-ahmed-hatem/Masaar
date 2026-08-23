@@ -152,3 +152,28 @@ def test_detail_falls_back_to_category_default(api, world):
 
 def test_unpublished_teacher_detail_404(api, world):
     assert api.get(f"{TEACHERS}{world['t3'].id}/").status_code == 404
+
+
+def test_detail_includes_resume_fields(api, world):
+    t1 = world["t1"]
+    t1.specialties = ["IELTS", "Conversation"]
+    t1.education = [{"degree": "BSc Math", "institution": "Cairo Uni",
+                     "start_year": "2010", "end_year": "2014", "description": ""}]
+    t1.work_experience = [{"title": "Tutor", "organization": "Self",
+                           "start_year": "2015", "end_year": "", "description": "Online"}]
+    t1.certifications = [{"name": "TEFL", "issuer": "X", "year": "2016", "description": ""}]
+    t1.save()
+
+    res = api.get(f"{TEACHERS}{t1.id}/")
+    assert res.status_code == 200
+    assert res.data["specialties"] == ["IELTS", "Conversation"]
+    assert res.data["education"][0]["degree"] == "BSc Math"
+    assert res.data["work_experience"][0]["title"] == "Tutor"
+    assert res.data["certifications"][0]["name"] == "TEFL"
+
+
+def test_slots_endpoint_public_for_anonymous(api, world):
+    # No auth: an anonymous visitor browsing a profile can still see open times.
+    res = api.get("/api/bookings/slots/", {"teacher": world["t2"].id})
+    assert res.status_code == 200
+    assert isinstance(res.data, list)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   App,
@@ -13,26 +13,41 @@ import {
   Select,
   Spin,
   Switch,
-  Tabs,
   Tag,
   Typography,
 } from "antd";
-import { ArrowLeft, Heart, MessageCircle, PlayCircle, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Award,
+  BookOpen,
+  Briefcase,
+  CalendarDays,
+  GraduationCap,
+  Heart,
+  MessageCircle,
+  PlayCircle,
+  Share2,
+  Sparkles,
+  Star,
+} from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError, apiAuthed } from "@/lib/api";
-import { createBooking, listSlots, type Slot } from "@/lib/bookings";
+import { createBooking } from "@/lib/bookings";
 import { chatApi } from "@/lib/chat";
 import { addFavorite, listFavorites, removeFavorite } from "@/lib/favorites";
 import type { Paginated } from "@/lib/teachers";
 import { getTeacher, type Offering, type TeacherDetail as Teacher } from "@/lib/teachers";
 import { DetailRow } from "@/components/ui";
+import TeacherSchedule from "@/components/students/teacher-schedule";
 
 type Dict = Dictionary["browse"];
 
 const { Paragraph, Text } = Typography;
+
+const SCHEDULE_ID = "teacher-schedule";
 
 interface ReviewRow {
   id: number;
@@ -40,6 +55,20 @@ interface ReviewRow {
   rating: number;
   text: string;
   created_at: string;
+}
+
+/** Extract a YouTube video id from common URL shapes (watch, youtu.be, embed). */
+function youtubeId(url: string): string | null {
+  const m = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/,
+  );
+  return m ? m[1] : null;
+}
+
+function yearRange(start: string, end: string, present: string): string {
+  if (!start && !end) return "";
+  if (start && !end) return `${start} – ${present}`;
+  return [start, end].filter(Boolean).join(" – ");
 }
 
 export default function TeacherDetail({
@@ -59,7 +88,7 @@ export default function TeacherDetail({
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [booking, setBooking] = useState<Offering | null>(null);
+  const [pickedStart, setPickedStart] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
   const [isFav, setIsFav] = useState(false);
 
@@ -126,9 +155,14 @@ export default function TeacherDetail({
     }
   }
 
-  function onBook(offering: Offering) {
+  function onPickSlot(iso: string) {
     if (!user) return void router.push(signInHref);
-    setBooking(offering);
+    if (!isStudent) return; // teachers/admins can browse but not book
+    setPickedStart(iso);
+  }
+
+  function scrollToSchedule() {
+    document.getElementById(SCHEDULE_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   if (loading) return <div className="flex justify-center py-24"><Spin /></div>;
@@ -142,6 +176,9 @@ export default function TeacherDetail({
   }
 
   const bio = (ar ? teacher.bio_ar : teacher.bio_en) || teacher.bio_en || teacher.bio_ar;
+  const rating = Number(teacher.rating_avg);
+  const topRated = rating >= 4.8 && teacher.rating_count >= 10;
+  const videoId = teacher.intro_video_url ? youtubeId(teacher.intro_video_url) : null;
 
   return (
     <section className="flex flex-col gap-6">
@@ -150,22 +187,30 @@ export default function TeacherDetail({
         {dict.backToList}
       </Link>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Main column */}
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           {/* Hero */}
           <div className="surface flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
-            <Avatar size={88} src={teacher.photo_url ?? undefined} style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700, fontSize: 32 }}>
+            <Avatar size={96} src={teacher.photo_url ?? undefined} className="shrink-0" style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700, fontSize: 34 }}>
               {(teacher.full_name || "?").trim().charAt(0).toUpperCase()}
             </Avatar>
             <div className="flex flex-1 flex-col gap-2">
-              <h1 className="text-2xl font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-                {teacher.full_name}
-              </h1>
               <div className="flex flex-wrap items-center gap-2">
-                <Rate disabled allowHalf value={Number(teacher.rating_avg)} style={{ fontSize: 15 }} />
+                <h1 className="text-2xl font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+                  {teacher.full_name}
+                </h1>
+                {topRated && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: "var(--brand-tint)", color: "var(--brand-dark)" }}>
+                    <Star size={12} fill="currentColor" />
+                    {dict.topRated}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Rate disabled allowHalf value={rating} style={{ fontSize: 15 }} />
                 <Text type="secondary">
-                  {Number(teacher.rating_avg).toFixed(1)} · {teacher.rating_count} · {teacher.lessons_count} {dict.lessons}
+                  {rating.toFixed(1)} · {dict.reviewsCount.replace("{n}", String(teacher.rating_count))} · {teacher.lessons_count} {dict.lessons}
                 </Text>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -178,8 +223,8 @@ export default function TeacherDetail({
                   </Tag>
                 )}
               </div>
-              {canAct && (
-                <div className="mt-1 flex flex-wrap gap-2">
+              <div className="mt-1 flex flex-wrap gap-2">
+                {canAct && (
                   <Button
                     icon={<Heart size={15} fill={isFav ? "currentColor" : "none"} />}
                     onClick={onToggleFav}
@@ -187,113 +232,218 @@ export default function TeacherDetail({
                   >
                     {isFav ? dict.saved : dict.save}
                   </Button>
-                  <Button icon={<MessageCircle size={15} />} loading={messaging} onClick={onMessage}>
-                    {dict.message}
-                  </Button>
-                  <Button icon={<Share2 size={15} />} onClick={onShare}>{dict.share}</Button>
-                </div>
-              )}
+                )}
+                <Button icon={<Share2 size={15} />} onClick={onShare}>{dict.share}</Button>
+              </div>
             </div>
           </div>
 
-          {teacher.intro_video_url && (
-            <a href={teacher.intro_video_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--brand)" }}>
-              <PlayCircle size={18} />
-              {dict.introVideo}
-            </a>
+          {/* About */}
+          {bio && (
+            <Section icon={<BookOpen size={18} />} title={dict.aboutTitle}>
+              <Paragraph style={{ color: "var(--ink-muted)", whiteSpace: "pre-line", marginBottom: 0 }}>{bio}</Paragraph>
+            </Section>
           )}
 
-          <Tabs
-            items={[
-              {
-                key: "about",
-                label: dict.bio,
-                children: bio ? (
-                  <Paragraph style={{ color: "var(--ink-muted)", whiteSpace: "pre-line" }}>{bio}</Paragraph>
-                ) : (
-                  <Text type="secondary">—</Text>
-                ),
-              },
-              {
-                key: "availability",
-                label: dict.availability,
-                children: <AvailabilityGrid teacher={teacher} dict={dict} />,
-              },
-              {
-                key: "reviews",
-                label: `${dict.reviews} (${teacher.reviews_summary.rating_count})`,
-                children: <ReviewsTab teacherId={id} locale={locale} dict={dict} seed={teacher.recent_reviews} />,
-              },
-            ]}
-          />
+          {/* Specialties */}
+          {teacher.specialties.length > 0 && (
+            <Section icon={<Sparkles size={18} />} title={dict.specialtiesTitle}>
+              <div className="flex flex-wrap gap-1.5">
+                {teacher.specialties.map((s, i) => (
+                  <Tag key={i} bordered={false} style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", margin: 0 }}>
+                    {s}
+                  </Tag>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Subjects & prices */}
+          {teacher.offerings.length > 0 && (
+            <Section icon={<GraduationCap size={18} />} title={dict.offerings}>
+              <div className="flex flex-col gap-2">
+                {teacher.offerings.map((o) => (
+                  <div key={o.lesson_category_id} className="flex items-center justify-between gap-3 rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
+                    <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>
+                      {[o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · ")}
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold" style={{ color: "var(--ink)" }}>{o.price.display}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Schedule — the centerpiece */}
+          <div id={SCHEDULE_ID} className="surface p-5 sm:p-6">
+            <h2 className="mb-1 flex items-center gap-2 text-lg font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+              <CalendarDays size={18} />
+              {dict.scheduleTitle}
+            </h2>
+            <p className="mb-4 text-sm" style={{ color: "var(--ink-muted)" }}>{dict.scheduleIntro}</p>
+            <TeacherSchedule
+              teacherId={teacher.id}
+              locale={locale}
+              dict={dict}
+              onPick={onPickSlot}
+              onMessage={onMessage}
+              selected={pickedStart ?? undefined}
+            />
+          </div>
+
+          {/* Education */}
+          {teacher.education.length > 0 && (
+            <Section icon={<GraduationCap size={18} />} title={dict.educationTitle}>
+              <div className="flex flex-col gap-3">
+                {teacher.education.map((e, i) => (
+                  <ResumeItem
+                    key={i}
+                    title={e.degree}
+                    subtitle={e.institution}
+                    meta={yearRange(e.start_year, e.end_year, dict.present)}
+                    description={e.description}
+                  />
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Work experience */}
+          {teacher.work_experience.length > 0 && (
+            <Section icon={<Briefcase size={18} />} title={dict.experienceTitle}>
+              <div className="flex flex-col gap-3">
+                {teacher.work_experience.map((e, i) => (
+                  <ResumeItem
+                    key={i}
+                    title={e.title}
+                    subtitle={e.organization}
+                    meta={yearRange(e.start_year, e.end_year, dict.present)}
+                    description={e.description}
+                  />
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Certifications */}
+          {teacher.certifications.length > 0 && (
+            <Section icon={<Award size={18} />} title={dict.certificationsTitle}>
+              <div className="flex flex-col gap-3">
+                {teacher.certifications.map((c, i) => (
+                  <ResumeItem
+                    key={i}
+                    title={c.name}
+                    subtitle={c.issuer}
+                    meta={c.year}
+                    description={c.description}
+                  />
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Reviews */}
+          <Section icon={<Star size={18} />} title={`${dict.reviews} (${teacher.reviews_summary.rating_count})`}>
+            <ReviewsSection teacherId={id} locale={locale} dict={dict} seed={teacher.recent_reviews} />
+          </Section>
         </div>
 
-        {/* Sticky booking panel */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
-          <div className="surface p-5">
-            <h2 className="mb-4 text-base font-semibold" style={{ color: "var(--ink)" }}>{dict.bookPanel}</h2>
-            <div className="flex flex-col gap-3">
-              {teacher.offerings.map((o) => (
-                <div key={o.lesson_category_id} className="flex flex-col gap-2 rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
-                  <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
-                    {[o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · ")}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm" style={{ color: "var(--ink-muted)" }}>{o.price.display}</span>
-                    {canAct && (
-                      <Button type="primary" size="small" onClick={() => onBook(o)}>
-                        {user ? dict.book : dict.signInToBook}
-                      </Button>
-                    )}
-                  </div>
+        {/* Sticky booking sidebar */}
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+          <div className="surface overflow-hidden">
+            {videoId ? (
+              <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src={`https://www.youtube.com/embed/${videoId}`}
+                  title={teacher.full_name}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : teacher.intro_video_url ? (
+              <a href={teacher.intro_video_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-5 pt-5 text-sm font-semibold" style={{ color: "var(--brand)" }}>
+                <PlayCircle size={18} />
+                {dict.introVideo}
+              </a>
+            ) : null}
+
+            <div className="flex flex-col gap-3 p-5">
+              {teacher.from_price && (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold" style={{ color: "var(--ink)" }}>{teacher.from_price.display}</span>
+                  <span className="text-xs" style={{ color: "var(--ink-faint)" }}>{dict.perLesson}</span>
                 </div>
-              ))}
+              )}
+              {teacher.free_lessons_offered > 0 && (
+                <Tag color="green" bordered={false} style={{ width: "fit-content", margin: 0 }}>
+                  {dict.freeLessons.replace("{n}", String(teacher.free_lessons_offered))}
+                </Tag>
+              )}
+              <Button type="primary" size="large" icon={<CalendarDays size={16} />} onClick={scrollToSchedule}>
+                {user ? dict.bookLesson : dict.signInToBook}
+              </Button>
+              <Button size="large" icon={<MessageCircle size={16} />} loading={messaging} onClick={onMessage}>
+                {dict.message}
+              </Button>
             </div>
           </div>
         </aside>
       </div>
 
-      {booking && (
+      {pickedStart && (
         <BookingModal
-          teacherId={teacher.id}
-          offering={booking}
-          freeLessonsOffered={teacher.free_lessons_offered}
+          teacher={teacher}
+          startIso={pickedStart}
           dict={dict}
           locale={locale}
-          onClose={() => setBooking(null)}
+          onClose={() => setPickedStart(null)}
         />
       )}
     </section>
   );
 }
 
-function AvailabilityGrid({ teacher, dict }: { teacher: Teacher; dict: Dict }) {
-  if (teacher.availability.length === 0) return <Text type="secondary">—</Text>;
-  const byDay: Record<number, string[]> = {};
-  for (const a of teacher.availability) {
-    (byDay[a.weekday] ??= []).push(`${a.start_time.slice(0, 5)}–${a.end_time.slice(0, 5)}`);
-  }
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-      {dict.weekdays.map((label, wd) => (
-        <div key={wd} className="rounded-xl p-3 text-center" style={{ border: "1px solid var(--border)" }}>
-          <div className="mb-2 text-xs font-semibold" style={{ color: "var(--ink)" }}>{label}</div>
-          <div className="flex flex-col gap-1">
-            {(byDay[wd] ?? []).length === 0 ? (
-              <span className="text-xs" style={{ color: "var(--ink-faint)" }}>—</span>
-            ) : (
-              byDay[wd].map((r, i) => (
-                <span key={i} className="text-xs" style={{ color: "var(--ink-muted)" }} dir="ltr">{r}</span>
-              ))
-            )}
-          </div>
-        </div>
-      ))}
+    <div className="surface p-5 sm:p-6">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        {icon}
+        {title}
+      </h2>
+      {children}
     </div>
   );
 }
 
-function ReviewsTab({
+function ResumeItem({
+  title,
+  subtitle,
+  meta,
+  description,
+}: {
+  title: string;
+  subtitle: string;
+  meta: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{title || subtitle}</span>
+        {meta && <span className="text-xs" style={{ color: "var(--ink-faint)" }}>{meta}</span>}
+      </div>
+      {title && subtitle && (
+        <div className="text-sm" style={{ color: "var(--ink-muted)" }}>{subtitle}</div>
+      )}
+      {description && (
+        <p className="mt-1 text-sm" style={{ color: "var(--ink-muted)", whiteSpace: "pre-line" }}>{description}</p>
+      )}
+    </div>
+  );
+}
+
+function ReviewsSection({
   teacherId,
   locale,
   dict,
@@ -329,7 +479,7 @@ function ReviewsTab({
   return (
     <div className="flex flex-col gap-3">
       {reviews.map((r) => (
-        <div key={r.id} className="surface p-4">
+        <div key={r.id} className="rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-2">
             <Rate disabled value={r.rating} style={{ fontSize: 13 }} />
             <Text type="secondary" className="text-sm">{r.student_name}</Text>
@@ -348,67 +498,46 @@ function ReviewsTab({
 }
 
 function BookingModal({
-  teacherId,
-  offering,
-  freeLessonsOffered,
+  teacher,
+  startIso,
   dict,
   locale,
   onClose,
 }: {
-  teacherId: number;
-  offering: Offering;
-  freeLessonsOffered: number;
+  teacher: Teacher;
+  startIso: string;
   dict: Dict;
   locale: Locale;
   onClose: () => void;
 }) {
   const router = useRouter();
   const { message } = App.useApp();
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(true);
-  const [start, setStart] = useState<string | undefined>();
+  const offerings = teacher.offerings;
+  const [offeringId, setOfferingId] = useState<number | undefined>(offerings[0]?.lesson_category_id);
   const [isTrial, setIsTrial] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lowFunds, setLowFunds] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    setLoadingSlots(true);
-    listSlots(teacherId)
-      .then((s) => active && setSlots(s))
-      .catch(() => active && setSlots([]))
-      .finally(() => active && setLoadingSlots(false));
-    return () => {
-      active = false;
-    };
-  }, [teacherId]);
+  const offering: Offering | undefined =
+    offerings.find((o) => o.lesson_category_id === offeringId) ?? offerings[0];
 
-  const dayFmt = useCallback(
-    (iso: string) => new Date(iso).toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric" }),
-    [locale],
-  );
-  const timeFmt = useCallback(
-    (iso: string) => new Date(iso).toLocaleTimeString(locale, { timeStyle: "short" }),
-    [locale],
-  );
-  const groups = slots.reduce<Record<string, Slot[]>>((acc, s) => {
-    (acc[dayFmt(s.start)] ??= []).push(s);
-    return acc;
-  }, {});
-  const options = Object.entries(groups).map(([label, items]) => ({
-    label,
-    options: items.map((s) => ({ label: timeFmt(s.start), value: s.start })),
-  }));
+  const whenLabel = new Date(startIso).toLocaleString(locale, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   async function submit() {
-    if (!start) return;
+    if (!offering) return;
     setSubmitting(true);
     setLowFunds(false);
     try {
       await createBooking({
-        teacher: teacherId,
+        teacher: teacher.id,
         lesson_category: offering.lesson_category_id,
-        scheduled_start: start,
+        scheduled_start: startIso,
         is_trial: isTrial,
       });
       message.success(dict.bookSuccess);
@@ -428,35 +557,44 @@ function BookingModal({
     }
   }
 
-  const priceText = isTrial ? dict.free : offering.price.display;
+  const priceText = isTrial ? dict.free : offering?.price.display ?? "";
 
   return (
     <Modal
       open
       onCancel={onClose}
-      title={`${dict.bookTitle} · ${offering.subject}`}
+      title={dict.bookTitle}
       okText={dict.confirm}
-      okButtonProps={{ disabled: !start, loading: submitting }}
+      okButtonProps={{ disabled: !offering, loading: submitting }}
       onOk={submit}
     >
       <div className="flex flex-col gap-4 py-2">
-        {loadingSlots ? (
-          <div className="flex justify-center py-6"><Spin /></div>
-        ) : slots.length === 0 ? (
-          <Alert type="info" message={dict.noSlots} showIcon />
-        ) : (
+        <DetailRow label={dict.selectedTime} value={<strong dir="ltr">{whenLabel}</strong>} />
+
+        {offerings.length > 1 && (
           <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.chooseTime}</span>
-            <Select value={start} onChange={setStart} placeholder={dict.chooseTime} options={options} style={{ width: "100%" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.chooseSubject}</span>
+            <Select
+              value={offeringId}
+              onChange={setOfferingId}
+              style={{ width: "100%" }}
+              options={offerings.map((o) => ({
+                value: o.lesson_category_id,
+                label: [o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · "),
+              }))}
+            />
           </label>
         )}
-        {freeLessonsOffered > 0 && (
+
+        {teacher.free_lessons_offered > 0 && (
           <label className="flex items-center gap-3">
             <Switch checked={isTrial} onChange={setIsTrial} />
             <span className="text-sm" style={{ color: "var(--ink)" }}>{dict.trialToggle}</span>
           </label>
         )}
+
         <DetailRow label={dict.priceLabel} value={<strong>{priceText}</strong>} />
+
         {lowFunds && (
           <Alert
             type="warning"

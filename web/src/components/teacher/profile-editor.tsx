@@ -347,6 +347,10 @@ function ProfileForm({
     bio_ar: profile.bio_ar,
     intro_video_url: profile.intro_video_url,
     free_lessons_offered: profile.free_lessons_offered,
+    specialties: profile.specialties ?? [],
+    education: profile.education ?? [],
+    work_experience: profile.work_experience ?? [],
+    certifications: profile.certifications ?? [],
   };
 
   return (
@@ -411,10 +415,105 @@ function ProfileForm({
           </div>
         </div>
       )}
+      <Form.Item name="specialties" label={dict.specialties} help={dict.specialtiesHint}>
+        <Select mode="tags" tokenSeparators={[","]} open={false} suffixIcon={null} />
+      </Form.Item>
+
+      <ResumeListField
+        listName="education"
+        title={dict.educationSection}
+        addLabel={dict.addEducation}
+        removeLabel={dict.remove}
+        fields={[
+          { name: "degree", label: dict.degree },
+          { name: "institution", label: dict.institution },
+          { name: "start_year", label: dict.startYear },
+          { name: "end_year", label: dict.endYear },
+          { name: "description", label: dict.description, area: true },
+        ]}
+      />
+
+      <ResumeListField
+        listName="work_experience"
+        title={dict.experienceSection}
+        addLabel={dict.addExperience}
+        removeLabel={dict.remove}
+        fields={[
+          { name: "title", label: dict.jobTitle },
+          { name: "organization", label: dict.organization },
+          { name: "start_year", label: dict.startYear },
+          { name: "end_year", label: dict.endYear },
+          { name: "description", label: dict.description, area: true },
+        ]}
+      />
+
+      <ResumeListField
+        listName="certifications"
+        title={dict.certificationsSection}
+        addLabel={dict.addCertification}
+        removeLabel={dict.remove}
+        fields={[
+          { name: "name", label: dict.certName },
+          { name: "issuer", label: dict.issuer },
+          { name: "year", label: dict.year },
+          { name: "description", label: dict.description, area: true },
+        ]}
+      />
+
       <Button type="primary" htmlType="submit" loading={saving}>
         {dict.save}
       </Button>
     </Form>
+  );
+}
+
+function ResumeListField({
+  listName,
+  title,
+  addLabel,
+  removeLabel,
+  fields,
+}: {
+  listName: string;
+  title: string;
+  addLabel: string;
+  removeLabel: string;
+  fields: { name: string; label: string; area?: boolean }[];
+}) {
+  const rowFields = fields.filter((f) => !f.area);
+  const areaFields = fields.filter((f) => f.area);
+  return (
+    <div className="mb-4">
+      <Text strong style={{ color: "var(--ink)" }}>{title}</Text>
+      <Form.List name={listName}>
+        {(items, { add, remove }) => (
+          <div className="mt-2 flex flex-col gap-3">
+            {items.map((field) => (
+              <div key={field.key} className="rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
+                <div className="grid gap-x-3 sm:grid-cols-2">
+                  {rowFields.map((f) => (
+                    <Form.Item key={f.name} name={[field.name, f.name]} label={f.label} className="!mb-2">
+                      <Input />
+                    </Form.Item>
+                  ))}
+                </div>
+                {areaFields.map((f) => (
+                  <Form.Item key={f.name} name={[field.name, f.name]} label={f.label} className="!mb-2">
+                    <Input.TextArea rows={2} />
+                  </Form.Item>
+                ))}
+                <Button danger size="small" onClick={() => remove(field.name)}>
+                  {removeLabel}
+                </Button>
+              </div>
+            ))}
+            <Button onClick={() => add()} className="self-start">
+              {addLabel}
+            </Button>
+          </div>
+        )}
+      </Form.List>
+    </div>
   );
 }
 

@@ -52,9 +52,36 @@ export interface Review {
   created_at: string;
 }
 
+export interface Education {
+  degree: string;
+  institution: string;
+  start_year: string;
+  end_year: string;
+  description: string;
+}
+
+export interface Experience {
+  title: string;
+  organization: string;
+  start_year: string;
+  end_year: string;
+  description: string;
+}
+
+export interface Certification {
+  name: string;
+  issuer: string;
+  year: string;
+  description: string;
+}
+
 export interface TeacherDetail extends TeacherListItem {
   bio_en: string;
   bio_ar: string;
+  specialties: string[];
+  education: Education[];
+  work_experience: Experience[];
+  certifications: Certification[];
   offerings: Offering[];
   availability: Availability[];
   reviews_summary: { rating_avg: string | number; rating_count: number };

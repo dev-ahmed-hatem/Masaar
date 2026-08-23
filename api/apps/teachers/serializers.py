@@ -123,6 +123,10 @@ class TeacherDetailSerializer(TeacherListSerializer):
     class Meta(TeacherListSerializer.Meta):
         # bio_en / bio_ar are inherited from TeacherListSerializer.Meta.fields.
         fields = TeacherListSerializer.Meta.fields + (
+            "specialties",
+            "education",
+            "work_experience",
+            "certifications",
             "offerings",
             "availability",
             "reviews_summary",

@@ -64,6 +64,17 @@ class TeacherProfile(TimeStampedModel):
     bio_en = models.TextField(blank=True)
     bio_ar = models.TextField(blank=True)
     intro_video_url = models.URLField(blank=True, help_text="YouTube URL (Vidstack player)")
+    # Free-form résumé sections shown on the public profile, edited by the teacher
+    # in one form. Display-only (never queried), so stored as JSON rather than
+    # child tables. Shapes (see self_serializers validation):
+    #   specialties:     list[str]
+    #   education:       list[{degree, institution, start_year, end_year, description}]
+    #   work_experience: list[{title, organization, start_year, end_year, description}]
+    #   certifications:  list[{name, issuer, year, description}]
+    specialties = models.JSONField(default=list, blank=True)
+    education = models.JSONField(default=list, blank=True)
+    work_experience = models.JSONField(default=list, blank=True)
+    certifications = models.JSONField(default=list, blank=True)
     free_lessons_offered = models.PositiveSmallIntegerField(default=0)
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     rating_count = models.PositiveIntegerField(default=0)

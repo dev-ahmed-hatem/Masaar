@@ -61,6 +61,32 @@ def test_get_own_profile(teacher_api, world):
     assert res.data["market"] == "EG" and res.data["is_published"] is False
 
 
+def test_patch_profile_persists_resume_fields(teacher_api, world):
+    res = teacher_api.patch(
+        PROFILE,
+        {
+            "specialties": ["IELTS", "IELTS", " Business English "],
+            "education": [
+                {"degree": "BSc", "institution": "Cairo Uni", "extra": "dropped", "description": ""},
+                {"degree": "", "institution": "", "start_year": "", "end_year": "", "description": ""},
+            ],
+        },
+        format="json",
+    )
+    assert res.status_code == 200
+    # Duplicates removed, values trimmed.
+    assert res.data["specialties"] == ["IELTS", "Business English"]
+    # Unknown keys dropped; empty record removed; known keys coerced to strings.
+    assert res.data["education"] == [
+        {"degree": "BSc", "institution": "Cairo Uni", "start_year": "", "end_year": "", "description": ""}
+    ]
+
+
+def test_patch_profile_rejects_non_list_resume(teacher_api, world):
+    res = teacher_api.patch(PROFILE, {"specialties": "IELTS"}, format="json")
+    assert res.status_code == 400
+
+
 def test_patch_profile_updates_name_and_bio(teacher_api, world):
     res = teacher_api.patch(
         PROFILE,
