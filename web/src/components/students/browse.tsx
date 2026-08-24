@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Avatar, Empty, Pagination, Select, Spin, Tag } from "antd";
-import { ArrowRight, GraduationCap, Languages, Star } from "lucide-react";
+import { Alert, Avatar, Drawer, Empty, Pagination, Select, Spin, Tag } from "antd";
+import { ArrowRight, GraduationCap, Languages, Search, SlidersHorizontal, Star } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Locale } from "@/i18n/config";
@@ -22,7 +22,7 @@ import {
   type StageSubject,
   type Track as CatalogTrack,
 } from "@/lib/catalog";
-import { FilterField, PageHeader } from "@/components/ui";
+import { FilterField } from "@/components/ui";
 
 type Dict = Dictionary["browse"];
 
@@ -56,6 +56,7 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const activeStage = stages.find((s) => s.id === stage);
   const needsTrack = activeStage != null && activeStage.child_kind !== "NONE";
@@ -119,81 +120,89 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
       }))
     : subjects.map((s) => ({ value: s.id, label: subjectName(s) }));
 
-  return (
-    <section className="flex flex-col gap-6">
-      <PageHeader title={dict.title} subtitle={dict.intro} />
+  const advancedCount =
+    (gender ? 1 : 0) + (minRating != null ? 1 : 0) + (ordering !== "-rating_avg" ? 1 : 0);
+  const anyFilter = stage != null || track != null || subject != null || advancedCount > 0;
 
-      <div className="flex flex-wrap items-end gap-4">
-        <FilterField label={dict.stageFilter}>
-          <Select
-            allowClear
-            placeholder={dict.allStages}
-            value={stage}
-            onChange={(v) => setStage(v)}
-            style={{ width: 160 }}
-            options={stages.map((s) => ({ value: s.id, label: catalogName(s, locale) }))}
-          />
-        </FilterField>
-        {needsTrack && (
-          <FilterField label={activeStage?.child_kind === "FACULTY" ? dict.facultyFilter : dict.branchFilter}>
-            <Select
-              allowClear
-              placeholder={activeStage?.child_kind === "FACULTY" ? dict.allFaculties : dict.allBranches}
-              value={track}
-              onChange={(v) => setTrack(v)}
-              style={{ width: 160 }}
-              options={tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))}
-            />
-          </FilterField>
-        )}
-        <FilterField label={dict.subject}>
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            placeholder={dict.allSubjects}
-            value={subject}
-            onChange={(v) => setSubject(v)}
-            style={{ width: 200 }}
-            options={subjectOptions}
-          />
-        </FilterField>
-        <FilterField label={dict.gender}>
-          <Select
-            allowClear
-            placeholder={dict.anyGender}
-            value={gender}
-            onChange={(v) => setGender(v)}
-            style={{ width: 140 }}
-            options={[
-              { value: "MALE", label: dict.male },
-              { value: "FEMALE", label: dict.female },
-            ]}
-          />
-        </FilterField>
-        <FilterField label={dict.minRating}>
-          <Select
-            allowClear
-            placeholder="—"
-            value={minRating}
-            onChange={(v) => setMinRating(v)}
-            style={{ width: 110 }}
-            options={[3, 3.5, 4, 4.5].map((r) => ({ value: r, label: `${r}★+` }))}
-          />
-        </FilterField>
-        <FilterField label={dict.sortBy}>
-          <Select
-            value={ordering}
-            onChange={setOrdering}
-            style={{ width: 170 }}
-            options={[
-              { value: "-rating_avg", label: dict.sortRating },
-              { value: "from_price_minor", label: dict.sortPriceAsc },
-              { value: "-lessons_count", label: dict.sortLessons },
-            ]}
-          />
-        </FilterField>
+  function clearAll() {
+    setStage(undefined);
+    setTrack(undefined);
+    setSubject(undefined);
+    setGender(undefined);
+    setMinRating(undefined);
+    setOrdering("-rating_avg");
+  }
+
+  return (
+    <section className="flex flex-col gap-5">
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        {dict.title}
+      </h1>
+
+      {/* Search-first row: subject search + advanced-filters trigger */}
+      <div className="flex items-center gap-2">
+        <Select
+          showSearch
+          allowClear
+          size="large"
+          optionFilterProp="label"
+          value={subject}
+          onChange={(v) => setSubject(v)}
+          placeholder={dict.searchPlaceholder}
+          suffixIcon={<Search size={18} style={{ color: "var(--ink-faint)" }} />}
+          options={subjectOptions}
+          className="flex-1"
+          style={{ minWidth: 0 }}
+        />
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-semibold sm:px-4"
+          style={{ color: "var(--ink)", border: "1px solid var(--border-strong)", background: "var(--surface)" }}
+        >
+          <SlidersHorizontal size={16} />
+          <span className="hidden sm:inline">{dict.filters}</span>
+          {advancedCount > 0 && (
+            <span className="inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold" style={{ background: "var(--brand)", color: "#fff" }}>
+              {advancedCount}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Stage chips */}
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <Chip active={stage == null} onClick={() => setStage(undefined)}>{dict.allStages}</Chip>
+        {stages.map((s) => (
+          <Chip key={s.id} active={stage === s.id} onClick={() => setStage(s.id)}>{catalogName(s, locale)}</Chip>
+        ))}
+      </div>
+
+      {/* Branch / faculty chips */}
+      {needsTrack && tracks.length > 0 && (
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <Chip active={track == null} onClick={() => setTrack(undefined)}>
+            {activeStage?.child_kind === "FACULTY" ? dict.allFaculties : dict.allBranches}
+          </Chip>
+          {tracks.map((t) => (
+            <Chip key={t.id} active={track === t.id} onClick={() => setTrack(t.id)}>{catalogName(t, locale)}</Chip>
+          ))}
+        </div>
+      )}
+
+      {/* Results header */}
+      {!loading && !error && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
+            {dict.resultsCount.replace("{count}", String(total))}
+          </span>
+          {anyFilter && (
+            <button type="button" onClick={clearAll} className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
+              {dict.clearFilters}
+            </button>
+          )}
+        </div>
+      )}
 
       {error ? (
         <Alert type="error" message={error} showIcon />
@@ -223,7 +232,83 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
           )}
         </>
       )}
+
+      {/* Advanced filters — mobile bottom sheet */}
+      <Drawer
+        title={dict.filters}
+        placement="bottom"
+        height="auto"
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+      >
+        <div className="mx-auto flex max-w-md flex-col gap-4 pb-2">
+          <FilterField label={dict.gender}>
+            <Select
+              allowClear
+              placeholder={dict.anyGender}
+              value={gender}
+              onChange={(v) => setGender(v)}
+              style={{ width: "100%" }}
+              options={[
+                { value: "MALE", label: dict.male },
+                { value: "FEMALE", label: dict.female },
+              ]}
+            />
+          </FilterField>
+          <FilterField label={dict.minRating}>
+            <Select
+              allowClear
+              placeholder="—"
+              value={minRating}
+              onChange={(v) => setMinRating(v)}
+              style={{ width: "100%" }}
+              options={[3, 3.5, 4, 4.5].map((r) => ({ value: r, label: `${r}★+` }))}
+            />
+          </FilterField>
+          <FilterField label={dict.sortBy}>
+            <Select
+              value={ordering}
+              onChange={setOrdering}
+              style={{ width: "100%" }}
+              options={[
+                { value: "-rating_avg", label: dict.sortRating },
+                { value: "from_price_minor", label: dict.sortPriceAsc },
+                { value: "-lessons_count", label: dict.sortLessons },
+              ]}
+            />
+          </FilterField>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={clearAll} className="btn btn-ghost flex-1">{dict.clearFilters}</button>
+            <button type="button" onClick={() => setFiltersOpen(false)} className="btn btn-primary flex-1">{dict.showResults}</button>
+          </div>
+        </div>
+      </Drawer>
     </section>
+  );
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
+      style={{
+        background: active ? "var(--brand)" : "var(--surface)",
+        color: active ? "#fff" : "var(--ink-muted)",
+        border: `1px solid ${active ? "var(--brand)" : "var(--border-strong)"}`,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
