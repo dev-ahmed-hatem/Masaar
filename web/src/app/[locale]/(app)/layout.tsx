@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import AppHeader from "@/components/app-header";
+import MobileTabBar from "@/components/mobile-tab-bar";
 import { isValidLocale, otherLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -21,17 +22,14 @@ export default async function AppLayout({
       <AppHeader
         locale={locale}
         brand={d.app.name}
-        home={d.nav.home}
-        teacher={d.nav.teacher}
-        admin={d.nav.admin}
-        browse={d.nav.browse}
+        nav={d.nav}
         otherHref={`/${other}`}
         otherLabel={other === "ar" ? "العربية" : "English"}
         signIn={d.auth.signIn}
         signOut={d.auth.signOut}
         bell={d.notifications}
       />
-      <main className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <main className="relative mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6 sm:pt-8 lg:pb-12">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]"
@@ -42,6 +40,7 @@ export default async function AppLayout({
         />
         {children}
       </main>
+      <MobileTabBar locale={locale} nav={d.nav} />
     </>
   );
 }

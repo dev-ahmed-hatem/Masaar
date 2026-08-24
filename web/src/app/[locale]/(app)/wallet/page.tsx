@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import RouteGuard from "@/components/route-guard";
-import StudentShell from "@/components/students/shell";
 import WalletView from "@/components/students/wallet";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -17,9 +16,7 @@ export default async function WalletPage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <StudentShell active="wallet" nav={d.nav} locale={locale}>
-        <WalletView dict={d.wallet} locale={locale} />
-      </StudentShell>
+      <WalletView dict={d.wallet} locale={locale} />
     </RouteGuard>
   );
 }

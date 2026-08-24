@@ -8,9 +8,13 @@
     "teacher": "Teacher portal",
     "admin": "Admin",
     "browse": "Find teachers",
+    "find": "Find",
     "lessons": "My lessons",
+    "lessonsShort": "Lessons",
     "messages": "Messages",
     "wallet": "Wallet",
+    "calendar": "Calendar",
+    "earnings": "Earnings",
     "overview": "Overview",
     "favorites": "Favorites",
     "profile": "Profile"

@@ -313,3 +313,13 @@ h5.ant-typography {
   border-radius: 8px;
   border: 2px solid var(--bg);
 }
+
+/* ---------- Consumer helpers ---------- */
+/* Hide the scrollbar on horizontal scroll rows (tab bar, filter chips, segmented). */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

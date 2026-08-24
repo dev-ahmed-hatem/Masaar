@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 
 import RouteGuard from "@/components/route-guard";
 import ProfileView from "@/components/students/profile";
-import StudentShell from "@/components/students/shell";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -17,9 +16,7 @@ export default async function ProfilePage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <StudentShell active="profile" nav={d.nav} locale={locale}>
-        <ProfileView dict={d.profile} locale={locale} />
-      </StudentShell>
+      <ProfileView dict={d.profile} locale={locale} />
     </RouteGuard>
   );
 }
