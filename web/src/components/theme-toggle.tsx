@@ -14,8 +14,7 @@ export default function ThemeToggle({ label }: { label?: string }) {
       onClick={toggle}
       aria-label={label ?? "Toggle theme"}
       title={label ?? "Toggle theme"}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
-      style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
+      className="icon-btn h-9 w-9"
     >
       {isDark ? <Sun size={17} strokeWidth={2.2} /> : <Moon size={17} strokeWidth={2.2} />}
     </button>

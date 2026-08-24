@@ -190,20 +190,7 @@ export default function TeacherSchedule({
                           type="button"
                           onClick={() => onPick(s.start)}
                           dir="ltr"
-                          className="rounded-lg border px-1.5 py-1.5 text-xs font-medium transition-colors"
-                          style={
-                            isSel
-                              ? {
-                                  background: "var(--brand)",
-                                  borderColor: "var(--brand)",
-                                  color: "#fff",
-                                }
-                              : {
-                                  background: "var(--surface)",
-                                  borderColor: "var(--border-strong)",
-                                  color: "var(--ink)",
-                                }
-                          }
+                          className={`slot-chip px-1.5 py-1.5 text-xs font-medium${isSel ? " is-active" : ""}`}
                         >
                           {timeFmt(s.start)}
                         </button>

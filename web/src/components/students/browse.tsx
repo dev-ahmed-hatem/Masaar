@@ -157,8 +157,7 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
         <button
           type="button"
           onClick={() => setFiltersOpen(true)}
-          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-semibold sm:px-4"
-          style={{ color: "var(--ink)", border: "1px solid var(--border-strong)", background: "var(--surface)" }}
+          className="icon-btn h-10 shrink-0 px-3.5 text-sm font-semibold sm:px-4"
         >
           <SlidersHorizontal size={16} />
           <span className="hidden sm:inline">{dict.filters}</span>
@@ -197,7 +196,7 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
             {dict.resultsCount.replace("{count}", String(total))}
           </span>
           {anyFilter && (
-            <button type="button" onClick={clearAll} className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
+            <button type="button" onClick={clearAll} className="link-brand text-sm font-semibold">
               {dict.clearFilters}
             </button>
           )}
@@ -300,12 +299,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors"
-      style={{
-        background: active ? "var(--brand)" : "var(--surface)",
-        color: active ? "#fff" : "var(--ink-muted)",
-        border: `1px solid ${active ? "var(--brand)" : "var(--border-strong)"}`,
-      }}
+      className={`chip shrink-0 px-3.5 py-1.5 text-sm font-semibold${active ? " is-active" : ""}`}
     >
       {children}
     </button>

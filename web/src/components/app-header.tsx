@@ -110,11 +110,7 @@ export default function AppHeader({
                 <Link
                   key={href}
                   href={href}
-                  className="rounded-xl px-3.5 py-1.5 text-sm font-semibold transition-colors"
-                  style={{
-                    color: active ? "var(--brand-dark)" : "var(--ink-muted)",
-                    background: active ? "var(--brand-tint)" : "transparent",
-                  }}
+                  className={`nav-pill px-3.5 py-1.5 text-sm font-semibold${active ? " is-active" : ""}`}
                 >
                   {label}
                 </Link>
@@ -158,8 +154,7 @@ export default function AppHeader({
                   <ThemeToggle />
                   <Link
                     href={otherPath}
-                    className="flex-1 rounded-xl px-3 py-1.5 text-center text-sm font-semibold transition-colors"
-                    style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
+                    className="icon-btn flex-1 px-3 py-1.5 text-center text-sm font-semibold"
                   >
                     {otherLabel}
                   </Link>
@@ -187,12 +182,7 @@ export default function AppHeader({
                 </Avatar>
               </button>
             ) : (
-              <button
-                type="button"
-                aria-label="Menu"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
-                style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
-              >
+              <button type="button" aria-label="Menu" className="icon-btn h-9 w-9">
                 <MoreVertical size={18} strokeWidth={2.2} />
               </button>
             )}

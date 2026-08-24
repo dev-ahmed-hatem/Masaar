@@ -40,6 +40,10 @@ import {
 
 type Dict = Dictionary["teacherProfile"];
 
+// Custom per-teacher price requests are disabled for now. Flip to re-enable the
+// section (and its backend/admin approval queue are still in place).
+const PRICE_REQUESTS_ENABLED = false;
+
 const { Paragraph, Text } = Typography;
 
 function youtubeId(url: string): string | null {
@@ -257,28 +261,30 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
         }}
       />
 
-      <PricesCard
-        dict={dict}
-        label={label}
-        categories={categories}
-        prices={prices}
-        onRequest={async (catId, amount) => {
-          try {
-            await teacherSelf.requestPrice(catId, amount);
-            setPrices(await teacherSelf.listPrices());
-          } catch (err) {
-            fail(err);
-          }
-        }}
-        onRemove={async (id) => {
-          try {
-            await teacherSelf.removePrice(id);
-            setPrices((prev) => prev.filter((p) => p.id !== id));
-          } catch (err) {
-            fail(err);
-          }
-        }}
-      />
+      {PRICE_REQUESTS_ENABLED && (
+        <PricesCard
+          dict={dict}
+          label={label}
+          categories={categories}
+          prices={prices}
+          onRequest={async (catId, amount) => {
+            try {
+              await teacherSelf.requestPrice(catId, amount);
+              setPrices(await teacherSelf.listPrices());
+            } catch (err) {
+              fail(err);
+            }
+          }}
+          onRemove={async (id) => {
+            try {
+              await teacherSelf.removePrice(id);
+              setPrices((prev) => prev.filter((p) => p.id !== id));
+            } catch (err) {
+              fail(err);
+            }
+          }}
+        />
+      )}
 
       {/* Sticky publish bar — clears above the mobile tab bar. */}
       <div

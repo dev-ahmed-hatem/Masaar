@@ -135,7 +135,7 @@ export default function StudentDashboard({
       {favorites.length > 0 && (
         <TeacherRail
           title={dict.yourTeachers}
-          action={<Link href={`/${locale}/favorites`}>{dict.viewAll}</Link>}
+          action={<Link href={`/${locale}/favorites`} className="link-brand">{dict.viewAll}</Link>}
           teachers={favorites}
           locale={locale}
         />
@@ -145,7 +145,7 @@ export default function StudentDashboard({
       {recommended.length > 0 && (
         <TeacherRail
           title={dict.recommended}
-          action={<Link href={`/${locale}/teachers`}>{dict.viewAll}</Link>}
+          action={<Link href={`/${locale}/teachers`} className="link-brand">{dict.viewAll}</Link>}
           teachers={recommended}
           locale={locale}
         />

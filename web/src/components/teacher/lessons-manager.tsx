@@ -53,7 +53,7 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
       return (
         <>
           {b.meeting_link && (
-            <a href={b.meeting_link} target="_blank" rel="noreferrer" className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
+            <a href={b.meeting_link} target="_blank" rel="noreferrer" className="link-brand text-sm font-semibold">
               {dict.join} ↗
             </a>
           )}

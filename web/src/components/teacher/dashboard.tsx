@@ -118,7 +118,7 @@ export default function TeacherDashboardView({
       {/* Lesson requests */}
       {requests.length > 0 && (
         <div className="flex flex-col gap-3">
-          <SectionTitle action={<Link href={`/${locale}/teacher/lessons`}>{dict.viewAll}</Link>}>
+          <SectionTitle action={<Link href={`/${locale}/teacher/lessons`} className="link-brand">{dict.viewAll}</Link>}>
             {dict.pendingRequests}
           </SectionTitle>
           <div className="flex flex-col gap-2">
@@ -143,7 +143,7 @@ export default function TeacherDashboardView({
 
       {/* Next lesson + upcoming */}
       <div className="flex flex-col gap-3">
-        <SectionTitle action={<Link href={`/${locale}/teacher/lessons`}>{dict.viewAll}</Link>}>
+        <SectionTitle action={<Link href={`/${locale}/teacher/lessons`} className="link-brand">{dict.viewAll}</Link>}>
           {dict.upcoming}
         </SectionTitle>
         {next_lesson ? (
@@ -173,7 +173,7 @@ export default function TeacherDashboardView({
         ) : (
           <div className="surface flex items-center justify-between gap-4 p-5 sm:p-6">
             <span style={{ color: "var(--ink-muted)" }}>{dict.noUpcoming}</span>
-            <Link href={`/${locale}/teacher/calendar`} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--brand)" }}>
+            <Link href={`/${locale}/teacher/calendar`} className="link-brand flex items-center gap-1 text-sm font-semibold">
               {dict.linkCalendar}
               <ArrowRight size={15} className="rtl:-scale-x-100" />
             </Link>

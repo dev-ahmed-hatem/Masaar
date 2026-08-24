@@ -281,12 +281,7 @@ export function SegmentedTabs({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors"
-            style={{
-              background: active ? "var(--surface)" : "transparent",
-              color: active ? "var(--ink)" : "var(--ink-muted)",
-              boxShadow: active ? "var(--shadow-sm)" : "none",
-            }}
+            className={cn("seg flex shrink-0 items-center gap-1.5 px-4 py-1.5 text-sm font-semibold", active && "is-active")}
           >
             {o.label}
             {o.badge != null && o.badge > 0 && (

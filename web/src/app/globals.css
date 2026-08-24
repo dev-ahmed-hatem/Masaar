@@ -323,3 +323,129 @@ h5.ant-typography {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ---------- Interactive states ---------- */
+/* Tailwind v4 preflight makes button cursor `default`; restore pointer. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+/* Quiet / brand text links */
+.link-quiet {
+  color: var(--ink-muted);
+  transition: color 0.15s ease;
+}
+.link-quiet:hover {
+  color: var(--ink);
+}
+.link-brand {
+  color: var(--brand);
+  transition: opacity 0.15s ease;
+}
+.link-brand:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
+/* Bordered icon / pill button (theme toggle, header menu, filters, locale) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.icon-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* Header nav pill */
+.nav-pill {
+  color: var(--ink-muted);
+  background: transparent;
+  border-radius: 12px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.nav-pill:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.nav-pill.is-active,
+.nav-pill.is-active:hover {
+  color: var(--brand-dark);
+  background: var(--brand-tint);
+}
+
+/* Filter chip */
+.chip {
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.chip:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.chip.is-active {
+  color: #fff;
+  background: var(--brand);
+  border-color: var(--brand);
+}
+.chip.is-active:hover {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+  color: #fff;
+}
+
+/* Segmented control item */
+.seg {
+  color: var(--ink-muted);
+  background: transparent;
+  border-radius: 999px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.seg:hover {
+  color: var(--ink);
+}
+.seg.is-active,
+.seg.is-active:hover {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Small bordered item (calendar booking chip) that becomes interactive */
+.item-hover {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.item-hover:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border)) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Bookable time-slot chip (teacher schedule) */
+.slot-chip {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.slot-chip:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.slot-chip.is-active,
+.slot-chip.is-active:hover {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}

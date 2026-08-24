@@ -188,7 +188,7 @@ export default function CalendarView({
           />
           {dict.legendAvailability}
         </span>
-        <Link href={`/${locale}/teacher/profile`} style={{ color: "var(--brand)" }}>
+        <Link href={`/${locale}/teacher/profile`} className="link-brand font-semibold">
           {dict.editAvailability}
         </Link>
       </div>
@@ -219,7 +219,7 @@ function BookingItem({
   return (
     <Link
       href={`/${locale}/teacher/lessons`}
-      className="rounded-md px-2 py-1.5 text-xs"
+      className="item-hover block rounded-md px-2 py-1.5 text-xs"
       style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
     >
       <div className="font-semibold" style={{ color: "var(--ink)" }}>

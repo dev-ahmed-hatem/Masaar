@@ -61,12 +61,12 @@ export default function FavoritesView({ dict, locale }: { dict: Dict; locale: Lo
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((t) => (
             <div key={t.id} className="surface flex flex-col gap-4 p-5">
-              <Link href={`/${locale}/teachers/${t.id}`} className="flex items-center gap-3">
+              <Link href={`/${locale}/teachers/${t.id}`} className="group flex items-center gap-3">
                 <Avatar size={52} src={t.photo_url ?? undefined} style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700 }}>
                   {(t.full_name || "?").trim().charAt(0).toUpperCase()}
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold" style={{ color: "var(--ink)" }}>{t.full_name}</div>
+                  <div className="truncate text-base font-semibold text-ink transition-colors group-hover:text-brand">{t.full_name}</div>
                   <div className="flex items-center gap-1.5">
                     <Rate disabled allowHalf value={Number(t.rating_avg)} style={{ fontSize: 12 }} />
                     <span className="text-xs" style={{ color: "var(--ink-muted)" }}>({t.rating_count})</span>
