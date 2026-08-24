@@ -2,25 +2,18 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Badge, Button, Card, Rate, Spin, Tag } from "antd";
-import {
-  ArrowRight,
-  CalendarClock,
-  CalendarDays,
-  Inbox,
-  MessageSquare,
-  User,
-  Wallet,
-  Hourglass,
-} from "lucide-react";
+import { Alert, Button, Spin, Tag } from "antd";
+import { ArrowRight, CalendarClock, Hourglass, Inbox, Star, Wallet } from "lucide-react";
 
-import { formatWhen, subjectLabel } from "@/components/bookings/shared";
-import { IconChip, StatCard } from "@/components/ui";
+import { formatWhen, StatusTag, subjectLabel } from "@/components/bookings/shared";
+import { ListRow, SectionTitle, SummaryStrip } from "@/components/ui";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { listBookings, type Booking } from "@/lib/bookings";
 import { teacherSelf, type TeacherDashboard } from "@/lib/teacher-self";
 
 type Dict = Dictionary["teacherDashboard"];
+type BookingsDict = Dictionary["bookings"];
 
 function money(minor: number, currency: string): string {
   return `${(minor / 100).toFixed(2)} ${currency}`;
@@ -28,19 +21,30 @@ function money(minor: number, currency: string): string {
 
 export default function TeacherDashboardView({
   dict,
+  bookingsDict,
   locale,
 }: {
   dict: Dict;
+  bookingsDict: BookingsDict;
   locale: string;
 }) {
   const [data, setData] = useState<TeacherDashboard | null>(null);
+  const [requests, setRequests] = useState<Booking[]>([]);
+  const [upcoming, setUpcoming] = useState<Booking[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
-    teacherSelf
-      .dashboard()
-      .then(setData)
+    Promise.all([
+      teacherSelf.dashboard(),
+      listBookings(undefined, { group: "requested", page_size: 5 }).catch(() => ({ results: [] as Booking[] })),
+      listBookings(undefined, { group: "upcoming", page_size: 6 }).catch(() => ({ results: [] as Booking[] })),
+    ])
+      .then(([d, req, up]) => {
+        setData(d);
+        setRequests(req.results);
+        setUpcoming(up.results);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError));
   }, [dict.loadError]);
 
@@ -52,15 +56,10 @@ export default function TeacherDashboardView({
         type="error"
         showIcon
         message={error}
-        action={
-          <Button size="small" onClick={load}>
-            {dict.retry}
-          </Button>
-        }
+        action={<Button size="small" onClick={load}>{dict.retry}</Button>}
       />
     );
   }
-
   if (!data) {
     return (
       <div className="flex justify-center py-20">
@@ -70,59 +69,10 @@ export default function TeacherDashboardView({
   }
 
   const { profile, earnings, next_lesson } = data;
-
-  const stats: {
-    label: string;
-    value: React.ReactNode;
-    href: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      label: dict.pendingRequests,
-      value: data.pending_requests,
-      href: `/${locale}/teacher/lessons`,
-      icon: <Inbox size={18} />,
-    },
-    {
-      label: dict.upcoming,
-      value: data.upcoming_count,
-      href: `/${locale}/teacher/calendar`,
-      icon: <CalendarClock size={18} />,
-    },
-    {
-      label: dict.earningsPending,
-      value: money(earnings.pending_minor, earnings.currency),
-      href: `/${locale}/teacher/earnings`,
-      icon: <Hourglass size={18} />,
-    },
-    {
-      label: dict.earningsPaid,
-      value: money(earnings.paid_minor, earnings.currency),
-      href: `/${locale}/teacher/earnings`,
-      icon: <Wallet size={18} />,
-    },
-  ];
-
-  const quickLinks = [
-    { label: dict.linkProfile, href: `/${locale}/teacher/profile`, icon: <User size={18} /> },
-    {
-      label: dict.linkLessons,
-      href: `/${locale}/teacher/lessons`,
-      badge: data.pending_requests,
-      icon: <Inbox size={18} />,
-    },
-    { label: dict.linkCalendar, href: `/${locale}/teacher/calendar`, icon: <CalendarDays size={18} /> },
-    {
-      label: dict.linkMessages,
-      href: `/${locale}/teacher/messages`,
-      badge: data.unread_messages,
-      icon: <MessageSquare size={18} />,
-    },
-    { label: dict.linkEarnings, href: `/${locale}/teacher/earnings`, icon: <Wallet size={18} /> },
-  ];
+  const restUpcoming = upcoming.filter((b) => b.id !== next_lesson?.id).slice(0, 4);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {!profile.is_published && (
         <Alert
           type="warning"
@@ -131,103 +81,117 @@ export default function TeacherDashboardView({
           description={dict.unpublishedBody}
           action={
             <Link href={`/${locale}/teacher/profile`}>
-              <Button size="small" type="primary">
-                {dict.completeProfile}
-              </Button>
+              <Button size="small" type="primary">{dict.completeProfile}</Button>
             </Link>
           }
         />
       )}
 
-      <div
-        className="mesh-bg surface flex flex-wrap items-center justify-between gap-3 overflow-hidden p-7"
-      >
-        <div>
-          <h1
-            className="text-3xl font-bold tracking-tight"
-            style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-          >
-            {dict.welcome.replace("{name}", profile.full_name || "")}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm" style={{ color: "var(--ink-muted)" }}>
-            <span className="inline-flex items-center gap-1.5">
-              <Rate disabled allowHalf value={profile.rating_avg} style={{ fontSize: 14 }} />
-              {profile.rating_avg.toFixed(1)} ({profile.rating_count})
-            </span>
-            <span>·</span>
-            <span>{dict.lessonsTaught.replace("{n}", String(profile.lessons_count))}</span>
-            {profile.is_published ? (
-              <Tag color="green" bordered={false} style={{ borderRadius: 999, fontWeight: 600 }}>
-                {dict.published}
-              </Tag>
-            ) : (
-              <Tag bordered={false} style={{ borderRadius: 999, fontWeight: 600 }}>
-                {dict.draft}
-              </Tag>
-            )}
-          </div>
+      {/* Greeting */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+          {dict.welcome.replace("{name}", profile.full_name || "")}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2.5 text-sm" style={{ color: "var(--ink-muted)" }}>
+          <span className="inline-flex items-center gap-1 font-semibold" style={{ color: "var(--ink)" }}>
+            <Star size={14} fill="var(--warning)" stroke="var(--warning)" />
+            {profile.rating_avg.toFixed(1)}
+            <span className="font-normal" style={{ color: "var(--ink-faint)" }}>({profile.rating_count})</span>
+          </span>
+          <span aria-hidden style={{ color: "var(--ink-faint)" }}>·</span>
+          <span>{dict.lessonsTaught.replace("{n}", String(profile.lessons_count))}</span>
+          <Tag color={profile.is_published ? "green" : "default"} bordered={false} style={{ borderRadius: 999, fontWeight: 600 }}>
+            {profile.is_published ? dict.published : dict.draft}
+          </Tag>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value, href, icon }) => (
-          <Link key={label} href={href} className="block">
-            <StatCard label={label} value={value} icon={icon} />
-          </Link>
-        ))}
-      </div>
+      {/* Earnings + upcoming summary */}
+      <SummaryStrip
+        items={[
+          { label: dict.earningsPending, value: money(earnings.pending_minor, earnings.currency), icon: <Hourglass size={18} /> },
+          { label: dict.earningsPaid, value: money(earnings.paid_minor, earnings.currency), icon: <Wallet size={18} /> },
+          { label: dict.upcoming, value: data.upcoming_count, icon: <CalendarClock size={18} /> },
+        ]}
+      />
 
-      <Card title={dict.nextLesson}>
+      {/* Lesson requests */}
+      {requests.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <SectionTitle action={<Link href={`/${locale}/teacher/lessons`}>{dict.viewAll}</Link>}>
+            {dict.pendingRequests}
+          </SectionTitle>
+          <div className="flex flex-col gap-2">
+            {requests.map((b) => (
+              <Link key={b.id} href={`/${locale}/teacher/lessons`} className="block">
+                <ListRow
+                  className="surface-hover"
+                  leading={
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                      <Inbox size={18} />
+                    </span>
+                  }
+                  title={subjectLabel(b, locale)}
+                  subtitle={`${b.student_name} · ${formatWhen(b.scheduled_start, locale)}`}
+                  trailing={<StatusTag dict={bookingsDict} status={b.status} />}
+                />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Next lesson + upcoming */}
+      <div className="flex flex-col gap-3">
+        <SectionTitle action={<Link href={`/${locale}/teacher/lessons`}>{dict.viewAll}</Link>}>
+          {dict.upcoming}
+        </SectionTitle>
         {next_lesson ? (
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="surface flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
             <div className="flex items-center gap-4">
-              <IconChip size={48}>
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
                 <CalendarClock size={22} />
-              </IconChip>
-              <div className="flex flex-col gap-1">
-                <span className="text-base font-semibold" style={{ color: "var(--ink)" }}>
-                  {subjectLabel(next_lesson, locale)}
-                </span>
-                <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
-                  {next_lesson.student_name} · {formatWhen(next_lesson.scheduled_start, locale)} ·{" "}
-                  {next_lesson.duration_min} {dict.minutes}
-                </span>
+              </span>
+              <div className="min-w-0">
+                <div className="text-base font-semibold" style={{ color: "var(--ink)" }}>{subjectLabel(next_lesson, locale)}</div>
+                <div className="text-sm" style={{ color: "var(--ink-muted)" }}>
+                  {next_lesson.student_name} · {formatWhen(next_lesson.scheduled_start, locale)} · {next_lesson.duration_min} {dict.minutes}
+                </div>
               </div>
             </div>
             <div className="flex gap-2">
-              {next_lesson.meeting_link ? (
+              {next_lesson.meeting_link && (
                 <a href={next_lesson.meeting_link} target="_blank" rel="noreferrer">
                   <Button type="primary">{dict.join}</Button>
                 </a>
-              ) : null}
+              )}
               <Link href={`/${locale}/teacher/lessons`}>
                 <Button>{dict.allLessons}</Button>
               </Link>
             </div>
           </div>
         ) : (
-          <span style={{ color: "var(--ink-muted)" }}>{dict.noUpcoming}</span>
+          <div className="surface flex items-center justify-between gap-4 p-5 sm:p-6">
+            <span style={{ color: "var(--ink-muted)" }}>{dict.noUpcoming}</span>
+            <Link href={`/${locale}/teacher/calendar`} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--brand)" }}>
+              {dict.linkCalendar}
+              <ArrowRight size={15} className="rtl:-scale-x-100" />
+            </Link>
+          </div>
         )}
-      </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {quickLinks.map(({ label, href, badge, icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className="surface surface-hover group flex items-center gap-3 p-4"
-          >
-            <IconChip size={38} variant="soft">
-              {icon}
-            </IconChip>
-            <span className="flex-1 text-sm font-semibold" style={{ color: "var(--ink)" }}>
-              {label}
-              {badge ? <Badge count={badge} size="small" className="ms-2" /> : null}
-            </span>
-            <ArrowRight
-              size={16}
-              className="transition-transform group-hover:translate-x-1 rtl:-scale-x-100 rtl:group-hover:-translate-x-1"
-              style={{ color: "var(--brand)" }}
+        {restUpcoming.map((b) => (
+          <Link key={b.id} href={`/${locale}/teacher/lessons`} className="block">
+            <ListRow
+              className="surface-hover"
+              leading={
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "var(--surface-2)", color: "var(--ink-muted)" }}>
+                  <CalendarClock size={18} />
+                </span>
+              }
+              title={subjectLabel(b, locale)}
+              subtitle={`${b.student_name} · ${formatWhen(b.scheduled_start, locale)}`}
+              trailing={<StatusTag dict={bookingsDict} status={b.status} />}
             />
           </Link>
         ))}

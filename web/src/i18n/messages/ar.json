@@ -173,6 +173,7 @@
   "dashboard": {
     "title": "مرحبًا بعودتك، {name}",
     "subtitle": "إليك آخر مستجدات رحلتك التعليمية.",
+    "searchPrompt": "ماذا تريد أن تتعلّم؟",
     "nextLesson": "درسك القادم",
     "noUpcoming": "لا توجد دروس قادمة بعد.",
     "findCta": "ابحث عن معلم",
@@ -721,6 +722,7 @@
     "noUpcoming": "لا توجد حصص قادمة بعد.",
     "join": "انضم للحصة",
     "allLessons": "كل الحصص",
+    "viewAll": "عرض الكل",
     "minutes": "دقيقة",
     "linkProfile": "ملفي",
     "linkLessons": "الحصص",

@@ -173,6 +173,7 @@
   "dashboard": {
     "title": "Welcome back, {name}",
     "subtitle": "Here's what's happening with your learning.",
+    "searchPrompt": "What do you want to learn?",
     "nextLesson": "Your next lesson",
     "noUpcoming": "No upcoming lessons yet.",
     "findCta": "Find a teacher",
@@ -721,6 +722,7 @@
     "noUpcoming": "No upcoming lessons yet.",
     "join": "Join lesson",
     "allLessons": "All lessons",
+    "viewAll": "View all",
     "minutes": "min",
     "linkProfile": "My profile",
     "linkLessons": "Lessons",
