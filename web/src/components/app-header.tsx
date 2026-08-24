@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, Button, Popover } from "antd";
-import { GraduationCap, MoreVertical } from "lucide-react";
+import { GraduationCap, MoreVertical, UserRound } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -16,7 +16,6 @@ export default function AppHeader({
   locale,
   brand,
   nav,
-  otherHref,
   otherLabel,
   signIn,
   signOut,
@@ -25,7 +24,6 @@ export default function AppHeader({
   locale: string;
   brand: string;
   nav: NavDict;
-  otherHref: string;
   otherLabel: string;
   signIn: string;
   signOut: string;
@@ -76,6 +74,14 @@ export default function AppHeader({
   const isActive = (href: string) => href === activeHref;
 
   const initial = (user?.full_name || user?.phone || "?").trim().charAt(0).toUpperCase();
+
+  // Switch language but stay on the current route (swap only the locale prefix).
+  const other = locale === "ar" ? "en" : "ar";
+  const rest = pathname.startsWith(`/${locale}`) ? pathname.slice(locale.length + 1) : pathname;
+  const otherPath = `/${other}${rest}`;
+
+  // Where "My profile" points, per role.
+  const profileHref = isTeacher ? p("teacher/profile") : isStudent ? p("profile") : null;
 
   return (
     <header
@@ -138,10 +144,20 @@ export default function AppHeader({
                     )}
                   </div>
                 )}
+                {profileHref && (
+                  <Link
+                    href={profileHref}
+                    className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-2)]"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    <UserRound size={16} />
+                    {nav.profile}
+                  </Link>
+                )}
                 <div className="flex items-center gap-2">
                   <ThemeToggle />
                   <Link
-                    href={otherHref}
+                    href={otherPath}
                     className="flex-1 rounded-xl px-3 py-1.5 text-center text-sm font-semibold transition-colors"
                     style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
                   >

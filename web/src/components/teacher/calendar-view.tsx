@@ -67,16 +67,23 @@ export default function CalendarView({
 
   const loading = rules == null || bookings == null;
 
+  const rulesFor = (day: dayjs.Dayjs) =>
+    (rules ?? []).filter((r) => r.weekday === ((day.day() + 6) % 7));
+  const bookingsFor = (day: dayjs.Dayjs) =>
+    (bookings ?? [])
+      .filter((b) => dayjs(b.scheduled_start).isSame(day, "day"))
+      .sort((a, b) => a.scheduled_start.localeCompare(b.scheduled_start));
+
   if (error) return <Alert type="error" showIcon message={error} />;
 
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--ink)" }}>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
             {dict.title}
           </h1>
-          <p className="mt-1.5 text-base" style={{ color: "var(--ink-muted)" }}>
+          <p className="mt-1 text-sm sm:text-base" style={{ color: "var(--ink-muted)" }}>
             {dict.intro}
           </p>
         </div>
@@ -99,73 +106,78 @@ export default function CalendarView({
           <Spin />
         </div>
       ) : (
-        <div className="surface overflow-x-auto">
-          <div className="grid min-w-[840px] grid-cols-7">
+        <>
+          {/* Mobile: agenda / day list */}
+          <div className="flex flex-col gap-3 lg:hidden">
             {days.map((day) => {
+              const dRules = rulesFor(day);
+              const dBookings = bookingsFor(day);
               const isToday = day.isSame(dayjs(), "day");
-              const dayRules = rules.filter((r) => r.weekday === ((day.day() + 6) % 7));
-              const dayBookings = bookings
-                .filter((b) => dayjs(b.scheduled_start).isSame(day, "day"))
-                .sort((a, b) => a.scheduled_start.localeCompare(b.scheduled_start));
               return (
-                <div
-                  key={day.toString()}
-                  className="flex min-h-64 flex-col gap-2 p-3"
-                  style={{
-                    borderInlineEnd: "1px solid var(--border)",
-                    background: isToday ? "var(--brand-tint)" : "transparent",
-                  }}
-                >
-                  <div className="text-center">
-                    <div className="text-xs font-medium uppercase" style={{ color: "var(--ink-muted)" }}>
-                      {day.toDate().toLocaleDateString(locale, { weekday: "short" })}
-                    </div>
-                    <div
-                      className="text-lg font-bold"
-                      style={{ color: isToday ? "var(--brand)" : "var(--ink)" }}
-                    >
-                      {day.date()}
-                    </div>
+                <div key={day.toString()} className="surface p-4">
+                  <div className="mb-2 flex items-baseline gap-2">
+                    <span className="text-base font-bold" style={{ color: isToday ? "var(--brand)" : "var(--ink)" }}>
+                      {day.toDate().toLocaleDateString(locale, { weekday: "long" })}
+                    </span>
+                    <span className="text-sm" style={{ color: "var(--ink-faint)" }}>
+                      {day.toDate().toLocaleDateString(locale, { month: "short", day: "numeric" })}
+                    </span>
                   </div>
-
-                  {dayRules.map((r) => (
-                    <div
-                      key={r.id}
-                      className="rounded-md px-2 py-1 text-center text-[11px] font-medium"
-                      style={{
-                        background: "var(--brand-tint)",
-                        color: "var(--brand-dark)",
-                        border: "1px dashed var(--brand)",
-                      }}
-                    >
-                      {r.start_time.slice(0, 5)}–{r.end_time.slice(0, 5)}
+                  {dRules.length === 0 && dBookings.length === 0 ? (
+                    <span className="text-sm" style={{ color: "var(--ink-faint)" }}>—</span>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {dRules.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {dRules.map((r) => (
+                            <AvailChip key={r.id} rule={r} />
+                          ))}
+                        </div>
+                      )}
+                      {dBookings.map((b) => (
+                        <BookingItem key={b.id} booking={b} locale={locale} bookingsDict={bookingsDict} />
+                      ))}
                     </div>
-                  ))}
-
-                  {dayBookings.map((b) => (
-                    <Link
-                      key={b.id}
-                      href={`/${locale}/teacher/lessons`}
-                      className="rounded-md px-2 py-1.5 text-xs"
-                      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-                    >
-                      <div className="font-semibold" style={{ color: "var(--ink)" }}>
-                        {new Date(b.scheduled_start).toLocaleTimeString(locale, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}{" "}
-                        · {b.student_name}
-                      </div>
-                      <Tag color={STATUS_COLORS[b.status]} className="mt-1">
-                        {statusLabel(bookingsDict, b.status)}
-                      </Tag>
-                    </Link>
-                  ))}
+                  )}
                 </div>
               );
             })}
           </div>
-        </div>
+
+          {/* Desktop: week grid */}
+          <div className="surface hidden overflow-hidden lg:block">
+            <div className="grid grid-cols-7">
+              {days.map((day) => {
+                const isToday = day.isSame(dayjs(), "day");
+                return (
+                  <div
+                    key={day.toString()}
+                    className="flex min-h-64 flex-col gap-2 p-3"
+                    style={{
+                      borderInlineEnd: "1px solid var(--border)",
+                      background: isToday ? "var(--brand-tint)" : "transparent",
+                    }}
+                  >
+                    <div className="text-center">
+                      <div className="text-xs font-medium uppercase" style={{ color: "var(--ink-muted)" }}>
+                        {day.toDate().toLocaleDateString(locale, { weekday: "short" })}
+                      </div>
+                      <div className="text-lg font-bold" style={{ color: isToday ? "var(--brand)" : "var(--ink)" }}>
+                        {day.date()}
+                      </div>
+                    </div>
+                    {rulesFor(day).map((r) => (
+                      <AvailChip key={r.id} rule={r} />
+                    ))}
+                    {bookingsFor(day).map((b) => (
+                      <BookingItem key={b.id} booking={b} locale={locale} bookingsDict={bookingsDict} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       <div className="flex flex-wrap items-center gap-4 text-sm" style={{ color: "var(--ink-muted)" }}>
@@ -181,5 +193,42 @@ export default function CalendarView({
         </Link>
       </div>
     </section>
+  );
+}
+
+function AvailChip({ rule }: { rule: AvailabilityRule }) {
+  return (
+    <div
+      className="rounded-md px-2 py-1 text-center text-[11px] font-medium"
+      style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", border: "1px dashed var(--brand)" }}
+    >
+      {rule.start_time.slice(0, 5)}–{rule.end_time.slice(0, 5)}
+    </div>
+  );
+}
+
+function BookingItem({
+  booking,
+  locale,
+  bookingsDict,
+}: {
+  booking: Booking;
+  locale: string;
+  bookingsDict: BookingsDict;
+}) {
+  return (
+    <Link
+      href={`/${locale}/teacher/lessons`}
+      className="rounded-md px-2 py-1.5 text-xs"
+      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+    >
+      <div className="font-semibold" style={{ color: "var(--ink)" }}>
+        {new Date(booking.scheduled_start).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} ·{" "}
+        {booking.student_name}
+      </div>
+      <Tag color={STATUS_COLORS[booking.status]} className="mt-1">
+        {statusLabel(bookingsDict, booking.status)}
+      </Tag>
+    </Link>
   );
 }

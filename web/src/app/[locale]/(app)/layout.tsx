@@ -23,7 +23,6 @@ export default async function AppLayout({
         locale={locale}
         brand={d.app.name}
         nav={d.nav}
-        otherHref={`/${other}`}
         otherLabel={other === "ar" ? "العربية" : "English"}
         signIn={d.auth.signIn}
         signOut={d.auth.signOut}
