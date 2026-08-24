@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, DatePicker, Empty, Form, Input, Rate, Select, Spin, Tabs, Typography } from "antd";
+import { App, Button, DatePicker, Empty, Form, Input, Rate, Select, Spin, Typography } from "antd";
 import dayjs from "dayjs";
 
 import { useAuth } from "@/context/auth-context";
@@ -13,6 +13,7 @@ import { authApi } from "@/lib/auth";
 import { listGradeLevels, listVerticals, type GradeLevel } from "@/lib/catalog";
 import { listMyReviews } from "@/lib/reviews";
 import type { Review } from "@/lib/reviews";
+import { SegmentedTabs } from "@/components/ui";
 
 type Dict = Dictionary["profile"];
 
@@ -22,40 +23,32 @@ export default function ProfileView({ dict, locale }: { dict: Dict; locale: Loca
   const ar = locale === "ar";
   const { user, setUser } = useAuth();
   const { message } = App.useApp();
+  const [tab, setTab] = useState("account");
 
   return (
     <section className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
           {dict.title}
         </h1>
         <Paragraph type="secondary" style={{ marginTop: 4 }}>{dict.subtitle}</Paragraph>
       </div>
 
-      <Tabs
-        items={[
-          {
-            key: "account",
-            label: dict.tabAccount,
-            children: <AccountTab dict={dict} user={user} setUser={setUser} message={message} />,
-          },
-          {
-            key: "learning",
-            label: dict.tabLearning,
-            children: <LearningTab dict={dict} locale={locale} message={message} />,
-          },
-          {
-            key: "security",
-            label: dict.tabSecurity,
-            children: <SecurityTab dict={dict} message={message} />,
-          },
-          {
-            key: "reviews",
-            label: dict.tabReviews,
-            children: <ReviewsTab dict={dict} ar={ar} />,
-          },
+      <SegmentedTabs
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "account", label: dict.tabAccount },
+          { value: "learning", label: dict.tabLearning },
+          { value: "security", label: dict.tabSecurity },
+          { value: "reviews", label: dict.tabReviews },
         ]}
       />
+
+      {tab === "account" && <AccountTab dict={dict} user={user} setUser={setUser} message={message} />}
+      {tab === "learning" && <LearningTab dict={dict} locale={locale} message={message} />}
+      {tab === "security" && <SecurityTab dict={dict} message={message} />}
+      {tab === "reviews" && <ReviewsTab dict={dict} ar={ar} />}
     </section>
   );
 }

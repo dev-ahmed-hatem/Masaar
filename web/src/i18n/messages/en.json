@@ -311,6 +311,8 @@
     "intro": "Edit your public profile, subjects and availability, then publish.",
     "statusPublished": "Published",
     "statusDraft": "Draft",
+    "publishedHint": "Your profile is live and visible to students.",
+    "draftHint": "Publish your profile so students can find you.",
     "publish": "Publish profile",
     "unpublish": "Unpublish",
     "publishSuccess": "Your profile is now live.",

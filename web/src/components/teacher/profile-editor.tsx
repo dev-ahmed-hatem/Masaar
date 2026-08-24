@@ -6,7 +6,6 @@ import {
   Alert,
   App,
   Button,
-  Card,
   Form,
   Input,
   InputNumber,
@@ -17,11 +16,11 @@ import {
   TimePicker,
   Typography,
 } from "antd";
+import type { ReactNode } from "react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { PageHeader } from "@/components/ui";
 import {
   teacherSelf,
   type AvailabilityRule,
@@ -46,6 +45,18 @@ const { Paragraph, Text } = Typography;
 function youtubeId(url: string): string | null {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{11})/);
   return m ? m[1] : null;
+}
+
+/** Lightweight profile-builder section (replaces the heavy antd Card stack). */
+function Section({ title, children }: { title: ReactNode; children: ReactNode }) {
+  return (
+    <div className="surface p-5 sm:p-6">
+      <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
 }
 
 export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Locale }) {
@@ -141,24 +152,18 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
   }
 
   return (
-    <section className="flex flex-col gap-6">
-      <PageHeader
-        title={dict.title}
-        subtitle={dict.intro}
-        extra={
-          <Space direction="vertical" align="end">
-            <Tag color={profile.is_published ? "green" : "gold"}>
-              {profile.is_published ? dict.statusPublished : dict.statusDraft}
-            </Tag>
-            <Button
-              type={profile.is_published ? "default" : "primary"}
-              onClick={togglePublish}
-            >
-              {profile.is_published ? dict.unpublish : dict.publish}
-            </Button>
-          </Space>
-        }
-      />
+    <section className="flex flex-col gap-6 pb-20 lg:pb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+            {dict.title}
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: "var(--ink-muted)" }}>{dict.intro}</p>
+        </div>
+        <Tag color={profile.is_published ? "green" : "gold"} bordered={false} style={{ borderRadius: 999, fontWeight: 600 }}>
+          {profile.is_published ? dict.statusPublished : dict.statusDraft}
+        </Tag>
+      </div>
 
       {missing.length > 0 && (
         <Alert
@@ -174,17 +179,17 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
         />
       )}
 
-      <Card title={dict.photoSection}>
+      <Section title={dict.photoSection}>
         <PhotoSection
           dict={dict}
           profile={profile}
           onChange={(updated) => setProfile(updated)}
         />
-      </Card>
+      </Section>
 
-      <Card title={dict.profileSection}>
+      <Section title={dict.profileSection}>
         <ProfileForm dict={dict} profile={profile} onSave={saveProfile} />
-      </Card>
+      </Section>
 
       <SubjectsCard
         dict={dict}
@@ -274,6 +279,19 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
           }
         }}
       />
+
+      {/* Sticky publish bar — clears above the mobile tab bar. */}
+      <div
+        className="glass fixed inset-x-0 bottom-16 z-20 flex items-center justify-between gap-3 border-t px-4 py-3 lg:static lg:bottom-auto lg:rounded-2xl lg:border"
+        style={{ borderColor: "var(--border)", paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
+      >
+        <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
+          {profile.is_published ? dict.publishedHint : dict.draftHint}
+        </span>
+        <Button type={profile.is_published ? "default" : "primary"} onClick={togglePublish}>
+          {profile.is_published ? dict.unpublish : dict.publish}
+        </Button>
+      </div>
     </section>
   );
 }
@@ -614,7 +632,7 @@ function SpecializationsCard({
   };
 
   return (
-    <Card title={dict.specializationsSection}>
+    <Section title={dict.specializationsSection}>
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         <Text type="secondary">{dict.specializationsHint}</Text>
 
@@ -673,7 +691,7 @@ function SpecializationsCard({
           </Button>
         </div>
       </Space>
-    </Card>
+    </Section>
   );
 }
 
@@ -695,7 +713,7 @@ function SubjectsCard({
   const [selected, setSelected] = useState<number | undefined>();
 
   return (
-    <Card title={dict.subjectsSection}>
+    <Section title={dict.subjectsSection}>
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         {subjects.length === 0 ? (
           <Text type="secondary">{dict.noSubjects}</Text>
@@ -737,7 +755,7 @@ function SubjectsCard({
           </Button>
         </Space.Compact>
       </Space>
-    </Card>
+    </Section>
   );
 }
 
@@ -757,7 +775,7 @@ function AvailabilityCard({
   const [end, setEnd] = useState<dayjs.Dayjs | null>(null);
 
   return (
-    <Card title={dict.availabilitySection}>
+    <Section title={dict.availabilitySection}>
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         {availability.length === 0 ? (
           <Text type="secondary">{dict.noAvailability}</Text>
@@ -798,7 +816,7 @@ function AvailabilityCard({
           </Button>
         </Space>
       </Space>
-    </Card>
+    </Section>
   );
 }
 
@@ -822,7 +840,7 @@ function PricesCard({
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   return (
-    <Card title={dict.pricesSection}>
+    <Section title={dict.pricesSection}>
       <Paragraph type="secondary">{dict.pricesHint}</Paragraph>
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         {prices.length === 0 ? (
@@ -876,6 +894,6 @@ function PricesCard({
           </Button>
         </Space>
       </Space>
-    </Card>
+    </Section>
   );
 }
