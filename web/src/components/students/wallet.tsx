@@ -12,12 +12,10 @@ import {
   Modal,
   Select,
   Spin,
-  Table,
   Tag,
   Typography,
   Upload,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import { UploadCloud } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
@@ -37,7 +35,7 @@ import {
   type ReceiptStatus,
   type Wallet,
 } from "@/lib/wallet";
-import { PageHeader, StatCard } from "@/components/ui";
+import { ListRow } from "@/components/ui";
 
 type Dict = Dictionary["wallet"];
 
@@ -125,27 +123,24 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
   const cur = wallet.currency;
   const money = (minor: number) => `${(minor / 100).toFixed(2)} ${cur}`;
 
-  const receiptCols: ColumnsType<Receipt> = [
-    { title: dict.colWhen, key: "when", render: (_, r) => new Date(r.created_at).toLocaleDateString(locale, { dateStyle: "medium" }) },
-    { title: dict.colAmount, dataIndex: "amount_display", key: "amount" },
-    {
-      title: dict.colStatus,
-      key: "status",
-      render: (_, r) => (
-        <Tag color={STATUS_COLOR[r.status]} bordered={false} style={{ borderRadius: 999 }}>
-          {statusLabel(r.status)}
-        </Tag>
-      ),
-    },
-  ];
-
   return (
     <section className="flex flex-col gap-8">
-      <PageHeader title={dict.title} subtitle={dict.intro} />
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        {dict.title}
+      </h1>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <StatCard label={dict.available} value={wallet.available_display} />
-        <StatCard label={dict.reserved} value={money(wallet.reserved_minor)} />
+      {/* Balance header */}
+      <div className="surface flex flex-wrap items-end justify-between gap-4 p-5 sm:p-6" style={{ background: "var(--grad-brand-soft)" }}>
+        <div>
+          <div className="text-sm" style={{ color: "var(--ink-muted)" }}>{dict.available}</div>
+          <div className="text-3xl font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+            {wallet.available_display}
+          </div>
+          <div className="mt-1 text-xs" style={{ color: "var(--ink-faint)" }}>
+            {dict.reserved}: {money(wallet.reserved_minor)}
+          </div>
+        </div>
+        <a href="#topup" className="btn btn-primary">{dict.topUp}</a>
       </div>
 
       <Alert type="info" showIcon message={dict.reviewNote} />
@@ -177,7 +172,7 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
       </div>
 
       {/* Top-up form */}
-      <div className="surface p-6">
+      <div id="topup" className="surface p-6">
         <h2 className="mb-4 text-lg font-semibold" style={{ color: "var(--ink)" }}>
           {dict.topUpTitle}
         </h2>
@@ -224,7 +219,20 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
         {receipts.length === 0 ? (
           <Empty description={dict.noReceipts} />
         ) : (
-          <Table<Receipt> rowKey="id" size="small" columns={receiptCols} dataSource={receipts} pagination={false} />
+          <div className="flex flex-col gap-2">
+            {receipts.map((r) => (
+              <ListRow
+                key={r.id}
+                title={r.amount_display}
+                subtitle={new Date(r.created_at).toLocaleDateString(locale, { dateStyle: "medium" })}
+                trailing={
+                  <Tag color={STATUS_COLOR[r.status]} bordered={false} style={{ borderRadius: 999, marginInlineEnd: 0 }}>
+                    {statusLabel(r.status)}
+                  </Tag>
+                }
+              />
+            ))}
+          </div>
         )}
       </div>
 

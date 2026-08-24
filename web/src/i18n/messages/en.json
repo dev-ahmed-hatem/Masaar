@@ -110,6 +110,7 @@
     "intro": "Top up your balance to book lessons.",
     "available": "Available balance",
     "reserved": "Reserved for bookings",
+    "topUp": "Top up",
     "reviewNote": "Top-ups and package purchases are approved by our team before your balance updates.",
     "howToTitle": "How to top up",
     "howToIntro": "Transfer to one of the accounts below, then submit the amount and your receipt for review.",
@@ -536,6 +537,7 @@
     "statusPENDING": "Pending",
     "statusPAID": "Paid",
     "totalPaid": "Total paid",
+    "totalPending": "Pending",
     "empty": "No payouts yet. Completed lessons are paid in the next cycle.",
     "loadError": "Could not load your earnings."
   },
