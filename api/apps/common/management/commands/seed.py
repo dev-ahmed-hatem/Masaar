@@ -6,14 +6,16 @@ accounts) is idempotent via get_or_create. The transactional demo activity
 seeded only on a fresh database (guarded by "no bookings exist"), so re-runs
 never pile up duplicates.
 """
+import random
 from datetime import date, timedelta
 
+from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Avg, Count
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.bookings import services as booking_services
 from apps.bookings.models import Booking
 from apps.catalog.models import (
     GradeLevel,
@@ -23,9 +25,9 @@ from apps.catalog.models import (
     Track,
     Vertical,
 )
-from apps.chat import services as chat_services
+from apps.chat.models import Message, Thread
 from apps.markets.models import Market, PaymentAccount
-from apps.notifications.services import notify
+from apps.notifications.models import Notification
 from apps.payments import services as wallet_services
 from apps.payments.models import Package, Receipt, Wallet
 from apps.payouts import services as payout_services
@@ -319,7 +321,7 @@ class Command(BaseCommand):
 
         # --- Rich demo activity (fresh DB only) ---------------------------
         if not Booking.objects.exists():
-            self._seed_activity(admin, eg, sa, S, T, cat, subjects)
+            self._seed_activity(admin, eg, sa, S, T, cat, subjects, tracks, vmap)
 
         self.stdout.write(self.style.SUCCESS("Seed complete."))
         self.stdout.write(
@@ -332,102 +334,262 @@ class Command(BaseCommand):
         )
 
     # ------------------------------------------------------------------ demo activity
-    def _seed_activity(self, admin, eg, sa, S, T, cat, subjects):
+    def _seed_activity(self, admin, eg, sa, S, T, cat, subjects, tracks, vmap):
+        """Generate large, varied demo activity with bulk inserts. Deterministic
+        (seeded RNG) and only ever runs on a fresh DB (guarded by the caller)."""
+        random.seed(1234)
         now = timezone.now()
         td = timedelta
+        Status = Booking.Status
 
-        # Active bookings. Created directly (bypassing slot validation) but with a
-        # real wallet reserve + notification, so balances and bells look authentic.
-        def active(student, teacher, c, when, status, link=""):
-            price = booking_services.effective_price_minor(teacher, c)
-            b = Booking.objects.create(
-                student=student, teacher=teacher, lesson_category=c,
-                scheduled_start=when, duration_min=60,
-                price_minor=price, teacher_wage_minor=c.teacher_wage_minor, currency=c.currency,
-                status=status, meeting_provider="ZOOM" if link else "", meeting_link=link,
-            )
-            if price > 0:
-                wallet_services.reserve(wallet_services.get_or_create_wallet(student), price, booking=b)
-            return b
+        # Tunables — scale the whole dataset from here.
+        N_TEACHERS, N_TEACHERS_SA = 58, 12
+        N_STUDENTS, N_STUDENTS_SA = 430, 70
+        N_THREADS = 300
 
-        active(S["Omar Student"], T["Sara Nabil"], cat(eg, "primary", "Mathematics"), now + td(days=2, hours=1), Booking.Status.REQUESTED)
-        active(S["Nada Fouad"], T["Dina Samir"], cat(eg, "college", "Biology"), now + td(days=5, hours=2), Booking.Status.REQUESTED)
-        active(S["Yara Ali"], T["Ahmed Fathy"], cat(eg, "primary", "Mathematics"), now + td(days=1, hours=3), Booking.Status.CONFIRMED, link="https://zoom.us/j/000000000")
-        active(S["Hassan Tarek"], T["Mona Adel"], cat(eg, "secondary", "Physics"), now + td(days=3, hours=1), Booking.Status.CONFIRMED, link="https://zoom.us/j/000000000")
-        notify(T["Sara Nabil"].user, "booking_requested", {"student_name": "Omar Student", "subject": "Mathematics"})
-        notify(S["Yara Ali"], "booking_confirmed", {"teacher_name": "Ahmed Fathy", "subject": "Mathematics"})
+        CATMAP = {
+            eg.id: {"primary": ["Mathematics", "Science", "English", "Arabic"],
+                    "secondary": ["Physics", "Chemistry", "Biology", "Mathematics", "English"],
+                    "college": ["Mathematics", "Physics", "Biology", "Chemistry", "English"]},
+            sa.id: {"primary": ["Mathematics"], "secondary": ["Physics", "English"]},
+        }
 
-        # Completed lessons (+ reviews) — power earnings, payouts and profile reviews.
-        completed = [
-            (S["Omar Student"], T["Ahmed Fathy"], cat(eg, "primary", "Mathematics"), 3, 5, "Clear explanations and very patient — highly recommended."),
-            (S["Yara Ali"], T["Sara Nabil"], cat(eg, "primary", "English"), 5, 5, "My daughter loves the lessons and improved fast."),
-            (S["Hassan Tarek"], T["Mona Adel"], cat(eg, "secondary", "Physics"), 7, 4, "Great exam tips, helped me with tricky problems."),
-            (S["Nada Fouad"], T["Dina Samir"], cat(eg, "college", "Biology"), 10, 5, "Made a hard topic feel simple. Thank you!"),
-            (S["Omar Student"], T["Khaled Omar"], cat(eg, "secondary", "English"), 12, 4, "Good conversation practice and useful feedback."),
-            (S["Yara Ali"], T["Ahmed Fathy"], cat(eg, "secondary", "Physics"), 6, 5, "Explains step by step — very organized."),
-            (S["Sultan Al-Otaibi"], T["Faisal Al-Harbi"], cat(sa, "secondary", "Physics"), 4, 5, "Excellent teacher, always on time and prepared."),
-        ]
-        for student, teacher, c, days_ago, rating, text in completed:
-            b = Booking.objects.create(
-                student=student, teacher=teacher, lesson_category=c,
-                scheduled_start=now - td(days=days_ago), duration_min=60,
-                completed_at=now - td(days=days_ago) + td(hours=1),
-                price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
-                currency=c.currency, status=Booking.Status.COMPLETED, wage_settled=True,
-                meeting_provider="ZOOM", meeting_link="https://zoom.us/j/000000000",
-            )
-            Review.objects.create(
-                booking=b, student=student, teacher=teacher, rating=rating, text=text, is_published=True
-            )
+        def track_for(vkey, sname):
+            if vkey == "primary":
+                return None
+            if vkey == "secondary":
+                return "science" if sname in {"Mathematics", "Physics", "Chemistry", "Biology"} else "literature"
+            return "eng" if sname in {"Mathematics", "Physics"} else ("med" if sname in {"Biology", "Chemistry"} else "biz")
 
-        # A few unhappy-path bookings so every status is represented.
-        def _hist(student, teacher, c, days, status, **extra):
-            Booking.objects.create(
-                student=student, teacher=teacher, lesson_category=c,
-                scheduled_start=now + td(days=days), duration_min=60,
-                price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
-                currency=c.currency, status=status, **extra,
-            )
+        FIRST_M = ["Ahmed", "Mohamed", "Mahmoud", "Omar", "Youssef", "Khaled", "Tarek", "Hassan", "Kareem",
+                   "Amr", "Mostafa", "Sameh", "Ziad", "Bilal", "Adham", "Sherif", "Ali", "Ibrahim", "Waleed", "Nabil"]
+        FIRST_F = ["Sara", "Mona", "Layla", "Dina", "Nour", "Yara", "Nada", "Salma", "Heba", "Rana",
+                   "Aya", "Mariam", "Farida", "Habiba", "Reem", "Ghada", "Amira", "Doaa", "Hana", "Rasha"]
+        LAST = ["Fathy", "Nabil", "Adel", "Omar", "Mansour", "Hany", "Samir", "Zaki", "Hassan", "Fouad",
+                "Saleh", "Kamal", "Ismail", "Rashad", "Gaber", "Sabry", "Lotfy", "Badr", "Shawky", "Helmy"]
+        SA_LAST = ["Al-Harbi", "Al-Qahtani", "Al-Otaibi", "Al-Ghamdi", "Al-Shehri", "Al-Dosari", "Al-Zahrani", "Al-Malki"]
+        BIOS = ["Experienced tutor focused on strong fundamentals and confidence.",
+                "Friendly, structured lessons tailored to each student's level.",
+                "Exam-focused coaching with plenty of practice and feedback.",
+                "Patient teacher who makes tough topics approachable.",
+                "Results-driven lessons with clear explanations and real examples."]
+        REVIEWS = ["Very helpful and patient.", "Explains everything clearly.", "My grades improved a lot.",
+                   "Highly recommended!", "Great teacher, always prepared.", "Made a hard subject simple.",
+                   "Friendly and professional.", "On time and well organized.",
+                   "Really understands how students learn.", "Lessons are engaging and useful."]
+        STU_LINES = ["Hi! Do you have availability this week?", "Can we focus on exam revision?",
+                     "Thanks for the last lesson!", "What should I prepare before we start?",
+                     "Could we reschedule to the evening?"]
+        TCH_LINES = ["Hello! Yes, I have a few open slots.", "Sure, we can focus on that.",
+                     "You're welcome — great progress!", "Just bring your notes, I'll handle the rest.",
+                     "Of course, evenings work well for me."]
+        WINDOWS = [("16:00", "20:00"), ("17:00", "21:00"), ("18:00", "22:00"), ("10:00", "14:00"), ("19:00", "22:00")]
+        WEEKDAYS = list(AvailabilityRule.Weekday)
+        TPWD, SPWD = make_password("Teacher12345"), make_password("Student12345")
 
-        _hist(S["Nada Fouad"], T["Sara Nabil"], cat(eg, "primary", "Mathematics"), -1,
-              Booking.Status.CANCELLED, cancel_reason="Schedule conflict")
-        _hist(S["Hassan Tarek"], T["Youssef Hany"], cat(eg, "college", "Mathematics"), 4,
-              Booking.Status.DECLINED)
-        _hist(S["Omar Student"], T["Tarek Zaki"], cat(eg, "secondary", "Chemistry"), -2,
-              Booking.Status.NO_SHOW, wage_settled=True)
+        # --- Generated teachers (bulk) ------------------------------------
+        teacher_users, tmeta = [], []
+        for i in range(N_TEACHERS + N_TEACHERS_SA):
+            market = eg if i < N_TEACHERS else sa
+            gender = random.choice(["MALE", "FEMALE"])
+            fn = random.choice(FIRST_M if gender == "MALE" else FIRST_F)
+            ln = random.choice(SA_LAST if market is sa else LAST)
+            phone = f"+2019{i:07d}" if market is eg else f"+96659{i:06d}"
+            teacher_users.append(User(phone=phone, full_name=f"{fn} {ln}", role=User.Role.TEACHER,
+                                      market=market, is_verified=True, password=TPWD))
+            tmeta.append((market, gender))
+        User.objects.bulk_create(teacher_users, batch_size=500)
 
-        # Payout cycles sweep the settled bookings into per-teacher items.
-        period_start, period_end = date.today() - timedelta(days=30), date.today()
-        eg_cycle = payout_services.generate_cycle(eg, period_start, period_end, created_by=admin)
-        payout_services.generate_cycle(sa, period_start, period_end, created_by=admin)
-        first_item = eg_cycle.items.order_by("id").first()
-        if first_item:
-            payout_services.mark_item_paid(first_item, reference="SEED-PAYOUT-001")
+        profiles, pmeta = [], []
+        for u, (market, gender) in zip(teacher_users, tmeta):
+            catmap = CATMAP[market.id]
+            vkeys = [k for k in catmap if catmap[k]]
+            chosen = []
+            for vk in random.sample(vkeys, k=random.randint(1, min(2, len(vkeys)))):
+                for sn in random.sample(catmap[vk], k=random.randint(1, min(3, len(catmap[vk])))):
+                    chosen.append((vk, sn))
+            profiles.append(TeacherProfile(
+                user=u, market=market, gender=gender, languages="ar,en",
+                bio_en=random.choice(BIOS), intro_video_url=(YT if random.random() < 0.3 else ""),
+                rating_avg=round(random.uniform(3.8, 5.0), 1), rating_count=0, lessons_count=0,
+                free_lessons_offered=random.choice([0, 0, 1, 2]), is_published=True))
+            pmeta.append(chosen)
+        TeacherProfile.objects.bulk_create(profiles, batch_size=500)
 
-        # Chat threads with a short back-and-forth.
-        convos = [
-            (S["Omar Student"], T["Sara Nabil"], [
-                ("s", "Hello! Do you have availability for Grade 4 maths this week?"),
-                ("t", "Hi Omar! Yes — Sunday or Tuesday after 4pm works."),
-                ("s", "Great, I'll book a Sunday slot. Thanks!"),
-            ]),
-            (S["Yara Ali"], T["Ahmed Fathy"], [
-                ("s", "Can we focus on fractions next lesson?"),
-                ("t", "Absolutely — I'll prepare extra practice on fractions."),
-            ]),
-            (S["Hassan Tarek"], T["Mona Adel"], [
-                ("s", "Do you cover the full Thanaweya physics syllabus?"),
-                ("t", "Yes, and we'll do timed exam drills too."),
-            ]),
-        ]
-        for student, teacher, msgs in convos:
-            thread, _ = chat_services.get_or_create_thread(student, teacher)
-            for who, body in msgs:
-                chat_services.send_message(thread, student if who == "s" else teacher.user, body)
+        offerings, specs, avails, teacher_cats = [], [], [], {}
+        for prof, chosen in zip(profiles, pmeta):
+            seen_cat, seen_spec, cats = set(), set(), []
+            for vk, sn in chosen:
+                c = cat(prof.market, vk, sn)
+                if c.id not in seen_cat:
+                    offerings.append(TeacherSubject(teacher=prof, lesson_category=c))
+                    seen_cat.add(c.id)
+                    cats.append(c)
+                tkey = track_for(vk, sn)
+                skey = (vmap[vk][0].id, tkey, sn)
+                if skey not in seen_spec:
+                    specs.append(TeacherSpecialization(
+                        teacher=prof, vertical=vmap[vk][0],
+                        track=tracks[tkey] if tkey else None, subject=subjects[sn]))
+                    seen_spec.add(skey)
+            teacher_cats[prof.id] = cats
+            slots = {(random.choice(WEEKDAYS), random.choice(WINDOWS)) for _ in range(random.randint(2, 4))}
+            for wd, (st, en) in slots:
+                avails.append(AvailabilityRule(teacher=prof, weekday=wd, start_time=st, end_time=en))
+        TeacherSubject.objects.bulk_create(offerings, batch_size=1000)
+        TeacherSpecialization.objects.bulk_create(specs, batch_size=1000)
+        AvailabilityRule.objects.bulk_create(avails, batch_size=1000)
 
-        # An extra notification so the student's bell has variety.
-        notify(S["Omar Student"], "lesson_completed",
-               {"teacher_name": "Ahmed Fathy", "subject": "Mathematics"})
+        # Include the hand-crafted roster teachers in the activity pools.
+        for prof in T.values():
+            teacher_cats[prof.id] = [ts.lesson_category for ts in prof.subjects.all()]
+        all_teachers = list(profiles) + list(T.values())
+
+        # --- Generated students (bulk) + wallets --------------------------
+        student_users = []
+        for i in range(N_STUDENTS + N_STUDENTS_SA):
+            market = eg if i < N_STUDENTS else sa
+            fn = random.choice(FIRST_M + FIRST_F)
+            ln = random.choice(SA_LAST if market is sa else LAST)
+            phone = f"+2018{i:07d}" if market is eg else f"+96658{i:06d}"
+            student_users.append(User(phone=phone, full_name=f"{fn} {ln}", role=User.Role.STUDENT,
+                                      market=market, is_verified=True, password=SPWD))
+        User.objects.bulk_create(student_users, batch_size=500)
+        Wallet.objects.bulk_create(
+            [Wallet(user=u, market=u.market, currency=u.market.currency,
+                    available_minor=random.randint(50000, 500000), reserved_minor=0)
+             for u in student_users],
+            batch_size=500,
+        )
+
+        students_by_market = {eg.id: [], sa.id: []}
+        for u in student_users:
+            students_by_market[u.market_id].append(u)
+        for name, u in S.items():  # named students too
+            students_by_market[u.market_id].append(u)
+
+        # --- Bookings (bulk) across every status --------------------------
+        rating_choices, rating_weights = [5, 4, 3], [0.6, 0.3, 0.1]
+        bookings, review_for = [], []
+        for teacher in all_teachers:
+            cats = teacher_cats.get(teacher.id) or []
+            studs = students_by_market.get(teacher.market_id) or []
+            if not cats or not studs:
+                continue
+            for _ in range(random.randint(30, 120)):  # completed history
+                c, stu = random.choice(cats), random.choice(studs)
+                d = random.randint(1, 150)
+                b = Booking(student=stu, teacher=teacher, lesson_category=c,
+                            scheduled_start=now - td(days=d), duration_min=60,
+                            completed_at=now - td(days=d) + td(hours=1),
+                            price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
+                            currency=c.currency, status=Status.COMPLETED, wage_settled=True,
+                            meeting_provider="ZOOM", meeting_link="https://zoom.us/j/000000000")
+                bookings.append(b)
+                if random.random() < 0.6:
+                    review_for.append((b, random.choices(rating_choices, rating_weights)[0], random.choice(REVIEWS)))
+            for _ in range(random.randint(0, 4)):  # upcoming active
+                confirmed = random.random() < 0.5
+                c, stu = random.choice(cats), random.choice(studs)
+                bookings.append(Booking(
+                    student=stu, teacher=teacher, lesson_category=c,
+                    scheduled_start=now + td(days=random.randint(1, 20), hours=random.randint(0, 8)),
+                    duration_min=60, price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
+                    currency=c.currency, status=Status.CONFIRMED if confirmed else Status.REQUESTED,
+                    meeting_provider="ZOOM" if confirmed else "",
+                    meeting_link="https://zoom.us/j/000000000" if confirmed else ""))
+            for _ in range(random.randint(0, 5)):  # unhappy paths
+                st = random.choice([Status.CANCELLED, Status.DECLINED, Status.NO_SHOW])
+                c, stu = random.choice(cats), random.choice(studs)
+                extra = {}
+                start = now - td(days=random.randint(1, 120))
+                if st == Status.NO_SHOW:
+                    extra["wage_settled"] = True
+                elif st == Status.CANCELLED:
+                    extra["cancel_reason"] = "Schedule conflict"
+                else:  # DECLINED
+                    start = now + td(days=random.randint(1, 10))
+                bookings.append(Booking(student=stu, teacher=teacher, lesson_category=c,
+                                        scheduled_start=start, duration_min=60,
+                                        price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
+                                        currency=c.currency, status=st, **extra))
+        Booking.objects.bulk_create(bookings, batch_size=1000)
+        Review.objects.bulk_create(
+            [Review(booking=b, student=b.student, teacher=b.teacher, rating=r, text=t, is_published=True)
+             for (b, r, t) in review_for],
+            batch_size=1000,
+        )
+
+        # Reflect real review/lesson volume onto teacher aggregates.
+        rev = {r["teacher"]: r for r in Review.objects.values("teacher").annotate(c=Count("id"), a=Avg("rating"))}
+        comp = {r["teacher"]: r["c"] for r in
+                Booking.objects.filter(status=Status.COMPLETED).values("teacher").annotate(c=Count("id"))}
+        profs = list(TeacherProfile.objects.all())
+        for p in profs:
+            if p.id in rev:
+                p.rating_count = rev[p.id]["c"]
+                p.rating_avg = round(rev[p.id]["a"] or 0, 2)
+            p.lessons_count = comp.get(p.id, p.lessons_count)
+        TeacherProfile.objects.bulk_update(profs, ["rating_avg", "rating_count", "lessons_count"], batch_size=500)
+
+        # Reserve funds for a sample of active bookings (realistic wallet holds).
+        for b in Booking.objects.filter(status__in=[Status.REQUESTED, Status.CONFIRMED]).order_by("?")[:150]:
+            try:
+                wallet_services.reserve(wallet_services.get_or_create_wallet(b.student), b.price_minor, booking=b)
+            except Exception:
+                pass
+
+        # Payout cycles sweep settled bookings into per-teacher items; mark ~half paid.
+        ps, pe = date.today() - timedelta(days=45), date.today()
+        payout_services.generate_cycle(eg, ps, pe, created_by=admin)
+        payout_services.generate_cycle(sa, ps, pe, created_by=admin)
+        from apps.payouts.models import PayoutItem
+
+        paid = []
+        for idx, it in enumerate(PayoutItem.objects.all()):
+            if idx % 2 == 0:
+                it.status, it.paid_at, it.reference = "PAID", now, f"SEED-PAYOUT-{idx:04d}"
+                paid.append(it)
+        PayoutItem.objects.bulk_update(paid, ["status", "paid_at", "reference"], batch_size=500)
+
+        # --- Chat threads + messages (bulk) -------------------------------
+        threads, pairs, attempts = [], set(), 0
+        while len(threads) < N_THREADS and attempts < N_THREADS * 8:
+            attempts += 1
+            teacher = random.choice(all_teachers)
+            studs = students_by_market.get(teacher.market_id) or []
+            if not studs:
+                continue
+            stu = random.choice(studs)
+            key = (stu.id, teacher.id)
+            if key in pairs:
+                continue
+            pairs.add(key)
+            threads.append(Thread(student=stu, teacher=teacher, market_id=teacher.market_id,
+                                  last_message_at=now - td(days=random.randint(0, 20), hours=random.randint(0, 20))))
+        Thread.objects.bulk_create(threads, batch_size=500)
+        messages = []
+        for th in threads:
+            for j in range(random.randint(2, 5)):
+                if j % 2 == 0:
+                    messages.append(Message(thread=th, sender=th.student, body=random.choice(STU_LINES)))
+                else:
+                    messages.append(Message(thread=th, sender=th.teacher.user, body=random.choice(TCH_LINES)))
+        Message.objects.bulk_create(messages, batch_size=1000)
+
+        # --- Notifications (bulk) -----------------------------------------
+        events = ["booking_confirmed", "lesson_completed", "booking_requested", "booking_cancelled",
+                  "payout_paid", "chat_message", "receipt_approved"]
+        recipients = random.sample(student_users, min(250, len(student_users))) + [t.user for t in all_teachers]
+        notis = []
+        for u in recipients:
+            for _ in range(random.randint(1, 4)):
+                read = random.random() < 0.4
+                notis.append(Notification(
+                    user=u, channel=Notification.Channel.PUSH, event_type=random.choice(events),
+                    payload={}, status=Notification.Status.SENT, sent_at=now,
+                    read_at=(now - td(days=random.randint(1, 10)) if read else None)))
+        Notification.objects.bulk_create(notis, batch_size=1000)
 
     # ------------------------------------------------------------------ helpers
     def _levels(self, vertical, pairs):
