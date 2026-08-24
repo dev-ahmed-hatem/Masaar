@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, App, Button, Empty, Input, Modal, Rate, Select, Space, Spin, Table, Tabs } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { Alert, App, Button, Empty, Input, Modal, Pagination, Rate, Select, Spin } from "antd";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -11,13 +10,11 @@ import { bookingActions, listSlots, rescheduleBooking, type Booking, type Slot }
 import { createReview } from "@/lib/reviews";
 import {
   LESSONS_PAGE_SIZE,
-  StatusTag,
-  formatWhen,
-  subjectLabel,
+  LessonCard,
   useGroupedBookings,
   type BookingGroup,
 } from "@/components/bookings/shared";
-import { PageHeader, Panel } from "@/components/ui";
+import { SegmentedTabs } from "@/components/ui";
 
 type Dict = Dictionary["myLessons"];
 type BookingsDict = Dictionary["bookings"];
@@ -60,110 +57,81 @@ export default function StudentLessons({
     });
   }
 
-  function baseColumns(): ColumnsType<Booking> {
-    return [
-      { title: dict.colWhen, key: "when", render: (_, b) => formatWhen(b.scheduled_start, locale) },
-      { title: dict.colTeacher, dataIndex: "teacher_name", key: "teacher" },
-      { title: dict.colSubject, key: "subject", render: (_, b) => subjectLabel(b, locale) },
-      { title: dict.colPrice, key: "price", render: (_, b) => (b.is_trial ? dict.trial : b.price_display) },
-      { title: dict.colStatus, key: "status", render: (_, b) => <StatusTag dict={bookingsDict} status={b.status} /> },
-    ];
-  }
+  const [tab, setTab] = useState<BookingGroup>("upcoming");
 
-  const requestedColumns: ColumnsType<Booking> = [
-    ...baseColumns(),
-    {
-      title: "",
-      key: "actions",
-      render: (_, b) => (
-        <Space wrap>
-          <Button size="small" onClick={() => setRescheduling(b)}>
-            {dict.reschedule}
-          </Button>
-          <Button size="small" danger onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}>
-            {dict.cancel}
-          </Button>
-        </Space>
-      ),
-    },
-  ];
-
-  const upcomingColumns: ColumnsType<Booking> = [
-    ...baseColumns(),
-    {
-      title: "",
-      key: "actions",
-      render: (_, b) => (
-        <Space wrap>
+  function actionsFor(b: Booking, group: BookingGroup) {
+    if (group === "requested") {
+      return (
+        <>
+          <Button size="small" onClick={() => setRescheduling(b)}>{dict.reschedule}</Button>
+          <Button size="small" danger onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}>{dict.cancel}</Button>
+        </>
+      );
+    }
+    if (group === "upcoming") {
+      return (
+        <>
           {b.meeting_link && (
-            <a href={b.meeting_link} target="_blank" rel="noreferrer">
+            <a href={b.meeting_link} target="_blank" rel="noreferrer" className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
               {dict.join} ↗
             </a>
           )}
-          <Button size="small" onClick={() => setRescheduling(b)}>
-            {dict.reschedule}
-          </Button>
-          <Button size="small" onClick={() => run(() => bookingActions.complete(b.id), dict.completed)}>
-            {dict.complete}
-          </Button>
-          <Button size="small" danger onClick={() => confirmCancel(b)}>
-            {dict.cancel}
-          </Button>
-        </Space>
-      ),
-    },
-  ];
+          <Button size="small" onClick={() => setRescheduling(b)}>{dict.reschedule}</Button>
+          <Button size="small" onClick={() => run(() => bookingActions.complete(b.id), dict.completed)}>{dict.complete}</Button>
+          <Button size="small" danger onClick={() => confirmCancel(b)}>{dict.cancel}</Button>
+        </>
+      );
+    }
+    return b.status === "COMPLETED" && !reviewedIds.has(b.id) ? (
+      <Button size="small" onClick={() => setReviewing(b)}>{dict.review}</Button>
+    ) : null;
+  }
 
-  const pastColumns: ColumnsType<Booking> = [
-    ...baseColumns(),
-    {
-      title: "",
-      key: "actions",
-      render: (_, b) =>
-        b.status === "COMPLETED" && !reviewedIds.has(b.id) ? (
-          <Button size="small" onClick={() => setReviewing(b)}>
-            {dict.review}
-          </Button>
-        ) : null,
-    },
-  ];
-
-  const renderTab = (name: BookingGroup, columns: ColumnsType<Booking>) => {
-    const g = groups[name];
+  function renderList(group: BookingGroup) {
+    const g = groups[group];
+    if (loading) return <div className="flex justify-center py-16"><Spin /></div>;
+    if (g.rows.length === 0) return <Empty description={dict.empty} className="py-12" />;
     return (
-      <Panel>
-        <Table<Booking>
-          rowKey="id"
-          columns={columns}
-          dataSource={g.rows}
-          loading={loading}
-          pagination={{
-            current: g.page,
-            pageSize: LESSONS_PAGE_SIZE,
-            total: g.total,
-            showSizeChanger: false,
-            hideOnSinglePage: true,
-            onChange: (p) => setPage(name, p),
-          }}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-        />
-      </Panel>
+      <div className="flex flex-col gap-3">
+        {g.rows.map((b) => (
+          <LessonCard
+            key={b.id}
+            booking={b}
+            bookingsDict={bookingsDict}
+            locale={locale}
+            who={b.teacher_name}
+            price={b.is_trial ? dict.trial : b.price_display}
+            actions={actionsFor(b, group)}
+          />
+        ))}
+        {g.total > LESSONS_PAGE_SIZE && (
+          <div className="flex justify-center pt-2">
+            <Pagination current={g.page} pageSize={LESSONS_PAGE_SIZE} total={g.total} showSizeChanger={false} onChange={(p) => setPage(group, p)} />
+          </div>
+        )}
+      </div>
     );
-  };
+  }
 
   if (error) return <Alert type="error" message={error} showIcon />;
 
   return (
-    <section className="flex flex-col gap-6">
-      <PageHeader title={dict.title} subtitle={dict.intro} />
+    <section className="flex flex-col gap-5">
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        {dict.title}
+      </h1>
 
-      <Tabs
-        items={[
-          { key: "upcoming", label: `${dict.tabUpcoming} (${groups.upcoming.total})`, children: renderTab("upcoming", upcomingColumns) },
-          { key: "requested", label: `${dict.tabRequested} (${groups.requested.total})`, children: renderTab("requested", requestedColumns) },
-          { key: "past", label: dict.tabPast, children: renderTab("past", pastColumns) },
+      <SegmentedTabs
+        value={tab}
+        onChange={(v) => setTab(v as BookingGroup)}
+        options={[
+          { value: "upcoming", label: dict.tabUpcoming, badge: groups.upcoming.total },
+          { value: "requested", label: dict.tabRequested, badge: groups.requested.total },
+          { value: "past", label: dict.tabPast },
         ]}
       />
+
+      {renderList(tab)}
 
       {reviewing && (
         <ReviewModal

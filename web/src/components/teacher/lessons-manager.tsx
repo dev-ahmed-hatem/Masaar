@@ -1,21 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  Alert,
-  App,
-  Button,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Tabs,
-} from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { Alert, App, Button, Empty, Form, Input, Modal, Pagination, Popconfirm, Select, Spin } from "antd";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -24,14 +10,12 @@ import { bookingActions, type Booking } from "@/lib/bookings";
 
 import {
   LESSONS_PAGE_SIZE,
+  LessonCard,
   PROVIDERS,
-  StatusTag,
-  formatWhen,
-  subjectLabel,
   useGroupedBookings,
   type BookingGroup,
 } from "@/components/bookings/shared";
-import { PageHeader, Panel } from "@/components/ui";
+import { SegmentedTabs } from "@/components/ui";
 
 type Dict = Dictionary["bookings"];
 
@@ -54,47 +38,22 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
     [message, reload, dict.actionError],
   );
 
-  function baseColumns(): ColumnsType<Booking> {
-    return [
-      { title: dict.colWhen, key: "when", render: (_, b) => formatWhen(b.scheduled_start, locale) },
-      { title: dict.colStudent, dataIndex: "student_name", key: "student" },
-      { title: dict.colSubject, key: "subject", render: (_, b) => subjectLabel(b, locale) },
-      {
-        title: dict.colPrice,
-        key: "price",
-        render: (_, b) => (b.is_trial ? dict.trial : b.price_display),
-      },
-      { title: dict.colStatus, key: "status", render: (_, b) => <StatusTag dict={dict} status={b.status} /> },
-    ];
-  }
+  const [tab, setTab] = useState<BookingGroup>("requested");
 
-  const requestColumns: ColumnsType<Booking> = [
-    ...baseColumns(),
-    {
-      title: "",
-      key: "actions",
-      render: (_, b) => (
-        <Space>
-          <Button type="primary" size="small" onClick={() => setConfirming(b)}>
-            {dict.confirm}
-          </Button>
-          <Button size="small" onClick={() => run(() => bookingActions.decline(b.id), dict.declined)}>
-            {dict.decline}
-          </Button>
-        </Space>
-      ),
-    },
-  ];
-
-  const upcomingColumns: ColumnsType<Booking> = [
-    ...baseColumns(),
-    {
-      title: "",
-      key: "actions",
-      render: (_, b) => (
-        <Space wrap>
+  function actionsFor(b: Booking, group: BookingGroup) {
+    if (group === "requested") {
+      return (
+        <>
+          <Button type="primary" size="small" onClick={() => setConfirming(b)}>{dict.confirm}</Button>
+          <Button size="small" onClick={() => run(() => bookingActions.decline(b.id), dict.declined)}>{dict.decline}</Button>
+        </>
+      );
+    }
+    if (group === "upcoming") {
+      return (
+        <>
           {b.meeting_link && (
-            <a href={b.meeting_link} target="_blank" rel="noreferrer">
+            <a href={b.meeting_link} target="_blank" rel="noreferrer" className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
               {dict.join} ↗
             </a>
           )}
@@ -104,9 +63,7 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
             okButtonProps={{ danger: true }}
             onConfirm={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}
           >
-            <Button size="small" danger>
-              {dict.cancel}
-            </Button>
+            <Button size="small" danger>{dict.cancel}</Button>
           </Popconfirm>
           <Popconfirm
             title={dict.noShowConfirm}
@@ -115,47 +72,57 @@ export default function LessonsManager({ dict, locale }: { dict: Dict; locale: L
           >
             <Button size="small">{dict.noShow}</Button>
           </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+        </>
+      );
+    }
+    return null;
+  }
 
-  const renderTab = (name: BookingGroup, columns: ColumnsType<Booking>) => {
-    const g = groups[name];
+  function renderList(group: BookingGroup) {
+    const g = groups[group];
+    if (loading) return <div className="flex justify-center py-16"><Spin /></div>;
+    if (g.rows.length === 0) return <Empty description={dict.empty} className="py-12" />;
     return (
-      <Panel>
-        <Table<Booking>
-          rowKey="id"
-          columns={columns}
-          dataSource={g.rows}
-          loading={loading}
-          pagination={{
-            current: g.page,
-            pageSize: LESSONS_PAGE_SIZE,
-            total: g.total,
-            showSizeChanger: false,
-            hideOnSinglePage: true,
-            onChange: (p) => setPage(name, p),
-          }}
-          locale={{ emptyText: <Empty description={dict.empty} /> }}
-        />
-      </Panel>
+      <div className="flex flex-col gap-3">
+        {g.rows.map((b) => (
+          <LessonCard
+            key={b.id}
+            booking={b}
+            bookingsDict={dict}
+            locale={locale}
+            who={b.student_name}
+            price={b.is_trial ? dict.trial : b.price_display}
+            actions={actionsFor(b, group)}
+          />
+        ))}
+        {g.total > LESSONS_PAGE_SIZE && (
+          <div className="flex justify-center pt-2">
+            <Pagination current={g.page} pageSize={LESSONS_PAGE_SIZE} total={g.total} showSizeChanger={false} onChange={(p) => setPage(group, p)} />
+          </div>
+        )}
+      </div>
     );
-  };
+  }
 
   if (error) return <Alert type="error" message={error} showIcon />;
 
   return (
-    <section className="flex flex-col gap-6">
-      <PageHeader title={dict.teacherTitle} subtitle={dict.teacherIntro} />
+    <section className="flex flex-col gap-5">
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        {dict.teacherTitle}
+      </h1>
 
-      <Tabs
-        items={[
-          { key: "requests", label: `${dict.tabRequests} (${groups.requested.total})`, children: renderTab("requested", requestColumns) },
-          { key: "upcoming", label: `${dict.tabUpcoming} (${groups.upcoming.total})`, children: renderTab("upcoming", upcomingColumns) },
-          { key: "past", label: dict.tabPast, children: renderTab("past", baseColumns()) },
+      <SegmentedTabs
+        value={tab}
+        onChange={(v) => setTab(v as BookingGroup)}
+        options={[
+          { value: "requested", label: dict.tabRequests, badge: groups.requested.total },
+          { value: "upcoming", label: dict.tabUpcoming, badge: groups.upcoming.total },
+          { value: "past", label: dict.tabPast },
         ]}
       />
+
+      {renderList(tab)}
 
       <Modal
         open={confirming !== null}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Tag } from "antd";
 
@@ -101,3 +102,48 @@ export const PROVIDERS = [
   { value: "TEAMS", label: "Microsoft Teams" },
   { value: "CUSTOM", label: "Custom link" },
 ];
+
+/** Mobile-first lesson card — replaces the admin table row on both sides. */
+export function LessonCard({
+  booking,
+  bookingsDict,
+  locale,
+  who,
+  price,
+  actions,
+}: {
+  booking: Booking;
+  bookingsDict: Dict;
+  locale: string;
+  /** The other party ("with {teacher}" for students, the student for teachers). */
+  who: string;
+  /** Prebuilt price/trial label (caller decides trial vs price_display). */
+  price?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="surface flex flex-col gap-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+            {subjectLabel(booking, locale)}
+          </div>
+          <div className="mt-0.5 text-xs" style={{ color: "var(--ink-muted)" }}>
+            {who} · {formatWhen(booking.scheduled_start, locale)}
+          </div>
+        </div>
+        <StatusTag dict={bookingsDict} status={booking.status} />
+      </div>
+      {(price || actions) && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {price ? (
+            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{price}</span>
+          ) : (
+            <span />
+          )}
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
