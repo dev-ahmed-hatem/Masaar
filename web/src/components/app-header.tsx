@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar, Button } from "antd";
-import { GraduationCap } from "lucide-react";
+import { Avatar, Button, Popover } from "antd";
+import { GraduationCap, MoreVertical } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -82,7 +82,7 @@ export default function AppHeader({
       className="glass sticky top-0 z-20"
       style={{ borderInline: "none", borderTop: "none" }}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-7">
           <Link
             href={`/${locale}`}
@@ -117,42 +117,72 @@ export default function AppHeader({
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <Link
-            href={otherHref}
-            className="rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors"
-            style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
-          >
-            {otherLabel}
-          </Link>
+        <div className="flex items-center gap-2">
           {user ? <NotificationsBell labels={bell} locale={locale} /> : null}
-          {user ? (
-            <div className="flex items-center gap-2.5">
-              <span
+
+          {/* Secondary controls (theme, language, sign out) live in a menu so the
+              bar stays uncluttered on mobile. */}
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            arrow={false}
+            content={
+              <div className="flex w-52 flex-col gap-3 p-1">
+                {user && (
+                  <div className="min-w-0 px-1">
+                    <div className="truncate text-sm font-semibold" style={{ color: "var(--ink)" }}>
+                      {user.full_name || user.phone}
+                    </div>
+                    {user.full_name && (
+                      <div className="truncate text-xs" style={{ color: "var(--ink-faint)" }}>{user.phone}</div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <Link
+                    href={otherHref}
+                    className="flex-1 rounded-xl px-3 py-1.5 text-center text-sm font-semibold transition-colors"
+                    style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
+                  >
+                    {otherLabel}
+                  </Link>
+                </div>
+                {user && (
+                  <Button block size="small" onClick={logout}>
+                    {signOut}
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            {user ? (
+              <button
+                type="button"
+                aria-label={user.full_name || user.phone || "Account"}
                 className="inline-flex items-center justify-center rounded-full p-[2px]"
                 style={{ background: "var(--grad-brand)" }}
               >
                 <Avatar
-                  size={30}
-                  style={{
-                    background: "#fff",
-                    color: "var(--brand)",
-                    fontWeight: 700,
-                    border: "2px solid #fff",
-                  }}
+                  size={32}
+                  style={{ background: "#fff", color: "var(--brand)", fontWeight: 700, border: "2px solid #fff" }}
                 >
                   {initial}
                 </Avatar>
-              </span>
-              <span className="hidden text-sm font-semibold sm:inline" style={{ color: "var(--ink)" }}>
-                {user.full_name || user.phone}
-              </span>
-              <Button size="small" onClick={logout}>
-                {signOut}
-              </Button>
-            </div>
-          ) : (
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="Menu"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
+                style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
+              >
+                <MoreVertical size={18} strokeWidth={2.2} />
+              </button>
+            )}
+          </Popover>
+
+          {!user && (
             <Link href={`/${locale}/sign-in`}>
               <Button type="primary">{signIn}</Button>
             </Link>
