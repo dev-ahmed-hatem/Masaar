@@ -36,13 +36,23 @@ function readInitialTheme(): Theme {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // The no-FOUC inline script (see app/layout.tsx) has already set the class
-  // before hydration; we mirror the same source of truth here.
-  const [theme, setThemeState] = useState<Theme>(readInitialTheme);
+  // Start from a deterministic value so the first client render matches the
+  // server HTML (avoids a hydration mismatch). The real theme is already on
+  // <html> via the no-FOUC inline script (see app/layout.tsx); we adopt it
+  // after mount, then keep <html> in sync on changes.
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    setThemeState(readInitialTheme());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    // Don't touch <html> before we've synced, or we'd strip the class the
+    // no-FOUC script set and flash the wrong theme.
+    if (hydrated) applyTheme(theme);
+  }, [theme, hydrated]);
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
