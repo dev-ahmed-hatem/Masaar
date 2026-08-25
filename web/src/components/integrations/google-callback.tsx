@@ -28,6 +28,14 @@ export default function GoogleCallback({ dict, locale }: { dict: Dict; locale: L
   useEffect(() => {
     if (ran.current || !code || !state) return;
     ran.current = true;
+    // Auth codes are single-use. Guard by the code value so a reload / re-open
+    // of this URL can't re-submit an already-redeemed code (→ invalid_grant).
+    const key = `gcal-oauth:${code}`;
+    if (sessionStorage.getItem(key)) {
+      router.replace(dest);
+      return;
+    }
+    sessionStorage.setItem(key, "1");
     integrations
       .googleComplete(code, state)
       .then(() => router.replace(dest))
