@@ -70,7 +70,9 @@ export default function GoogleCalendarCard({ dict, locale }: { dict: Dict; local
           <div>
             {status.sync_enabled ? (
               <Tag color="green">
-                {dict.connectedAs.replace("{email}", status.google_email)}
+                {status.google_email
+                  ? dict.connectedAs.replace("{email}", status.google_email)
+                  : dict.connected}
               </Tag>
             ) : (
               <Tag color="orange">{dict.reconnectNeeded}</Tag>

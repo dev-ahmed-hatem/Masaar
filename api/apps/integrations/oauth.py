@@ -71,6 +71,22 @@ def exchange_code(code: str, state: str, redirect_uri: str | None = None):
 
 
 def fetch_email(credentials) -> str:
+    # Prefer the id_token's email claim (always present with the openid scope,
+    # no extra request); fall back to the userinfo endpoint.
+    token = getattr(credentials, "id_token", None)
+    if token:
+        try:
+            import base64
+            import json
+
+            payload = token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)  # pad for urlsafe b64
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+            if claims.get("email"):
+                return claims["email"]
+        except Exception:
+            logger.exception("Failed to decode id_token email claim")
+
     from googleapiclient.discovery import build
 
     try:

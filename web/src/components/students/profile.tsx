@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { App, Button, DatePicker, Empty, Form, Input, Rate, Select, Spin, Typography } from "antd";
 import dayjs from "dayjs";
 
@@ -21,6 +22,8 @@ type GcalDict = Dictionary["googleCalendar"];
 
 const { Paragraph, Text } = Typography;
 
+const TABS = ["account", "learning", "security", "calendar", "reviews"] as const;
+
 export default function ProfileView({
   dict,
   gcal,
@@ -33,7 +36,21 @@ export default function ProfileView({
   const ar = locale === "ar";
   const { user, setUser } = useAuth();
   const { message } = App.useApp();
-  const [tab, setTab] = useState("account");
+
+  // Tab lives in the URL (?tab=…) so it's deep-linkable and survives refresh.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tab = (TABS as readonly string[]).includes(tabParam ?? "") ? tabParam! : "account";
+  const setTab = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", value);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   return (
     <section className="flex flex-col gap-6">

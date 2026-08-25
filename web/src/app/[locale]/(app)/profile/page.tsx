@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import RouteGuard from "@/components/route-guard";
@@ -16,7 +17,9 @@ export default async function ProfilePage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <ProfileView dict={d.profile} gcal={d.googleCalendar} locale={locale} />
+      <Suspense fallback={null}>
+        <ProfileView dict={d.profile} gcal={d.googleCalendar} locale={locale} />
+      </Suspense>
     </RouteGuard>
   );
 }
