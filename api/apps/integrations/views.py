@@ -114,11 +114,11 @@ class GoogleCallbackView(APIView):
         try:
             # Must match the redirect_uri used to build the consent URL.
             credentials = oauth.exchange_code(code, state, _redirect_uri_for(locale))
-        except Exception:
+        except Exception as exc:
             logger.exception("Google token exchange failed")
             raise ValidationError(
                 {"code": "oauth_exchange_failed",
-                 "detail": "Could not complete Google authorization."}
+                 "detail": f"Could not complete Google authorization: {exc}"}
             )
 
         # The user can untick the Calendar permission on the consent screen;
