@@ -751,6 +751,12 @@
     "composerPlaceholder": "اكتب رسالة…",
     "send": "إرسال",
     "back": "العودة إلى المحادثات",
+    "yesterday": "أمس",
+    "newMessages": "رسائل جديدة",
+    "jumpToLatest": "الانتقال إلى الأحدث",
+    "sending": "جارٍ الإرسال…",
+    "sendFailed": "لم يتم الإرسال",
+    "retry": "إعادة المحاولة",
     "genericError": "حدث خطأ ما. حاول مرة أخرى."
   },
   "notifications": {

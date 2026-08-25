@@ -1,8 +1,15 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { App, Avatar, Badge, Button, Empty, Input, Spin } from "antd";
-import { ArrowLeft } from "lucide-react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { App, Avatar, Badge, Button, Empty, Input, Spin, type GetRef } from "antd";
+import { ArrowDown, ArrowLeft } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -11,7 +18,15 @@ import { chatApi, type ChatMessage, type ChatThread } from "@/lib/chat";
 
 type Dict = Dictionary["chat"];
 
+// Local view model: an in-flight optimistic message carries a clientId and a
+// pending/failed flag until the server confirms it.
+type UIMessage = ChatMessage & { clientId?: string; pending?: boolean; failed?: boolean };
+
 const POLL_MS = 5000;
+const NEAR_BOTTOM_PX = 80;
+
+const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+const TRAILING_PUNCT = /[.,;:!?)\]]+$/;
 
 function timeLabel(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
@@ -20,6 +35,18 @@ function timeLabel(iso: string, locale: string): string {
 function dayLabel(iso: string | null, locale: string): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString(locale, { dateStyle: "medium" });
+}
+
+/** Thread-list timestamp: time if today, "Yesterday", else a short date. */
+function threadTime(iso: string | null, locale: string, dict: Dict): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return timeLabel(iso, locale);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return dict.yesterday;
+  return d.toLocaleDateString(locale, { dateStyle: "medium" });
 }
 
 // Stable per-day key (local time) used to insert date separators in a thread.
@@ -32,17 +59,88 @@ function initialOf(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "?";
 }
 
+/** Render message text with clickable links (opens in a new tab). */
+function renderBody(text: string, mine: boolean): ReactNode {
+  const nodes: ReactNode[] = [];
+  const re = new RegExp(URL_RE);
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const start = m.index;
+    let url = m[0];
+    // Don't swallow sentence punctuation that trails a URL.
+    const trail = url.match(TRAILING_PUNCT)?.[0] ?? "";
+    if (trail) url = url.slice(0, url.length - trail.length);
+    if (start > last) nodes.push(text.slice(last, start));
+    const href = url.startsWith("www.") ? `https://${url}` : url;
+    nodes.push(
+      <a
+        key={key++}
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="chat-link"
+        style={{ color: mine ? "#fff" : "var(--brand)" }}
+      >
+        {url}
+      </a>,
+    );
+    if (trail) nodes.push(trail);
+    last = re.lastIndex;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
 export default function MessagesView({ dict, locale }: { dict: Dict; locale: string }) {
   const { message } = App.useApp();
   const { user } = useAuth();
   const [threads, setThreads] = useState<ChatThread[] | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [olderUrl, setOlderUrl] = useState<string | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [showJump, setShowJump] = useState(false);
+  const [newCount, setNewCount] = useState(0);
+  const [unreadAnchorId, setUnreadAnchorId] = useState<number | null>(null);
+
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<GetRef<typeof Input.TextArea>>(null);
+  const atBottomRef = useRef(true);
+  const messagesRef = useRef<UIMessage[]>([]);
+  const draftsRef = useRef<Record<number, string>>({});
+  const tmpIdRef = useRef(-1);
+
+  // Mirror messages into a ref so the poll callback can dedup without a
+  // render-phase ref read (which the react-hooks lint disallows).
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    bottomRef.current?.scrollIntoView({ block: "end", behavior });
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    scrollToBottom("smooth");
+    atBottomRef.current = true;
+    setShowJump(false);
+    setNewCount(0);
+  }, [scrollToBottom]);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+    atBottomRef.current = near;
+    if (near) {
+      setShowJump(false);
+      setNewCount(0);
+    }
+  }
 
   const refreshThreads = useCallback(async () => {
     try {
@@ -53,72 +151,144 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
     }
   }, []);
 
-  // Merge a newest-first page into ascending state, dedup by id.
-  const mergeNewest = useCallback((page: ChatMessage[]) => {
-    setMessages((prev) => {
-      const known = new Set(prev.map((m) => m.id));
+  // Merge a newest-first poll page: append genuinely new messages, then either
+  // follow to the bottom (if already there or the message is mine) or surface
+  // the "new messages" pill without yanking the reader's scroll position.
+  const appendIncoming = useCallback(
+    (page: ChatMessage[]) => {
+      const known = new Set(messagesRef.current.map((m) => m.id));
       const fresh = page.filter((m) => !known.has(m.id)).reverse();
-      return fresh.length ? [...prev, ...fresh] : prev;
-    });
-  }, []);
+      if (!fresh.length) return;
+      const fromOthers = fresh.filter((m) => user == null || m.sender_id !== user.id).length;
+      // Final insert re-dedups against the authoritative prev state.
+      setMessages((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        const add = fresh.filter((m) => !seen.has(m.id));
+        return add.length ? [...prev, ...add] : prev;
+      });
+      if (atBottomRef.current || fromOthers < fresh.length) {
+        requestAnimationFrame(() => scrollToBottom("smooth"));
+      } else {
+        setNewCount((c) => c + fromOthers);
+        setShowJump(true);
+      }
+    },
+    [user, scrollToBottom],
+  );
+
+  const closeThread = useCallback(() => {
+    if (activeId != null) draftsRef.current[activeId] = draft;
+    setActiveId(null);
+  }, [activeId, draft]);
 
   const openThread = useCallback(
     async (id: number) => {
+      if (activeId != null) draftsRef.current[activeId] = draft;
       setActiveId(id);
       setMessages([]);
       setOlderUrl(null);
+      setUnreadAnchorId(null);
+      setShowJump(false);
+      setNewCount(0);
+      atBottomRef.current = true;
+      setDraft(draftsRef.current[id] ?? "");
       setLoadingThread(true);
+      const unread = threads?.find((t) => t.id === id)?.unread_count ?? 0;
       try {
         const page = await chatApi.messages(id);
-        setMessages([...page.results].reverse());
+        const asc = [...page.results].reverse();
+        setMessages(asc);
         setOlderUrl(page.next);
-        await chatApi.markRead(id);
-        setThreads((prev) =>
-          prev?.map((t) => (t.id === id ? { ...t, unread_count: 0 } : t)) ?? prev,
+        setUnreadAnchorId(
+          unread > 0 && asc.length >= unread ? asc[asc.length - unread].id : null,
         );
+        await chatApi.markRead(id);
+        setThreads((prev) => prev?.map((t) => (t.id === id ? { ...t, unread_count: 0 } : t)) ?? prev);
       } catch (err) {
         message.error(err instanceof ApiError ? err.message : dict.genericError);
       } finally {
         setLoadingThread(false);
       }
     },
-    [dict.genericError, message],
+    [activeId, draft, threads, dict.genericError, message],
   );
 
   async function loadOlder() {
     if (!olderUrl) return;
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
     try {
       const page = await chatApi.messagesPage(olderUrl);
       setMessages((prev) => {
         const known = new Set(prev.map((m) => m.id));
-        return [...[...page.results].reverse().filter((m) => !known.has(m.id)), ...prev];
+        const older = [...page.results].reverse().filter((m) => !known.has(m.id));
+        return [...older, ...prev];
       });
       setOlderUrl(page.next);
+      // Keep the reader anchored to what they were looking at.
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop += el.scrollHeight - prevHeight;
+      });
     } catch {
       /* keep the button; user can retry */
     }
   }
 
-  async function send() {
+  const deliver = useCallback(
+    async (msg: UIMessage, threadId: number) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.clientId === msg.clientId ? { ...m, pending: true, failed: false } : m)),
+      );
+      try {
+        const sent = await chatApi.send(threadId, msg.body);
+        setMessages((prev) => [
+          ...prev.filter((m) => m.clientId !== msg.clientId && m.id !== sent.id),
+          sent,
+        ]);
+        chatApi.markRead(threadId).catch(() => undefined);
+        refreshThreads();
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) => (m.clientId === msg.clientId ? { ...m, pending: false, failed: true } : m)),
+        );
+      }
+    },
+    [refreshThreads],
+  );
+
+  function send() {
     const body = draft.trim();
-    if (!body || !activeId) return;
-    setSending(true);
-    try {
-      const sent = await chatApi.send(activeId, body);
-      setDraft("");
-      mergeNewest([sent]);
-      chatApi.markRead(activeId).catch(() => undefined);
-      refreshThreads();
-    } catch (err) {
-      message.error(err instanceof ApiError ? err.message : dict.genericError);
-    } finally {
-      setSending(false);
-    }
+    if (!body || activeId == null) return;
+    const tempId = tmpIdRef.current;
+    tmpIdRef.current -= 1;
+    const optimistic: UIMessage = {
+      id: tempId,
+      clientId: `tmp-${tempId}`,
+      thread_id: activeId,
+      sender_id: user?.id ?? -1,
+      sender_name: user?.full_name ?? "",
+      body,
+      created_at: new Date().toISOString(),
+      pending: true,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setDraft("");
+    draftsRef.current[activeId] = "";
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+    composerRef.current?.focus();
+    deliver(optimistic, activeId);
   }
 
   useEffect(() => {
-    refreshThreads();
-  }, [refreshThreads]);
+    let active = true;
+    chatApi
+      .threads()
+      .then((r) => active && setThreads(r.results))
+      .catch(() => active && setThreads((prev) => prev ?? []));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Poll the open conversation + thread list while the tab is visible.
   useEffect(() => {
@@ -128,7 +298,7 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
       if (activeId != null) {
         try {
           const page = await chatApi.messages(activeId);
-          mergeNewest(page.results);
+          appendIncoming(page.results);
           chatApi.markRead(activeId).catch(() => undefined);
         } catch {
           /* transient poll failure */
@@ -136,11 +306,14 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [activeId, mergeNewest, refreshThreads]);
+  }, [activeId, appendIncoming, refreshThreads]);
 
+  // On opening a thread: snap to the newest message and focus the composer.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, activeId]);
+    if (activeId == null || loadingThread) return;
+    requestAnimationFrame(() => scrollToBottom("auto"));
+    composerRef.current?.focus();
+  }, [activeId, loadingThread, scrollToBottom]);
 
   const active = threads?.find((t) => t.id === activeId) ?? null;
   const otherName = (t: ChatThread) =>
@@ -201,7 +374,7 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                         {name}
                       </span>
                       <span className="shrink-0 text-xs" style={{ color: "var(--ink-faint)" }}>
-                        {dayLabel(t.last_message_at, locale)}
+                        {threadTime(t.last_message_at, locale, dict)}
                       </span>
                     </span>
                     <span className="flex items-center justify-between gap-2">
@@ -224,7 +397,7 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
         </div>
 
         {/* Conversation — full-width on mobile only when a thread is open. */}
-        <div className={`min-w-0 min-h-0 flex-col ${active == null ? "hidden lg:flex" : "flex"}`}>
+        <div className={`relative min-w-0 min-h-0 flex-col ${active == null ? "hidden lg:flex" : "flex"}`}>
           {active == null ? (
             <div className="flex flex-1 items-center justify-center px-6 py-16">
               <Empty description={dict.selectThread} image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -237,7 +410,7 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
               >
                 <button
                   type="button"
-                  onClick={() => setActiveId(null)}
+                  onClick={closeThread}
                   aria-label={dict.back}
                   className="-ms-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-2)] lg:hidden"
                   style={{ color: "var(--ink-muted)" }}
@@ -255,7 +428,11 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                   {otherName(active)}
                 </span>
               </div>
-              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4 sm:px-4">
+              <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4 sm:px-4"
+              >
                 {olderUrl && (
                   <Button size="small" onClick={loadOlder} className="self-center">
                     {dict.loadOlder}
@@ -274,7 +451,7 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                       const showDay = key !== lastDay;
                       lastDay = key;
                       return (
-                        <Fragment key={m.id}>
+                        <Fragment key={m.clientId ?? m.id}>
                           {showDay && (
                             <div className="my-1.5 flex justify-center">
                               <span
@@ -285,21 +462,51 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                               </span>
                             </div>
                           )}
+                          {m.id === unreadAnchorId && (
+                            <div className="my-1.5 flex items-center gap-2">
+                              <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                              <span className="text-[11px] font-semibold" style={{ color: "var(--brand)" }}>
+                                {dict.newMessages}
+                              </span>
+                              <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                            </div>
+                          )}
                           <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                             <div
                               className="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm sm:max-w-[75%]"
                               style={
                                 mine
-                                  ? { background: "var(--grad-brand)", color: "#fff", boxShadow: "var(--glow)" }
+                                  ? {
+                                      background: "var(--grad-brand)",
+                                      color: "#fff",
+                                      boxShadow: "var(--glow)",
+                                      opacity: m.pending ? 0.7 : 1,
+                                    }
                                   : { background: "var(--brand-tint)", color: "var(--ink)" }
                               }
                             >
-                              <div className="whitespace-pre-wrap break-words">{m.body}</div>
+                              <div className="whitespace-pre-wrap break-words">
+                                {renderBody(m.body, mine)}
+                              </div>
                               <div
-                                className="mt-0.5 text-end text-[10px]"
+                                className="mt-0.5 flex items-center justify-end gap-1.5 text-[10px]"
                                 style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--ink-muted)" }}
                               >
-                                {timeLabel(m.created_at, locale)}
+                                {m.failed ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => deliver(m, active.id)}
+                                    className="font-semibold underline"
+                                    style={{ color: mine ? "#ffe0e0" : "var(--brand)" }}
+                                  >
+                                    {dict.sendFailed} · {dict.retry}
+                                  </button>
+                                ) : (
+                                  <>
+                                    <span>{timeLabel(m.created_at, locale)}</span>
+                                    {m.pending && <span>· {dict.sending}</span>}
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -310,11 +517,26 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                 )}
                 <div ref={bottomRef} />
               </div>
+
+              {showJump && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-20 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={jumpToLatest}
+                    className="chat-jump pointer-events-auto flex items-center gap-1.5"
+                  >
+                    {newCount > 0 ? `${newCount} ${dict.newMessages}` : dict.jumpToLatest}
+                    <ArrowDown size={14} />
+                  </button>
+                </div>
+              )}
+
               <div
                 className="flex items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3"
                 style={{ borderTop: "1px solid var(--border)" }}
               >
                 <Input.TextArea
+                  ref={composerRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onPressEnter={(e) => {
@@ -323,11 +545,14 @@ export default function MessagesView({ dict, locale }: { dict: Dict; locale: str
                       send();
                     }
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") closeThread();
+                  }}
                   autoSize={{ minRows: 1, maxRows: 4 }}
                   maxLength={2000}
                   placeholder={dict.composerPlaceholder}
                 />
-                <Button type="primary" onClick={send} loading={sending} disabled={!draft.trim()}>
+                <Button type="primary" onClick={send} disabled={!draft.trim()}>
                   {dict.send}
                 </Button>
               </div>

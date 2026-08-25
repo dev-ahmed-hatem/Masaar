@@ -751,6 +751,12 @@
     "composerPlaceholder": "Type a message…",
     "send": "Send",
     "back": "Back to conversations",
+    "yesterday": "Yesterday",
+    "newMessages": "New messages",
+    "jumpToLatest": "Jump to latest",
+    "sending": "Sending…",
+    "sendFailed": "Not delivered",
+    "retry": "Retry",
     "genericError": "Something went wrong. Please try again."
   },
   "notifications": {

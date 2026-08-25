@@ -458,6 +458,33 @@ button:not(:disabled),
 .slot-calendar-panel .ant-picker-calendar {
   background: transparent;
 }
+/* Clickable links inside chat bubbles. */
+.chat-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-word;
+}
+.chat-link:hover {
+  opacity: 0.85;
+}
+
+/* Floating "jump to latest / new messages" pill in the chat conversation. */
+.chat-jump {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--brand);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--box-shadow, 0 6px 20px rgba(20, 21, 26, 0.12));
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.chat-jump:hover {
+  background: var(--brand-tint);
+  transform: translateY(-1px);
+}
+
 /* Open-slot count shown beneath each available day's number. antd renders it
    inside the cell's content slot (.ant-picker-calendar-date-content). */
 .slot-count {
