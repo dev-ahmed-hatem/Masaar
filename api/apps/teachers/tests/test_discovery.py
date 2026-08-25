@@ -201,3 +201,18 @@ def test_slots_endpoint_public_for_anonymous(api, world):
     res = api.get("/api/bookings/slots/", {"teacher": world["t2"].id})
     assert res.status_code == 200
     assert isinstance(res.data, list)
+
+
+def test_filter_by_name(api, world):
+    # Case-insensitive substring match on the teacher's name, market-scoped.
+    res = api.get(TEACHERS, {"market": "EG", "name": "sara"})
+    names = {r["full_name"] for r in res.data["results"]}
+    assert names == {"Sara Nabil"}
+
+    # Partial substring matches multiple.
+    res = api.get(TEACHERS, {"market": "EG", "name": "a"})
+    names = {r["full_name"] for r in res.data["results"]}
+    assert {"Ahmed Ali", "Sara Nabil"} <= names
+
+    # No match -> empty.
+    assert api.get(TEACHERS, {"market": "EG", "name": "zzz"}).data["results"] == []

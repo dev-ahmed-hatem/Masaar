@@ -88,6 +88,7 @@ class TeacherFilter(filters.FilterSet):
         field_name="subjects__lesson_category__vertical__code", distinct=True
     )
     language = filters.CharFilter(field_name="languages", lookup_expr="icontains")
+    name = filters.CharFilter(field_name="user__full_name", lookup_expr="icontains")
     min_rating = filters.NumberFilter(field_name="rating_avg", lookup_expr="gte")
     price_min = filters.NumberFilter(field_name="from_price_minor", lookup_expr="gte")
     price_max = filters.NumberFilter(field_name="from_price_minor", lookup_expr="lte")
@@ -125,6 +126,7 @@ class _MarketScopedMixin:
         OpenApiParameter("vertical", str, description="Vertical code (from offerings)"),
         OpenApiParameter("gender", str, description="MALE / FEMALE"),
         OpenApiParameter("language", str, description="Language code substring, e.g. 'en'"),
+        OpenApiParameter("name", str, description="Teacher name substring (case-insensitive)"),
         OpenApiParameter("min_rating", float, description="Minimum average rating"),
         OpenApiParameter("price_min", int, description="Min starting price (minor units)"),
         OpenApiParameter("price_max", int, description="Max starting price (minor units)"),

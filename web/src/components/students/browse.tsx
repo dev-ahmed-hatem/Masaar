@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Avatar, Drawer, Empty, Pagination, Select, Spin, Tag } from "antd";
+import { Alert, Avatar, Drawer, Empty, Input, Pagination, Select, Spin, Tag } from "antd";
 import { ArrowRight, GraduationCap, Languages, Search, SlidersHorizontal, Star } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
@@ -40,6 +40,8 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   // anonymous visitors can browse either market.
   const lockedMarket = user?.market ?? null;
   const [market, setMarket] = useState<string>(lockedMarket ?? "EG");
+  const [name, setName] = useState("");
+  const [nameQuery, setNameQuery] = useState(""); // debounced value sent to the API
   const [stage, setStage] = useState<number | undefined>();
   const [track, setTrack] = useState<number | undefined>();
   const [subject, setSubject] = useState<number | undefined>();
@@ -88,11 +90,17 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     }
   }, [track, stage, needsTrack]);
 
+  // Debounce the free-text name so we don't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setNameQuery(name.trim()), 350);
+    return () => clearTimeout(t);
+  }, [name]);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
-    listTeachers({ market, stage, track, subject, gender, min_rating: minRating, ordering, page, page_size: PAGE_SIZE })
+    listTeachers({ market, name: nameQuery || undefined, stage, track, subject, gender, min_rating: minRating, ordering, page, page_size: PAGE_SIZE })
       .then((data) => {
         if (!active) return;
         setRows(data.results);
@@ -108,9 +116,9 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     return () => {
       active = false;
     };
-  }, [market, stage, track, subject, gender, minRating, ordering, page, dict.loadError]);
+  }, [market, nameQuery, stage, track, subject, gender, minRating, ordering, page, dict.loadError]);
 
-  useEffect(() => setPage(1), [market, stage, track, subject, gender, minRating, ordering]);
+  useEffect(() => setPage(1), [market, nameQuery, stage, track, subject, gender, minRating, ordering]);
 
   // Subject options: scoped to the chosen stage/track when set, else the full list.
   const subjectOptions = stage
@@ -122,9 +130,12 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
 
   const advancedCount =
     (gender ? 1 : 0) + (minRating != null ? 1 : 0) + (ordering !== "-rating_avg" ? 1 : 0);
-  const anyFilter = stage != null || track != null || subject != null || advancedCount > 0;
+  const anyFilter =
+    nameQuery !== "" || stage != null || track != null || subject != null || advancedCount > 0;
 
   function clearAll() {
+    setName("");
+    setNameQuery("");
     setStage(undefined);
     setTrack(undefined);
     setSubject(undefined);
@@ -138,6 +149,16 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
         {dict.title}
       </h1>
+
+      {/* Primary search: teacher name (free text, debounced). */}
+      <Input
+        allowClear
+        size="large"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder={dict.searchNamePlaceholder}
+        prefix={<Search size={18} style={{ color: "var(--ink-faint)" }} />}
+      />
 
       {/* Search-first row: subject search + advanced-filters trigger */}
       <div className="flex items-center gap-2">

@@ -24,6 +24,7 @@
     "intro": "Browse vetted teachers, compare prices and ratings, and book a lesson.",
     "market": "Country",
     "searchPlaceholder": "Find a teacher by subject",
+    "searchNamePlaceholder": "Search by teacher name",
     "filters": "Filters",
     "clearFilters": "Clear all",
     "showResults": "Show results",

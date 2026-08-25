@@ -105,6 +105,7 @@ export interface Paginated<T> {
 
 export interface TeacherQuery {
   market: string;
+  name?: string;
   stage?: number;
   track?: number;
   subject?: number;
