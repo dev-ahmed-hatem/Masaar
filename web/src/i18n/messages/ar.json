@@ -216,6 +216,7 @@
     "tabLearning": "التعلّم",
     "tabSecurity": "الأمان",
     "tabReviews": "تقييماتي",
+    "tabCalendar": "التقويم",
     "fullName": "الاسم الكامل",
     "email": "البريد الإلكتروني",
     "language": "اللغة",
@@ -830,5 +831,20 @@
     "selectSubject": "اختر مادة",
     "saved": "تم الحفظ.",
     "actionError": "حدث خطأ ما. حاول مرة أخرى."
+  },
+  "googleCalendar": {
+    "title": "تقويم Google",
+    "description": "اربط حساب Google لإضافة الدروس المؤكدة إلى تقويمك مع رابط Google Meet تلقائي.",
+    "connect": "ربط تقويم Google",
+    "disconnect": "إلغاء الربط",
+    "connectedAs": "متصل باسم {email}",
+    "reconnectNeeded": "يلزم إعادة الربط — انتهت صلاحية تفويض Google.",
+    "connected": "تم ربط تقويم Google.",
+    "disconnected": "تم إلغاء ربط تقويم Google.",
+    "error": "حدث خطأ ما. حاول مرة أخرى.",
+    "unavailable": "لم يتم إعداد تكامل تقويم Google بعد.",
+    "callbackTitle": "جارٍ ربط تقويم Google…",
+    "callbackError": "تعذّر ربط تقويم Google.",
+    "backToProfile": "العودة إلى الملف الشخصي"
   }
 }

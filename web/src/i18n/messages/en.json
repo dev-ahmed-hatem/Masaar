@@ -216,6 +216,7 @@
     "tabLearning": "Learning",
     "tabSecurity": "Security",
     "tabReviews": "My reviews",
+    "tabCalendar": "Calendar",
     "fullName": "Full name",
     "email": "Email",
     "language": "Language",
@@ -830,5 +831,20 @@
     "selectSubject": "Select a subject",
     "saved": "Saved.",
     "actionError": "Something went wrong. Please try again."
+  },
+  "googleCalendar": {
+    "title": "Google Calendar",
+    "description": "Connect your Google account to add confirmed lessons to your calendar, with an automatic Google Meet link.",
+    "connect": "Connect Google Calendar",
+    "disconnect": "Disconnect",
+    "connectedAs": "Connected as {email}",
+    "reconnectNeeded": "Reconnect needed — your Google authorization expired.",
+    "connected": "Google Calendar connected.",
+    "disconnected": "Google Calendar disconnected.",
+    "error": "Something went wrong. Please try again.",
+    "unavailable": "Google Calendar integration is not configured yet.",
+    "callbackTitle": "Connecting Google Calendar…",
+    "callbackError": "Could not connect Google Calendar.",
+    "backToProfile": "Back to profile"
   }
 }

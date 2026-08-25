@@ -38,7 +38,10 @@ import {
   type Track as CatalogTrack,
 } from "@/lib/catalog";
 
+import GoogleCalendarCard from "@/components/integrations/google-calendar-card";
+
 type Dict = Dictionary["teacherProfile"];
+type GcalDict = Dictionary["googleCalendar"];
 
 // Custom per-teacher price requests are disabled for now. Flip to re-enable the
 // section (and its backend/admin approval queue are still in place).
@@ -63,7 +66,15 @@ function Section({ title, children }: { title: ReactNode; children: ReactNode })
   );
 }
 
-export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Locale }) {
+export default function ProfileEditor({
+  dict,
+  gcal,
+  locale,
+}: {
+  dict: Dict;
+  gcal: GcalDict;
+  locale: Locale;
+}) {
   const { message } = App.useApp();
   const ar = locale === "ar";
   const label = useCallback(
@@ -260,6 +271,8 @@ export default function ProfileEditor({ dict, locale }: { dict: Dict; locale: Lo
           }
         }}
       />
+
+      <GoogleCalendarCard dict={gcal} />
 
       {PRICE_REQUESTS_ENABLED && (
         <PricesCard

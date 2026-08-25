@@ -16,7 +16,7 @@ export default async function TeacherProfilePage({
 
   return (
     <RouteGuard locale={locale} allow={["TEACHER"]}>
-      <ProfileEditor dict={d.teacherProfile} locale={locale} />
+      <ProfileEditor dict={d.teacherProfile} gcal={d.googleCalendar} locale={locale} />
     </RouteGuard>
   );
 }

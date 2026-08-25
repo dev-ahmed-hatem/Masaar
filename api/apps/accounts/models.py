@@ -31,6 +31,9 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
         related_name="users",
     )
     locale = models.CharField(max_length=2, choices=Locale.choices, default=Locale.AR)
+    # IANA timezone (e.g. "Africa/Cairo"). Blank falls back to the market tz.
+    # Used to render pushed Google Calendar events in the user's local time.
+    timezone = models.CharField(max_length=64, blank=True)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

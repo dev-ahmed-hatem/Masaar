@@ -10,3 +10,8 @@ Pillow>=10,<12
 whitenoise>=6.7,<7
 gunicorn>=22,<24
 tzdata>=2024.1
+# Google Calendar integration (OAuth + Calendar API + token encryption at rest).
+google-auth>=2.30,<3
+google-auth-oauthlib>=1.2,<2
+google-api-python-client>=2.140,<3
+cryptography>=43,<46

@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.integrations import calendar_sync
 from apps.notifications.services import notify
 from apps.payments import services as wallet
 from apps.teachers.models import TeacherPrice, TeacherSubject
@@ -169,6 +170,7 @@ def reschedule_booking(booking, actor, new_start, *, duration_min=None):
     booking.save(update_fields=["scheduled_start", "duration_min", "updated_at"])
     recipient = teacher.user if actor == booking.student else booking.student
     notify(recipient, "booking_rescheduled", {"booking_id": booking.id})
+    transaction.on_commit(lambda: calendar_sync.on_booking_rescheduled(booking))
     return booking
 
 
@@ -183,6 +185,9 @@ def confirm_booking(booking, *, meeting_provider, meeting_link):
         booking.student, "booking_confirmed",
         {"teacher": booking.teacher.user.full_name, "meeting_link": meeting_link},
     )
+    # Push to connected Google Calendars (auto-generating the Meet link) once the
+    # confirmation has committed — best-effort, never blocks the transition.
+    transaction.on_commit(lambda: calendar_sync.on_booking_confirmed(booking))
     return booking
 
 
@@ -197,6 +202,7 @@ def decline_booking(booking):
     booking.status = Booking.Status.DECLINED
     booking.save(update_fields=["status", "updated_at"])
     notify(booking.student, "booking_declined", {"teacher": booking.teacher.user.full_name})
+    transaction.on_commit(lambda: calendar_sync.on_booking_cancelled(booking))
     return booking
 
 
@@ -228,6 +234,7 @@ def cancel_booking(booking, actor, *, reason=""):
     # Notify the other party.
     recipient = booking.teacher.user if actor == booking.student else booking.student
     notify(recipient, "booking_cancelled", {"booking_id": booking.id})
+    transaction.on_commit(lambda: calendar_sync.on_booking_cancelled(booking))
     return booking
 
 

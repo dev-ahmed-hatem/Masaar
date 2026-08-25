@@ -16,7 +16,7 @@ export default async function ProfilePage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <ProfileView dict={d.profile} locale={locale} />
+      <ProfileView dict={d.profile} gcal={d.googleCalendar} locale={locale} />
     </RouteGuard>
   );
 }

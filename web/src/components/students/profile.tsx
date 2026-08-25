@@ -14,12 +14,22 @@ import { listGradeLevels, listVerticals, type GradeLevel } from "@/lib/catalog";
 import { listMyReviews } from "@/lib/reviews";
 import type { Review } from "@/lib/reviews";
 import { SegmentedTabs } from "@/components/ui";
+import GoogleCalendarCard from "@/components/integrations/google-calendar-card";
 
 type Dict = Dictionary["profile"];
+type GcalDict = Dictionary["googleCalendar"];
 
 const { Paragraph, Text } = Typography;
 
-export default function ProfileView({ dict, locale }: { dict: Dict; locale: Locale }) {
+export default function ProfileView({
+  dict,
+  gcal,
+  locale,
+}: {
+  dict: Dict;
+  gcal: GcalDict;
+  locale: Locale;
+}) {
   const ar = locale === "ar";
   const { user, setUser } = useAuth();
   const { message } = App.useApp();
@@ -41,6 +51,7 @@ export default function ProfileView({ dict, locale }: { dict: Dict; locale: Loca
           { value: "account", label: dict.tabAccount },
           { value: "learning", label: dict.tabLearning },
           { value: "security", label: dict.tabSecurity },
+          { value: "calendar", label: dict.tabCalendar },
           { value: "reviews", label: dict.tabReviews },
         ]}
       />
@@ -48,6 +59,7 @@ export default function ProfileView({ dict, locale }: { dict: Dict; locale: Loca
       {tab === "account" && <AccountTab dict={dict} user={user} setUser={setUser} message={message} />}
       {tab === "learning" && <LearningTab dict={dict} locale={locale} message={message} />}
       {tab === "security" && <SecurityTab dict={dict} message={message} />}
+      {tab === "calendar" && <GoogleCalendarCard dict={gcal} />}
       {tab === "reviews" && <ReviewsTab dict={dict} ar={ar} />}
     </section>
   );

@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.reviews",
     "apps.notifications",
     "apps.chat",
+    "apps.integrations",
 ]
 
 MIDDLEWARE = [
@@ -168,6 +169,33 @@ NOTIFICATION_PROVIDERS = {
     "EMAIL": env("NOTIFY_EMAIL_PROVIDER", default="apps.notifications.providers.EmailProvider"),
 }
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Masaar <no-reply@masaar.local>")
+
+# --- Google Calendar integration ---
+# Teachers/students connect their Google account so confirmed lessons are pushed
+# to their calendar with an auto-generated Meet link. All hooks no-op cleanly
+# when unconfigured (GOOGLE_CALENDAR_ENABLED is False), so dev/CI needs nothing.
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+# The frontend callback route the browser is redirected to after consent; must
+# match a redirect URI registered on the Google OAuth client.
+GOOGLE_OAUTH_REDIRECT_URI = env(
+    "GOOGLE_OAUTH_REDIRECT_URI", default="http://localhost:3000/en/settings/google/callback"
+)
+GOOGLE_OAUTH_SCOPES = env.list(
+    "GOOGLE_OAUTH_SCOPES",
+    default=[
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/calendar.events",
+    ],
+)
+# Fernet key (base64, 32 bytes) used to encrypt stored OAuth tokens at rest.
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+GOOGLE_TOKEN_ENCRYPTION_KEY = env("GOOGLE_TOKEN_ENCRYPTION_KEY", default="")
+# Master kill-switch: every calendar hook short-circuits unless creds are set.
+GOOGLE_CALENDAR_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+# Signed-state TTL for the OAuth handshake (seconds).
+GOOGLE_OAUTH_STATE_TTL = env.int("GOOGLE_OAUTH_STATE_TTL", default=600)
 
 # --- Booking lifecycle policy (§16) ---
 # Free student cancellation up to this many hours before the lesson; later is charged.

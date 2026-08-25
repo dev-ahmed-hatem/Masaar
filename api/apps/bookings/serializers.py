@@ -64,7 +64,9 @@ class BookingCreateSerializer(serializers.Serializer):
 
 class ConfirmSerializer(serializers.Serializer):
     meeting_provider = serializers.ChoiceField(choices=Booking.Provider.choices)
-    meeting_link = serializers.URLField()
+    # Optional: for a MEET booking where the teacher has connected Google Calendar,
+    # the link is auto-generated. The view enforces it as required otherwise.
+    meeting_link = serializers.URLField(required=False, allow_blank=True, default="")
 
 
 class ReasonSerializer(serializers.Serializer):

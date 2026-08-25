@@ -161,10 +161,22 @@ class BookingConfirmView(_BookingAction):
             raise PermissionDenied()
         serializer = ConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        provider = serializer.validated_data["meeting_provider"]
+        link = serializer.validated_data.get("meeting_link", "")
+        # A link is required unless we can auto-generate a Meet link for this
+        # MEET booking (teacher has Google Calendar connected).
+        if not link:
+            from apps.integrations import calendar_sync
+
+            if not (
+                provider == Booking.Provider.MEET
+                and calendar_sync.teacher_can_autogenerate_meet(booking)
+            ):
+                raise ValidationError({"meeting_link": "This field is required."})
         booking = services.confirm_booking(
             booking,
-            meeting_provider=serializer.validated_data["meeting_provider"],
-            meeting_link=serializer.validated_data["meeting_link"],
+            meeting_provider=provider,
+            meeting_link=link,
         )
         return self.ok(booking)
 
