@@ -7,6 +7,7 @@ import { Button, Result, Spin } from "antd";
 import { useAuth } from "@/context/auth-context";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
+import { ApiError } from "@/lib/api";
 import { integrations } from "@/lib/integrations";
 
 type Dict = Dictionary["googleCalendar"];
@@ -16,6 +17,7 @@ export default function GoogleCallback({ dict, locale }: { dict: Dict; locale: L
   const params = useSearchParams();
   const { user } = useAuth();
   const [failed, setFailed] = useState(false);
+  const [reason, setReason] = useState<string | null>(null);
   const ran = useRef(false);
 
   const code = params.get("code");
@@ -29,7 +31,10 @@ export default function GoogleCallback({ dict, locale }: { dict: Dict; locale: L
     integrations
       .googleComplete(code, state)
       .then(() => router.replace(dest))
-      .catch(() => setFailed(true));
+      .catch((err) => {
+        setReason(err instanceof ApiError ? err.message : null);
+        setFailed(true);
+      });
   }, [code, state, router, dest]);
 
   // Missing params (user landed here without a valid redirect) is an error too.
@@ -38,6 +43,7 @@ export default function GoogleCallback({ dict, locale }: { dict: Dict; locale: L
       <Result
         status="error"
         title={dict.callbackError}
+        subTitle={reason ?? undefined}
         extra={
           <Button type="primary" onClick={() => router.replace(dest)}>
             {dict.backToProfile}

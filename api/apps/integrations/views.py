@@ -121,6 +121,15 @@ class GoogleCallbackView(APIView):
                  "detail": "Could not complete Google authorization."}
             )
 
+        # The user can untick the Calendar permission on the consent screen;
+        # without it the whole integration is pointless, so reject clearly.
+        granted = credentials.scopes or []
+        if granted and "https://www.googleapis.com/auth/calendar.events" not in granted:
+            raise ValidationError(
+                {"code": "calendar_permission_required",
+                 "detail": "Please allow Google Calendar access to connect."}
+            )
+
         email = oauth.fetch_email(credentials)
         cred, _ = GoogleCredential.objects.get_or_create(user=request.user)
         cred.access_token = credentials.token or ""

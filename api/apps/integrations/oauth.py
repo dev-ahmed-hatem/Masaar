@@ -4,12 +4,21 @@ google-* imports are lazy so the app loads without the dependency; these run
 only during an actual connect flow.
 """
 import logging
+import os
 import urllib.parse
 import urllib.request
 
 from django.conf import settings
 
 logger = logging.getLogger("masaar.gcal")
+
+# Google returns scopes reordered and adds a bare "email", so the granted set
+# never matches the requested set exactly — without this, requests-oauthlib
+# raises "Scope has changed" and fetch_token fails. Required for Google OAuth.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+# Allow the http://localhost redirect during local dev token exchange.
+if settings.DEBUG:
+    os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 
 def _client_config() -> dict:
