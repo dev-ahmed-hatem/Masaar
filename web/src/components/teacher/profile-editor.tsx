@@ -272,7 +272,7 @@ export default function ProfileEditor({
         }}
       />
 
-      <GoogleCalendarCard dict={gcal} />
+      <GoogleCalendarCard dict={gcal} locale={locale} />
 
       {PRICE_REQUESTS_ENABLED && (
         <PricesCard

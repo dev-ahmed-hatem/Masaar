@@ -158,7 +158,7 @@ def test_oauth_callback_stores_credential(api, world, enabled, monkeypatch):
         expiry = None
         scopes = ["openid", "https://www.googleapis.com/auth/calendar.events"]
 
-    monkeypatch.setattr(oauth, "exchange_code", lambda code, state: FakeCreds())
+    monkeypatch.setattr(oauth, "exchange_code", lambda code, state, redirect_uri=None: FakeCreds())
     monkeypatch.setattr(oauth, "fetch_email", lambda creds: "user@gmail.com")
 
     api.force_authenticate(user=world["student"])
@@ -285,8 +285,9 @@ def test_cancel_deletes_events(
 
 # --- Disabled integration is inert -----------------------------------------
 
-def test_disabled_integration_no_calls(api, world, fake_gcal, django_capture_on_commit_callbacks):
-    # GOOGLE_CALENDAR_ENABLED defaults False in tests (no creds configured).
+def test_disabled_integration_no_calls(api, world, settings, fake_gcal, django_capture_on_commit_callbacks):
+    # Force the integration off (a real .env may have configured it on).
+    settings.GOOGLE_CALENDAR_ENABLED = False
     _connect(world["tuser"])
     booking_id = _book(api, world)
     api.force_authenticate(user=world["tuser"])

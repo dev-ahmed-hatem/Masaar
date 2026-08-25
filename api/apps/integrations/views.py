@@ -23,12 +23,30 @@ logger = logging.getLogger("masaar.gcal")
 STATE_SALT = "integrations.google.oauth"
 
 
+LOCALES = ("en", "ar")
+
+
 def _require_enabled():
     if not settings.GOOGLE_CALENDAR_ENABLED:
         raise ValidationError(
             {"code": "integration_disabled",
              "detail": "Google Calendar integration is not configured."}
         )
+
+
+def _redirect_uri_for(locale: str) -> str:
+    """Swap the locale segment of the configured redirect URI so the user is
+    returned to the callback (and afterwards their profile) in their own locale.
+    Both locale variants must be registered on the Google OAuth client."""
+    from urllib.parse import urlparse, urlunparse
+
+    base = settings.GOOGLE_OAUTH_REDIRECT_URI
+    parts = urlparse(base)
+    segments = parts.path.split("/")
+    if len(segments) > 1 and segments[1] in LOCALES:
+        segments[1] = locale
+        return urlunparse(parts._replace(path="/".join(segments)))
+    return base
 
 
 def _status_payload(cred):
@@ -60,8 +78,12 @@ class GoogleConnectView(APIView):
     @extend_schema(responses={200: ConnectUrlSerializer})
     def get(self, request):
         _require_enabled()
-        state = signing.dumps({"uid": request.user.id}, salt=STATE_SALT)
-        return Response({"auth_url": oauth.authorization_url(state)})
+        locale = request.query_params.get("locale", "en")
+        if locale not in LOCALES:
+            locale = "en"
+        state = signing.dumps({"uid": request.user.id, "loc": locale}, salt=STATE_SALT)
+        redirect_uri = _redirect_uri_for(locale)
+        return Response({"auth_url": oauth.authorization_url(state, redirect_uri)})
 
 
 class GoogleCallbackView(APIView):
@@ -86,8 +108,12 @@ class GoogleCallbackView(APIView):
         if payload.get("uid") != request.user.id:
             raise PermissionDenied("OAuth state does not match the authenticated user.")
 
+        locale = payload.get("loc", "en")
+        if locale not in LOCALES:
+            locale = "en"
         try:
-            credentials = oauth.exchange_code(code, state)
+            # Must match the redirect_uri used to build the consent URL.
+            credentials = oauth.exchange_code(code, state, _redirect_uri_for(locale))
         except Exception:
             logger.exception("Google token exchange failed")
             raise ValidationError(

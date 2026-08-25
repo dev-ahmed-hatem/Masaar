@@ -24,29 +24,31 @@ def _client_config() -> dict:
     }
 
 
-def _build_flow(state=None):
+def _build_flow(state=None, redirect_uri=None):
     from google_auth_oauthlib.flow import Flow
 
     flow = Flow.from_client_config(
         _client_config(), scopes=settings.GOOGLE_OAUTH_SCOPES, state=state
     )
-    flow.redirect_uri = settings.GOOGLE_OAUTH_REDIRECT_URI
+    flow.redirect_uri = redirect_uri or settings.GOOGLE_OAUTH_REDIRECT_URI
     return flow
 
 
-def authorization_url(state: str) -> str:
+def authorization_url(state: str, redirect_uri: str | None = None) -> str:
     """Consent URL. ``access_type=offline`` + ``prompt=consent`` guarantees a
-    refresh token so we can push events long after the user leaves."""
-    flow = _build_flow(state=state)
+    refresh token so we can push events long after the user leaves. The
+    redirect_uri must match the one used later at token exchange."""
+    flow = _build_flow(state=state, redirect_uri=redirect_uri)
     url, _ = flow.authorization_url(
         access_type="offline", include_granted_scopes="true", prompt="consent"
     )
     return url
 
 
-def exchange_code(code: str, state: str):
-    """Exchange an authorization code for credentials (access + refresh token)."""
-    flow = _build_flow(state=state)
+def exchange_code(code: str, state: str, redirect_uri: str | None = None):
+    """Exchange an authorization code for credentials (access + refresh token).
+    redirect_uri must match the one used to build the consent URL."""
+    flow = _build_flow(state=state, redirect_uri=redirect_uri)
     flow.fetch_token(code=code)
     return flow.credentials
 

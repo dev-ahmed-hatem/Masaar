@@ -59,7 +59,7 @@ export default function ProfileView({
       {tab === "account" && <AccountTab dict={dict} user={user} setUser={setUser} message={message} />}
       {tab === "learning" && <LearningTab dict={dict} locale={locale} message={message} />}
       {tab === "security" && <SecurityTab dict={dict} message={message} />}
-      {tab === "calendar" && <GoogleCalendarCard dict={gcal} />}
+      {tab === "calendar" && <GoogleCalendarCard dict={gcal} locale={locale} />}
       {tab === "reviews" && <ReviewsTab dict={dict} ar={ar} />}
     </section>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { App, Button, Spin, Tag, Typography } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 
+import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { integrations, type GoogleStatus } from "@/lib/integrations";
@@ -12,7 +13,7 @@ type Dict = Dictionary["googleCalendar"];
 
 const { Paragraph } = Typography;
 
-export default function GoogleCalendarCard({ dict }: { dict: Dict }) {
+export default function GoogleCalendarCard({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,7 @@ export default function GoogleCalendarCard({ dict }: { dict: Dict }) {
   const connect = async () => {
     setBusy(true);
     try {
-      const { auth_url } = await integrations.googleConnectUrl();
+      const { auth_url } = await integrations.googleConnectUrl(locale);
       window.location.href = auth_url;
     } catch (err) {
       const disabled = err instanceof ApiError && err.code === "integration_disabled";

@@ -8,8 +8,10 @@ export interface GoogleStatus {
 
 export const integrations = {
   googleStatus: () => apiAuthed<GoogleStatus>("/api/integrations/google/status/"),
-  googleConnectUrl: () =>
-    apiAuthed<{ auth_url: string }>("/api/integrations/google/connect/"),
+  googleConnectUrl: (locale: string) =>
+    apiAuthed<{ auth_url: string }>(
+      `/api/integrations/google/connect/?locale=${encodeURIComponent(locale)}`,
+    ),
   googleComplete: (code: string, state: string) =>
     apiAuthed<GoogleStatus>("/api/integrations/google/callback/", {
       method: "POST",
