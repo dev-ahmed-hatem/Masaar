@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, App, Button, Empty, Input, Modal, Pagination, Rate, Select, Spin } from "antd";
+import { Alert, App, Button, Empty, Input, Modal, Pagination, Rate, Spin } from "antd";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -14,6 +14,7 @@ import {
   useGroupedBookings,
   type BookingGroup,
 } from "@/components/bookings/shared";
+import SlotCalendar from "@/components/bookings/slot-calendar";
 import { SegmentedTabs } from "@/components/ui";
 
 type Dict = Dictionary["myLessons"];
@@ -191,19 +192,6 @@ function RescheduleModal({
     };
   }, [booking.teacher_id]);
 
-  const groups = slots.reduce<Record<string, Slot[]>>((acc, s) => {
-    const key = new Date(s.start).toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric" });
-    (acc[key] ??= []).push(s);
-    return acc;
-  }, {});
-  const options = Object.entries(groups).map(([label, items]) => ({
-    label,
-    options: items.map((s) => ({
-      label: new Date(s.start).toLocaleTimeString(locale, { timeStyle: "short" }),
-      value: s.start,
-    })),
-  }));
-
   async function submit() {
     if (!start) return;
     setSubmitting(true);
@@ -221,6 +209,7 @@ function RescheduleModal({
   return (
     <Modal
       open
+      width={640}
       onCancel={onClose}
       onOk={submit}
       title={dict.rescheduleTitle}
@@ -232,7 +221,7 @@ function RescheduleModal({
         ) : slots.length === 0 ? (
           <Empty description="—" />
         ) : (
-          <Select value={start} onChange={setStart} options={options} style={{ width: "100%" }} />
+          <SlotCalendar slots={slots} selected={start} onPick={setStart} locale={locale} />
         )}
       </div>
     </Modal>
