@@ -11,7 +11,14 @@ from rest_framework.generics import (
 from apps.accounts.permissions import IsStaff
 from apps.markets.models import Market
 
-from .models import LessonCategory, StageSubject, Subject, Track, Vertical
+from .models import (
+    LessonCategory,
+    StagePricingRule,
+    StageSubject,
+    Subject,
+    Track,
+    Vertical,
+)
 
 
 class InUse(APIException):
@@ -45,12 +52,9 @@ class LessonCategoryAdminSerializer(serializers.ModelSerializer):
             "subject",
             "label",
             "label_ar",
-            "student_price_minor",
-            "teacher_wage_minor",
-            "currency",
             "is_active",
         )
-        read_only_fields = ("id", "label", "label_ar", "currency")
+        read_only_fields = ("id", "label", "label_ar")
         extra_kwargs = {"grade_level": {"required": False, "allow_null": True}}
 
     def get_label(self, obj) -> str:
@@ -60,20 +64,6 @@ class LessonCategoryAdminSerializer(serializers.ModelSerializer):
     def get_label_ar(self, obj) -> str:
         parts = [obj.vertical.name_ar, obj.grade_level.name_ar if obj.grade_level else None, obj.subject.name_ar]
         return " · ".join(p for p in parts if p)
-
-    def validate(self, attrs):
-        student = attrs.get("student_price_minor", getattr(self.instance, "student_price_minor", None))
-        wage = attrs.get("teacher_wage_minor", getattr(self.instance, "teacher_wage_minor", None))
-        if student is not None and wage is not None and wage > student:
-            raise serializers.ValidationError(
-                {"teacher_wage_minor": "Teacher wage cannot exceed the student price."}
-            )
-        return attrs
-
-    def create(self, validated):
-        # Currency is always the market's currency.
-        validated["currency"] = validated["market"].currency
-        return super().create(validated)
 
 
 class LessonCategoryAdminListCreateView(ListCreateAPIView):
@@ -100,6 +90,60 @@ class LessonCategoryAdminDetailView(RetrieveUpdateAPIView):
     permission_classes = [IsStaff]
     serializer_class = LessonCategoryAdminSerializer
     queryset = LessonCategory.objects.select_related("market", "vertical", "grade_level", "subject")
+
+
+# --- Stage pricing rules: per-market minimum price + platform commission ----
+
+
+class StagePricingRuleAdminSerializer(serializers.ModelSerializer):
+    market = serializers.SlugRelatedField(slug_field="code", queryset=Market.objects.all())
+    stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
+    stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
+    currency = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = StagePricingRule
+        fields = (
+            "id",
+            "market",
+            "vertical",
+            "stage_name_en",
+            "stage_name_ar",
+            "min_price_minor",
+            "commission_pct",
+            "currency",
+            "is_active",
+        )
+        read_only_fields = ("id", "stage_name_en", "stage_name_ar", "currency")
+
+    def validate_min_price_minor(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Minimum price cannot be negative.")
+        return value
+
+    def validate_commission_pct(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError("Commission must be between 0 and 100.")
+        return value
+
+
+class StagePricingRuleAdminListCreateView(ListCreateAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StagePricingRuleAdminSerializer
+
+    def get_queryset(self):
+        qs = StagePricingRule.objects.select_related("market", "vertical").order_by(
+            "market__code", "vertical__order"
+        )
+        if market := self.request.query_params.get("market"):
+            qs = qs.filter(market__code=market.upper())
+        return qs
+
+
+class StagePricingRuleAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StagePricingRuleAdminSerializer
+    queryset = StagePricingRule.objects.select_related("market", "vertical")
 
 
 # --- Taxonomy management: Stage / Track / Subject / StageSubject -----------

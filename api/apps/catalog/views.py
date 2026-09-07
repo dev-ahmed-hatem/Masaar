@@ -4,10 +4,19 @@ from rest_framework.permissions import AllowAny
 
 from apps.markets.models import Market
 
-from .models import GradeLevel, LessonCategory, StageSubject, Subject, Track, Vertical
+from .models import (
+    GradeLevel,
+    LessonCategory,
+    StagePricingRule,
+    StageSubject,
+    Subject,
+    Track,
+    Vertical,
+)
 from .serializers import (
     GradeLevelSerializer,
     LessonCategorySerializer,
+    StagePricingRuleSerializer,
     StageSubjectSerializer,
     SubjectSerializer,
     TrackSerializer,
@@ -64,6 +73,29 @@ class SubjectListView(ListAPIView):
     pagination_class = None
     serializer_class = SubjectSerializer
     queryset = Subject.objects.filter(is_active=True)
+
+
+class StagePricingRuleListView(ListAPIView):
+    """Public per-stage minimum price + commission for a market (?market=EG).
+
+    Drives the teacher's stage-price editor (min floor) and the apply form.
+    """
+
+    permission_classes = [AllowAny]
+    pagination_class = None
+    serializer_class = StagePricingRuleSerializer
+
+    def get_queryset(self):
+        code = self.request.query_params.get("market")
+        if not code:
+            raise ValidationError({"market": "Specify a market (?market=EG)."})
+        try:
+            market = Market.objects.get(code=code.upper())
+        except Market.DoesNotExist:
+            raise ValidationError({"market": "Unknown market code."})
+        return StagePricingRule.objects.filter(
+            market=market, is_active=True
+        ).select_related("market", "vertical")
 
 
 class LessonCategoryListView(ListAPIView):

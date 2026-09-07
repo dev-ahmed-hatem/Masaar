@@ -313,7 +313,7 @@ export default function TeacherDetail({
                     <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>
                       {[o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · ")}
                     </span>
-                    <span className="shrink-0 text-sm font-semibold" style={{ color: "var(--ink)" }}>{o.price.display}</span>
+                    <span className="shrink-0 text-sm font-semibold" style={{ color: "var(--ink)" }}>{o.price?.display ?? "—"}</span>
                   </div>
                 ))}
               </div>
@@ -603,7 +603,7 @@ function BookingModal({
     }
   }
 
-  const priceText = isTrial ? dict.free : offering?.price.display ?? "";
+  const priceText = isTrial ? dict.free : offering?.price?.display ?? "";
 
   return (
     <Modal

@@ -9,9 +9,6 @@ export interface LessonCategoryAdmin {
   subject: number;
   label: string;
   label_ar: string;
-  student_price_minor: number;
-  teacher_wage_minor: number;
-  currency: string;
   is_active: boolean;
 }
 
@@ -20,22 +17,26 @@ export interface CategoryInput {
   vertical: number;
   grade_level?: number | null;
   subject: number;
-  student_price_minor: number;
-  teacher_wage_minor: number;
 }
 
-export interface PriceRequestAdmin {
+/** A moderator-set stage rule: minimum price + platform commission, per market. */
+export interface StagePricingRuleAdmin {
   id: number;
-  teacher_id: number;
-  teacher_name: string;
   market: string;
-  label: string;
-  default_price_minor: number;
-  custom_student_price_minor: number;
+  vertical: number;
+  stage_name_en: string;
+  stage_name_ar: string;
+  min_price_minor: number;
+  commission_pct: string; // DRF DecimalField serializes as a string, e.g. "15.00"
   currency: string;
-  is_approved: boolean;
-  created_at: string;
-  updated_at: string;
+  is_active: boolean;
+}
+
+export interface StageRuleInput {
+  market: string;
+  vertical: number;
+  min_price_minor: number;
+  commission_pct: number;
 }
 
 export interface Vertical {
@@ -59,6 +60,7 @@ export interface Subject {
 }
 
 export const pricingApi = {
+  // Lesson categories are taxonomy only (which subjects are bookable per market/stage/grade).
   listCategories: (market?: string) =>
     apiAuthed<Paginated<LessonCategoryAdmin>>(
       `/api/admin/lesson-categories/?page_size=100${market ? `&market=${market}` : ""}`,
@@ -74,20 +76,23 @@ export const pricingApi = {
       body: JSON.stringify(patch),
     }),
 
-  listPriceRequests: (status: "pending" | "approved" = "pending", page = 1, page_size = 20) =>
-    apiAuthed<Paginated<PriceRequestAdmin>>(
-      `/api/price-requests/?status=${status}&page=${page}&page_size=${page_size}`,
+  // Stage pricing rules: minimum price + platform commission per (market, stage).
+  listStageRules: (market?: string) =>
+    apiAuthed<Paginated<StagePricingRuleAdmin>>(
+      `/api/admin/stage-pricing/?page_size=100${market ? `&market=${market}` : ""}`,
     ),
-  approvePriceRequest: (id: number) =>
-    apiAuthed<PriceRequestAdmin>(`/api/price-requests/${id}/approve/`, {
+  createStageRule: (body: StageRuleInput) =>
+    apiAuthed<StagePricingRuleAdmin>("/api/admin/stage-pricing/", {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     }),
-  rejectPriceRequest: (id: number, reason: string) =>
-    apiAuthed<{ deleted: boolean }>(`/api/price-requests/${id}/reject/`, {
-      method: "POST",
-      body: JSON.stringify({ reason }),
+  updateStageRule: (id: number, patch: Partial<StageRuleInput> & { is_active?: boolean }) =>
+    apiAuthed<StagePricingRuleAdmin>(`/api/admin/stage-pricing/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
     }),
+  deleteStageRule: (id: number) =>
+    apiAuthed<void>(`/api/admin/stage-pricing/${id}/`, { method: "DELETE" }),
 
   listVerticals: () => apiAuthed<Vertical[]>("/api/catalog/verticals/"),
   listGrades: (vertical?: number) =>

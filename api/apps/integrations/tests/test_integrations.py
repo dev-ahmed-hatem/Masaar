@@ -16,7 +16,12 @@ from apps.integrations import google_calendar, oauth
 from apps.integrations.models import BookingCalendarEvent, GoogleCredential
 from apps.markets.models import Market
 from apps.payments import services as wallet
-from apps.teachers.models import AvailabilityRule, TeacherProfile, TeacherSubject
+from apps.teachers.models import (
+    AvailabilityRule,
+    TeacherProfile,
+    TeacherStagePrice,
+    TeacherSubject,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -87,13 +92,13 @@ def world():
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     eg_math = LessonCategory.objects.create(
         market=eg, vertical=primary, grade_level=g4, subject=math,
-        student_price_minor=6000, teacher_wage_minor=3500, currency="EGP",
     )
     tuser = User.objects.create_user(
         phone="+201000000300", full_name="Teacher T", role=User.Role.TEACHER, market=eg, is_verified=True
     )
     teacher = TeacherProfile.objects.create(user=tuser, market=eg, is_published=True, bio_en="hi")
     TeacherSubject.objects.create(teacher=teacher, lesson_category=eg_math)
+    TeacherStagePrice.objects.create(teacher=teacher, vertical=primary, price_minor=6000)
     for wd in range(7):
         AvailabilityRule.objects.create(teacher=teacher, weekday=wd, start_time="00:00", end_time="23:59")
     student = User.objects.create_user(

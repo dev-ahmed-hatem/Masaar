@@ -23,7 +23,6 @@ def world():
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     cat = LessonCategory.objects.create(
         market=eg, vertical=primary, grade_level=g4, subject=math,
-        student_price_minor=6000, teacher_wage_minor=3500, currency="EGP",
     )
     tuser = User.objects.create_user(
         phone="+201000000800", full_name="Dash Teacher", role=User.Role.TEACHER, market=eg, is_verified=True

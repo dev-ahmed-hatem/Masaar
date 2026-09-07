@@ -16,9 +16,15 @@ PWD = "Sup3rSecret!"
 
 
 def _signup(api, market, phone="01000000001"):
+    from apps.catalog.models import Vertical
+
+    stage, _ = Vertical.objects.get_or_create(
+        code=Vertical.Code.PRIMARY, defaults={"name_en": "Primary", "name_ar": "ابتدائي"}
+    )
     return api.post(
         SIGNUP,
-        {"phone": phone, "full_name": "Test Student", "password": PWD, "market": "EG", "locale": "ar"},
+        {"phone": phone, "full_name": "Test Student", "password": PWD, "market": "EG",
+         "locale": "ar", "vertical": stage.id},
         format="json",
     )
 

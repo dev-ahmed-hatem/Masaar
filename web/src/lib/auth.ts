@@ -25,6 +25,7 @@ export interface SignupInput {
   password: string;
   market: string;
   locale: string;
+  vertical: number; // the student's current stage
 }
 
 export const authApi = {

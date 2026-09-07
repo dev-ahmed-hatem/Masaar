@@ -1,6 +1,14 @@
 from rest_framework import serializers
 
-from .models import GradeLevel, LessonCategory, StageSubject, Subject, Track, Vertical
+from .models import (
+    GradeLevel,
+    LessonCategory,
+    StagePricingRule,
+    StageSubject,
+    Subject,
+    Track,
+    Vertical,
+)
 
 
 class VerticalSerializer(serializers.ModelSerializer):
@@ -44,6 +52,26 @@ class SubjectSerializer(serializers.ModelSerializer):
         fields = ("id", "name_en", "name_ar")
 
 
+class StagePricingRuleSerializer(serializers.ModelSerializer):
+    """Public read of the per-stage minimum price + commission for a market."""
+
+    stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
+    stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
+    currency = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = StagePricingRule
+        fields = (
+            "id",
+            "vertical",
+            "stage_name_en",
+            "stage_name_ar",
+            "min_price_minor",
+            "commission_pct",
+            "currency",
+        )
+
+
 class LessonCategorySerializer(serializers.ModelSerializer):
     """A pickable pricing key with human labels (for teacher subject/price pickers)."""
 
@@ -52,7 +80,7 @@ class LessonCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LessonCategory
-        fields = ("id", "label", "label_ar", "student_price_minor", "currency")
+        fields = ("id", "label", "label_ar")
 
     def get_label(self, obj) -> str:
         parts = [obj.vertical.name_en, obj.grade_level.name_en if obj.grade_level else None, obj.subject.name_en]

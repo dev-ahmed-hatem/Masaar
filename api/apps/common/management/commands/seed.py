@@ -20,6 +20,7 @@ from apps.bookings.models import Booking
 from apps.catalog.models import (
     GradeLevel,
     LessonCategory,
+    StagePricingRule,
     StageSubject,
     Subject,
     Track,
@@ -35,7 +36,7 @@ from apps.reviews.models import Review
 from apps.teachers.models import (
     AvailabilityRule,
     TeacherApplication,
-    TeacherPrice,
+    TeacherStagePrice,
     TeacherProfile,
     TeacherSpecialization,
     TeacherSubject,
@@ -136,23 +137,35 @@ class Command(BaseCommand):
         g_col = GradeLevel.objects.get(vertical=college, name_en="Year 1")
         vmap = {"primary": (primary, g_primary), "secondary": (secondary, g_sec), "college": (college, g_col)}
 
-        eg_prices = {
-            "primary": {"Mathematics": (6000, 3500), "Science": (6000, 3500), "English": (6500, 3800), "Arabic": (5500, 3200)},
-            "secondary": {"Physics": (9000, 5500), "Chemistry": (9000, 5500), "Biology": (8500, 5000), "Mathematics": (9000, 5500), "English": (8000, 4800)},
-            "college": {"Mathematics": (12000, 7500), "Physics": (12000, 7500), "Biology": (13000, 8000), "Chemistry": (12500, 7800), "English": (11000, 6800)},
+        # Which subjects are bookable per (market, stage). Categories are taxonomy
+        # only now — pricing lives per stage (below) and per teacher.
+        eg_subjects = {
+            "primary": ["Mathematics", "Science", "English", "Arabic"],
+            "secondary": ["Physics", "Chemistry", "Biology", "Mathematics", "English"],
+            "college": ["Mathematics", "Physics", "Biology", "Chemistry", "English"],
         }
-        sa_prices = {
-            "primary": {"Mathematics": (4000, 2500)},
-            "secondary": {"Physics": (6000, 3800), "English": (5500, 3400)},
+        sa_subjects = {
+            "primary": ["Mathematics"],
+            "secondary": ["Physics", "English"],
         }
-        for vkey, subs in eg_prices.items():
+        for vkey, subs in eg_subjects.items():
             v, g = vmap[vkey]
-            for sname, (p, wg) in subs.items():
-                self._category(eg, v, g, subjects[sname], p, wg, "EGP")
-        for vkey, subs in sa_prices.items():
+            for sname in subs:
+                self._category(eg, v, g, subjects[sname])
+        for vkey, subs in sa_subjects.items():
             v, g = vmap[vkey]
-            for sname, (p, wg) in subs.items():
-                self._category(sa, v, g, subjects[sname], p, wg, "SAR")
+            for sname in subs:
+                self._category(sa, v, g, subjects[sname])
+
+        # Moderator stage pricing: (min_price_minor, commission_pct) per stage.
+        eg_stage_rules = {"primary": (5000, 15), "secondary": (8000, 18), "college": (11000, 20)}
+        sa_stage_rules = {"primary": (3500, 15), "secondary": (5000, 18)}
+        for market, rules in ((eg, eg_stage_rules), (sa, sa_stage_rules)):
+            for vkey, (minp, pct) in rules.items():
+                StagePricingRule.objects.get_or_create(
+                    market=market, vertical=vmap[vkey][0],
+                    defaults={"min_price_minor": minp, "commission_pct": pct},
+                )
 
         def cat(market, vkey, sname):
             v, g = vmap[vkey]
@@ -237,18 +250,17 @@ class Command(BaseCommand):
                     track=tracks[tkey] if tkey else None, subject=subjects[sname],
                 )
             self._availability(profile, r["avail"])
+            # The teacher's own price for each stage they teach (>= stage min).
+            for vkey in {vk for vk, _ in r["offer"]}:
+                rule = StagePricingRule.objects.filter(
+                    market=r["m"], vertical=vmap[vkey][0]
+                ).first()
+                minimum = rule.min_price_minor if rule else 5000
+                TeacherStagePrice.objects.get_or_create(
+                    teacher=profile, vertical=vmap[vkey][0],
+                    defaults={"price_minor": int(minimum * 1.2)},
+                )
             T[r["name"]] = profile
-
-        # An approved per-teacher discount (Sara, primary maths) below default.
-        TeacherPrice.objects.get_or_create(
-            teacher=T["Sara Nabil"], lesson_category=cat(eg, "primary", "Mathematics"),
-            defaults={"custom_student_price_minor": 5500, "is_approved": True},
-        )
-        # A pending custom-price request (admin moderation queue demo).
-        TeacherPrice.objects.get_or_create(
-            teacher=T["Ahmed Fathy"], lesson_category=cat(eg, "primary", "Science"),
-            defaults={"custom_student_price_minor": 7000, "is_approved": False},
-        )
 
         # --- Students (funded wallets) ------------------------------------
         S = {}
@@ -416,7 +428,11 @@ class Command(BaseCommand):
             pmeta.append(chosen)
         TeacherProfile.objects.bulk_create(profiles, batch_size=500)
 
-        offerings, specs, avails, teacher_cats = [], [], [], {}
+        rule_min = {
+            (r.market_id, r.vertical_id): r.min_price_minor
+            for r in StagePricingRule.objects.all()
+        }
+        offerings, specs, avails, tsprices, teacher_cats = [], [], [], [], {}
         for prof, chosen in zip(profiles, pmeta):
             seen_cat, seen_spec, cats = set(), set(), []
             for vk, sn in chosen:
@@ -433,11 +449,18 @@ class Command(BaseCommand):
                         track=tracks[tkey] if tkey else None, subject=subjects[sn]))
                     seen_spec.add(skey)
             teacher_cats[prof.id] = cats
+            # A stage price (>= the stage minimum) for every stage the teacher offers.
+            for vk in {vk for vk, _ in chosen}:
+                vertical = vmap[vk][0]
+                minimum = rule_min.get((prof.market_id, vertical.id), 5000)
+                tsprices.append(TeacherStagePrice(
+                    teacher=prof, vertical=vertical, price_minor=int(minimum * 1.2)))
             slots = {(random.choice(WEEKDAYS), random.choice(WINDOWS)) for _ in range(random.randint(2, 4))}
             for wd, (st, en) in slots:
                 avails.append(AvailabilityRule(teacher=prof, weekday=wd, start_time=st, end_time=en))
         TeacherSubject.objects.bulk_create(offerings, batch_size=1000)
         TeacherSpecialization.objects.bulk_create(specs, batch_size=1000)
+        TeacherStagePrice.objects.bulk_create(tsprices, batch_size=1000)
         AvailabilityRule.objects.bulk_create(avails, batch_size=1000)
 
         # Include the hand-crafted roster teachers in the activity pools.
@@ -469,6 +492,23 @@ class Command(BaseCommand):
             students_by_market[u.market_id].append(u)
 
         # --- Bookings (bulk) across every status --------------------------
+        # Freeze price/wage from each teacher's stage price + the stage commission.
+        stage_price_map = {
+            (sp.teacher_id, sp.vertical_id): sp.price_minor
+            for sp in TeacherStagePrice.objects.all()
+        }
+        rule_pct = {
+            (r.market_id, r.vertical_id): float(r.commission_pct)
+            for r in StagePricingRule.objects.all()
+        }
+
+        def price_wage(teacher, category):
+            price = stage_price_map.get((teacher.id, category.vertical_id))
+            if price is None:
+                return None, None
+            pct = rule_pct.get((teacher.market_id, category.vertical_id), 0)
+            return price, price - int(round(price * pct / 100))
+
         rating_choices, rating_weights = [5, 4, 3], [0.6, 0.3, 0.1]
         bookings, review_for = [], []
         for teacher in all_teachers:
@@ -476,14 +516,16 @@ class Command(BaseCommand):
             studs = students_by_market.get(teacher.market_id) or []
             if not cats or not studs:
                 continue
+            curr = teacher.market.currency
             for _ in range(random.randint(30, 120)):  # completed history
                 c, stu = random.choice(cats), random.choice(studs)
+                pm, wm = price_wage(teacher, c)
                 d = random.randint(1, 150)
                 b = Booking(student=stu, teacher=teacher, lesson_category=c,
                             scheduled_start=now - td(days=d), duration_min=60,
                             completed_at=now - td(days=d) + td(hours=1),
-                            price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
-                            currency=c.currency, status=Status.COMPLETED, wage_settled=True,
+                            price_minor=pm, teacher_wage_minor=wm,
+                            currency=curr, status=Status.COMPLETED, wage_settled=True,
                             meeting_provider="ZOOM", meeting_link="https://zoom.us/j/000000000")
                 bookings.append(b)
                 if random.random() < 0.6:
@@ -491,16 +533,18 @@ class Command(BaseCommand):
             for _ in range(random.randint(0, 4)):  # upcoming active
                 confirmed = random.random() < 0.5
                 c, stu = random.choice(cats), random.choice(studs)
+                pm, wm = price_wage(teacher, c)
                 bookings.append(Booking(
                     student=stu, teacher=teacher, lesson_category=c,
                     scheduled_start=now + td(days=random.randint(1, 20), hours=random.randint(0, 8)),
-                    duration_min=60, price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
-                    currency=c.currency, status=Status.CONFIRMED if confirmed else Status.REQUESTED,
+                    duration_min=60, price_minor=pm, teacher_wage_minor=wm,
+                    currency=curr, status=Status.CONFIRMED if confirmed else Status.REQUESTED,
                     meeting_provider="ZOOM" if confirmed else "",
                     meeting_link="https://zoom.us/j/000000000" if confirmed else ""))
             for _ in range(random.randint(0, 5)):  # unhappy paths
                 st = random.choice([Status.CANCELLED, Status.DECLINED, Status.NO_SHOW])
                 c, stu = random.choice(cats), random.choice(studs)
+                pm, wm = price_wage(teacher, c)
                 extra = {}
                 start = now - td(days=random.randint(1, 120))
                 if st == Status.NO_SHOW:
@@ -511,8 +555,8 @@ class Command(BaseCommand):
                     start = now + td(days=random.randint(1, 10))
                 bookings.append(Booking(student=stu, teacher=teacher, lesson_category=c,
                                         scheduled_start=start, duration_min=60,
-                                        price_minor=c.student_price_minor, teacher_wage_minor=c.teacher_wage_minor,
-                                        currency=c.currency, status=st, **extra))
+                                        price_minor=pm, teacher_wage_minor=wm,
+                                        currency=curr, status=st, **extra))
         Booking.objects.bulk_create(bookings, batch_size=1000)
         Review.objects.bulk_create(
             [Review(booking=b, student=b.student, teacher=b.teacher, rating=r, text=t, is_published=True)
@@ -598,10 +642,9 @@ class Command(BaseCommand):
                 vertical=vertical, name_en=en, defaults={"name_ar": ar, "order": order}
             )
 
-    def _category(self, market, vertical, grade, subject, price, wage, currency):
+    def _category(self, market, vertical, grade, subject):
         LessonCategory.objects.get_or_create(
             market=market, vertical=vertical, grade_level=grade, subject=subject,
-            defaults={"student_price_minor": price, "teacher_wage_minor": wage, "currency": currency},
         )
 
     def _teacher(self, market, phone, full_name, *, gender, rating, count, lessons, free, bio_en, bio_ar="", video=""):

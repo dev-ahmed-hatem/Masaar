@@ -4,7 +4,14 @@ from datetime import datetime
 from rest_framework import serializers
 
 from apps.accounts.utils import normalize_phone
-from apps.catalog.models import LessonCategory, StageSubject, Subject, Track, Vertical
+from apps.catalog.models import (
+    LessonCategory,
+    StagePricingRule,
+    StageSubject,
+    Subject,
+    Track,
+    Vertical,
+)
 from apps.common.models import format_money
 from apps.markets.models import Market
 from apps.reviews.models import Review
@@ -121,14 +128,13 @@ class TeacherListSerializer(serializers.ModelSerializer):
 
 
 class OfferingSerializer(serializers.Serializer):
-    """One priced lesson category the teacher offers, with the resolved price."""
+    """One subject the teacher offers, priced by the teacher's stage price."""
 
     lesson_category_id = serializers.IntegerField()
     vertical = serializers.CharField()
     grade_level = serializers.CharField(allow_null=True)
     subject = serializers.CharField()
-    price = serializers.DictField()
-    is_custom_price = serializers.BooleanField()
+    price = serializers.DictField(allow_null=True)
 
 
 class AvailabilitySerializer(serializers.ModelSerializer):
@@ -172,28 +178,21 @@ class TeacherDetailSerializer(TeacherListSerializer):
             "recent_reviews",
         )
 
-    def _approved_overrides(self, obj) -> dict[int, int]:
-        return {
-            price.lesson_category_id: price.custom_student_price_minor
-            for price in obj.prices.all()
-            if price.is_approved
-        }
-
     def get_offerings(self, obj) -> list[dict]:
-        overrides = self._approved_overrides(obj)
+        # Each subject is priced by the teacher's price for that subject's stage.
+        prices = {sp.vertical_id: sp.price_minor for sp in obj.stage_prices.all()}
+        currency = obj.market.currency
         offerings = []
         for ts in obj.subjects.all():
             cat = ts.lesson_category
-            custom = overrides.get(cat.id)
-            effective = custom if custom is not None else cat.student_price_minor
+            amount = prices.get(cat.vertical_id)
             offerings.append(
                 {
                     "lesson_category_id": cat.id,
                     "vertical": cat.vertical.name_en,
                     "grade_level": cat.grade_level.name_en if cat.grade_level else None,
                     "subject": cat.subject.name_en,
-                    "price": _money(effective, cat.currency),
-                    "is_custom_price": custom is not None,
+                    "price": _money(amount, currency),
                 }
             )
         return offerings
@@ -218,6 +217,7 @@ _JSON_FIELDS = (
     "subjects",
     "specializations",
     "availability",
+    "stage_prices",
 )
 
 _WEEKDAYS = dict(AvailabilityRule.Weekday.choices)
@@ -251,6 +251,7 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
     subjects = serializers.JSONField(required=False, default=list)
     specializations = serializers.JSONField(required=False, default=list)
     availability = serializers.JSONField(required=False, default=list)
+    stage_prices = serializers.JSONField(required=False, default=list)
 
     class Meta:
         model = TeacherApplication
@@ -274,6 +275,7 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
             "subjects",
             "specializations",
             "availability",
+            "stage_prices",
         )
 
     def to_internal_value(self, data):
@@ -367,6 +369,24 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
             cleaned.append({"vertical": vertical_id, "track": track_id, "subject": subject_id})
         return cleaned
 
+    def validate_stage_prices(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Expected a list.")
+        cleaned, seen = [], set()
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each stage price must be an object.")
+            try:
+                vertical_id = int(item["vertical"])
+                price = int(item["price_minor"])
+            except (KeyError, TypeError, ValueError):
+                raise serializers.ValidationError("Stage price needs vertical and price_minor.")
+            if vertical_id in seen:
+                continue
+            seen.add(vertical_id)
+            cleaned.append({"vertical": vertical_id, "price_minor": price})
+        return cleaned
+
     def validate_availability(self, value):
         if not isinstance(value, list):
             raise serializers.ValidationError("Expected a list.")
@@ -417,6 +437,19 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"subjects": "Some subjects aren't available in this market."}
                 )
+
+        # Each stage price must clear the market's stage minimum.
+        for sp in attrs.get("stage_prices") or []:
+            if not Vertical.objects.filter(id=sp["vertical"], is_active=True).exists():
+                raise serializers.ValidationError({"stage_prices": "Unknown stage."})
+            rule = StagePricingRule.objects.filter(
+                market=attrs["market"], vertical_id=sp["vertical"], is_active=True
+            ).first()
+            minimum = max(1, rule.min_price_minor if rule else 0)
+            if sp["price_minor"] < minimum:
+                raise serializers.ValidationError(
+                    {"stage_prices": f"A stage price is below its minimum ({minimum})."}
+                )
         return attrs
 
 
@@ -431,6 +464,7 @@ class TeacherApplicationSerializer(serializers.ModelSerializer):
     subjects_display = serializers.SerializerMethodField()
     specializations_display = serializers.SerializerMethodField()
     availability_display = serializers.SerializerMethodField()
+    stage_prices_display = serializers.SerializerMethodField()
 
     class Meta:
         model = TeacherApplication
@@ -455,6 +489,7 @@ class TeacherApplicationSerializer(serializers.ModelSerializer):
             "subjects_display",
             "specializations_display",
             "availability_display",
+            "stage_prices_display",
             "status",
             "review_notes",
             "reviewed_by",
@@ -505,6 +540,16 @@ class TeacherApplicationSerializer(serializers.ModelSerializer):
         for rule in obj.availability or []:
             name = _WEEKDAYS.get(rule.get("weekday"), "?")
             out.append(f"{name} {rule.get('start_time', '')}–{rule.get('end_time', '')}")
+        return out
+
+    def get_stage_prices_display(self, obj) -> list[str]:
+        out = []
+        currency = obj.market.currency
+        for sp in obj.stage_prices or []:
+            vertical = Vertical.objects.filter(id=sp.get("vertical")).first()
+            if not vertical:
+                continue
+            out.append(f"{vertical.name_en}: {format_money(sp.get('price_minor', 0), currency)}")
         return out
 
 

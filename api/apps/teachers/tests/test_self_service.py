@@ -1,9 +1,15 @@
 import pytest
 
 from apps.accounts.models import User
-from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
+from apps.catalog.models import (
+    GradeLevel,
+    LessonCategory,
+    StagePricingRule,
+    Subject,
+    Vertical,
+)
 from apps.markets.models import Market
-from apps.teachers.models import TeacherPrice, TeacherProfile, TeacherSubject
+from apps.teachers.models import TeacherProfile, TeacherStagePrice, TeacherSubject
 
 pytestmark = pytest.mark.django_db
 
@@ -13,7 +19,7 @@ UNPUBLISH = "/api/teacher/profile/unpublish/"
 CATEGORIES = "/api/teacher/lesson-categories/"
 SUBJECTS = "/api/teacher/subjects/"
 AVAILABILITY = "/api/teacher/availability/"
-PRICES = "/api/teacher/prices/"
+STAGE_PRICES = "/api/teacher/stage-prices/"
 DISCOVERY = "/api/teachers/"
 
 
@@ -26,15 +32,17 @@ def world():
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     physics = Subject.objects.create(name_en="Physics", name_ar="فيزياء")
 
-    def category(market, subject, price, currency):
+    def category(market, subject):
         return LessonCategory.objects.create(
             market=market, vertical=primary, grade_level=g4, subject=subject,
-            student_price_minor=price, teacher_wage_minor=price // 2, currency=currency,
         )
 
-    eg_math = category(eg, math, 6000, "EGP")
-    eg_physics = category(eg, physics, 8000, "EGP")
-    sa_math = category(sa, math, 4000, "SAR")
+    eg_math = category(eg, math)
+    eg_physics = category(eg, physics)
+    sa_math = category(sa, math)
+    StagePricingRule.objects.create(
+        market=eg, vertical=primary, min_price_minor=1000, commission_pct=15
+    )
 
     user = User.objects.create_user(
         phone="+201000000050", full_name="Ali Teacher", role=User.Role.TEACHER,
@@ -42,7 +50,7 @@ def world():
     )
     profile = TeacherProfile.objects.create(user=user, market=eg, is_published=False)
     return {
-        "eg": eg, "sa": sa, "user": user, "profile": profile,
+        "eg": eg, "sa": sa, "primary": primary, "user": user, "profile": profile,
         "eg_math": eg_math, "eg_physics": eg_physics, "sa_math": sa_math,
     }
 
@@ -118,7 +126,6 @@ def test_lesson_categories_scoped_to_market(teacher_api, world):
 def test_add_list_and_delete_subject(teacher_api, world):
     res = teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
     assert res.status_code == 201
-    assert res.data["effective_price"]["amount_minor"] == 6000
 
     listed = teacher_api.get(SUBJECTS)
     assert len(listed.data) == 1
@@ -155,22 +162,37 @@ def test_availability_crud(teacher_api, world):
     assert teacher_api.delete(f"{AVAILABILITY}{rule_id}/").status_code == 204
 
 
-# --- Custom price requests -------------------------------------------------
+# --- Stage prices ----------------------------------------------------------
 
-def test_price_request_is_unapproved_and_resets_on_change(teacher_api, world):
+def test_stage_price_enforces_minimum_and_upserts(teacher_api, world):
+    # Teacher must teach a subject in the stage first.
+    teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
+
+    # Below the stage minimum (1000) is rejected.
+    low = teacher_api.post(
+        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 500}, format="json"
+    )
+    assert low.status_code == 400
+
+    # At/above the minimum is accepted; a second POST upserts the same stage.
+    ok = teacher_api.post(
+        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 6000}, format="json"
+    )
+    assert ok.status_code == 201
+    again = teacher_api.post(
+        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 7000}, format="json"
+    )
+    assert again.status_code == 201
+    sp = TeacherStagePrice.objects.get(teacher=world["profile"], vertical=world["primary"])
+    assert sp.price_minor == 7000
+
+
+def test_stage_price_requires_teaching_the_stage(teacher_api, world):
+    # No subject in the stage yet -> rejected.
     res = teacher_api.post(
-        PRICES, {"lesson_category": world["eg_math"].id, "custom_student_price_minor": 5000}, format="json"
+        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 6000}, format="json"
     )
-    assert res.status_code == 201 and res.data["is_approved"] is False
-
-    # Simulate moderator approval, then a changed request resets approval.
-    TeacherPrice.objects.filter(teacher=world["profile"]).update(is_approved=True)
-    res2 = teacher_api.post(
-        PRICES, {"lesson_category": world["eg_math"].id, "custom_student_price_minor": 4800}, format="json"
-    )
-    assert res2.status_code == 201 and res2.data["is_approved"] is False
-    price = TeacherPrice.objects.get(teacher=world["profile"], lesson_category=world["eg_math"])
-    assert price.custom_student_price_minor == 4800
+    assert res.status_code == 400
 
 
 # --- Publish flow ----------------------------------------------------------
@@ -182,9 +204,21 @@ def test_publish_requires_subject_and_bio(teacher_api, world):
     assert set(res.data["error"]["detail"]["missing"]) == {"subject", "bio"}
 
 
+def test_publish_requires_stage_price(teacher_api, world):
+    # Subject + bio present, but no stage price yet -> incomplete.
+    teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
+    teacher_api.patch(PROFILE, {"bio_en": "Ready to teach."}, format="json")
+    res = teacher_api.post(PUBLISH, format="json")
+    assert res.status_code == 400
+    assert res.data["error"]["detail"]["missing"] == ["price"]
+
+
 def test_publish_then_visible_in_discovery(teacher_api, world):
     teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
     teacher_api.patch(PROFILE, {"bio_en": "Ready to teach."}, format="json")
+    teacher_api.post(
+        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 6000}, format="json"
+    )
 
     res = teacher_api.post(PUBLISH, format="json")
     assert res.status_code == 200 and res.data["is_published"] is True

@@ -139,6 +139,7 @@ function AccountTab({
 function LearningTab({ dict, locale, message }: { dict: Dict; locale: Locale; message: Msg }) {
   const ar = locale === "ar";
   const [grades, setGrades] = useState<GradeLevel[]>([]);
+  const [stages, setStages] = useState<{ id: number; name_en: string; name_ar: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
@@ -148,11 +149,13 @@ function LearningTab({ dict, locale, message }: { dict: Dict; locale: Locale; me
     (async () => {
       try {
         const verticals = await listVerticals();
+        if (active) setStages(verticals);
         const perV = await Promise.all(verticals.map((v) => listGradeLevels(v.id)));
         if (active) setGrades(perV.flat());
         const profile = await getStudentProfile();
         if (active) {
           form.setFieldsValue({
+            vertical: profile.vertical ?? undefined,
             grade_level: profile.grade_level ?? undefined,
             date_of_birth: profile.date_of_birth ? dayjs(profile.date_of_birth) : undefined,
           });
@@ -178,6 +181,7 @@ function LearningTab({ dict, locale, message }: { dict: Dict; locale: Locale; me
           setSaving(true);
           try {
             await updateStudentProfile({
+              vertical: v.vertical ?? null,
               grade_level: v.grade_level ?? null,
               date_of_birth: v.date_of_birth ? v.date_of_birth.format("YYYY-MM-DD") : null,
             });
@@ -189,6 +193,13 @@ function LearningTab({ dict, locale, message }: { dict: Dict; locale: Locale; me
           }
         }}
       >
+        <Form.Item name="vertical" label={dict.stage}>
+          <Select
+            allowClear
+            placeholder={dict.selectStage}
+            options={stages.map((s) => ({ value: s.id, label: ar ? s.name_ar : s.name_en }))}
+          />
+        </Form.Item>
         <Form.Item name="grade_level" label={dict.gradeLevel}>
           <Select
             allowClear

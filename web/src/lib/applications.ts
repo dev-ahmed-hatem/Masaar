@@ -13,6 +13,11 @@ export interface AvailabilityInput {
   end_time: string;
 }
 
+export interface StagePriceInput {
+  vertical: number;
+  price_minor: number;
+}
+
 /** The full profile an applicant fills in on the public "become a teacher" form. */
 export interface ApplicationInput {
   full_name: string;
@@ -32,6 +37,7 @@ export interface ApplicationInput {
   subjects?: number[]; // lesson-category ids
   specializations?: SpecializationInput[];
   availability?: AvailabilityInput[];
+  stage_prices?: StagePriceInput[];
   photo?: File | null;
 }
 
@@ -63,6 +69,7 @@ export interface TeacherApplication {
   subjects_display: string[];
   specializations_display: string[];
   availability_display: string[];
+  stage_prices_display: string[];
   status: ApplicationStatus;
   review_notes: string;
   reviewed_by: string | null;
@@ -78,6 +85,7 @@ const JSON_FIELDS = [
   "subjects",
   "specializations",
   "availability",
+  "stage_prices",
 ] as const;
 
 /** Public "become a teacher" submission (no auth). Sent as multipart so the

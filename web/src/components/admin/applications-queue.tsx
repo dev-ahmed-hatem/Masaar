@@ -280,6 +280,7 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
             <ChipBlock label={dict.specialties} items={selected.specialties} />
             <ChipBlock label={dict.subjects} items={selected.subjects_display} />
             <ChipBlock label={dict.specializations} items={selected.specializations_display} />
+            <ChipBlock label={dict.stagePrices} items={selected.stage_prices_display} />
             <ChipBlock label={dict.availability} items={selected.availability_display} />
 
             <ResumeBlock

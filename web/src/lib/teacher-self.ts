@@ -1,5 +1,5 @@
 import { apiAuthed, apiAuthedForm } from "./api";
-import type { Certification, Education, Experience, Money } from "./teachers";
+import type { Certification, Education, Experience } from "./teachers";
 
 export interface TeacherProfile {
   id: number;
@@ -26,18 +26,12 @@ export interface LessonCategoryOption {
   id: number;
   label: string;
   label_ar: string;
-  student_price_minor: number;
-  currency: string;
-}
-
-export interface EffectivePrice extends Money {
-  is_custom: boolean;
 }
 
 export interface TeacherSubject {
   id: number;
   lesson_category: LessonCategoryOption;
-  effective_price: EffectivePrice;
+  stage: { id: number; name_en: string; name_ar: string };
 }
 
 export interface AvailabilityRule {
@@ -47,11 +41,14 @@ export interface AvailabilityRule {
   end_time: string;
 }
 
-export interface PriceRequest {
+/** The teacher's own price for one stage (>= the market's stage minimum). */
+export interface TeacherStagePrice {
   id: number;
-  lesson_category: LessonCategoryOption;
-  custom_student_price_minor: number;
-  is_approved: boolean;
+  vertical: number;
+  price_minor: number;
+  stage_name_en: string;
+  stage_name_ar: string;
+  min_price_minor: number;
 }
 
 export interface TeacherSpecialization {
@@ -130,8 +127,9 @@ export const teacherSelf = {
   removeSpecialization: (id: number) =>
     apiAuthed(`/api/teacher/specializations/${id}/`, { method: "DELETE" }),
 
-  listPrices: () => apiAuthed<PriceRequest[]>("/api/teacher/prices/"),
-  requestPrice: (lesson_category: number, custom_student_price_minor: number) =>
-    post("/api/teacher/prices/", { lesson_category, custom_student_price_minor }) as Promise<PriceRequest>,
-  removePrice: (id: number) => apiAuthed(`/api/teacher/prices/${id}/`, { method: "DELETE" }),
+  listStagePrices: () => apiAuthed<TeacherStagePrice[]>("/api/teacher/stage-prices/"),
+  setStagePrice: (vertical: number, price_minor: number) =>
+    post("/api/teacher/stage-prices/", { vertical, price_minor }) as Promise<TeacherStagePrice>,
+  removeStagePrice: (id: number) =>
+    apiAuthed(`/api/teacher/stage-prices/${id}/`, { method: "DELETE" }),
 };

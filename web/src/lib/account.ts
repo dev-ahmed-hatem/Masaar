@@ -3,6 +3,7 @@ import type { AuthUser } from "./auth";
 
 export interface StudentProfile {
   date_of_birth: string | null;
+  vertical: number | null;
   grade_level: number | null;
 }
 

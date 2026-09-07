@@ -1,5 +1,4 @@
-from django.db.models import F, IntegerField, OuterRef, Prefetch, Subquery
-from django.db.models.functions import Coalesce
+from django.db.models import IntegerField, OuterRef, Prefetch, Subquery
 from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -18,8 +17,8 @@ from . import services
 from .models import (
     AvailabilityRule,
     TeacherApplication,
-    TeacherPrice,
     TeacherProfile,
+    TeacherStagePrice,
     TeacherSubject,
 )
 from .serializers import (
@@ -44,27 +43,11 @@ class UnknownMarket(APIException):
 
 
 def from_price_subquery() -> Subquery:
-    """Min effective price across a teacher's offerings.
-
-    Effective price resolves an approved per-teacher override, falling back to
-    the lesson category's default student price.
-    """
-    approved_override = TeacherPrice.objects.filter(
-        teacher=OuterRef("teacher_id"),
-        lesson_category=OuterRef("lesson_category_id"),
-        is_approved=True,
-    ).values("custom_student_price_minor")[:1]
-
+    """A teacher's cheapest stage price (their "from" price for discovery cards)."""
     cheapest = (
-        TeacherSubject.objects.filter(teacher=OuterRef("pk"))
-        .annotate(
-            eff=Coalesce(
-                Subquery(approved_override, output_field=IntegerField()),
-                F("lesson_category__student_price_minor"),
-            )
-        )
-        .order_by("eff")
-        .values("eff")[:1]
+        TeacherStagePrice.objects.filter(teacher=OuterRef("pk"))
+        .order_by("price_minor")
+        .values("price_minor")[:1]
     )
     return Subquery(cheapest, output_field=IntegerField())
 
@@ -182,7 +165,7 @@ class TeacherDetailView(RetrieveAPIView):
                         "lesson_category__grade_level",
                     ),
                 ),
-                "prices",
+                "stage_prices__vertical",
                 Prefetch(
                     "availability",
                     queryset=AvailabilityRule.objects.all(),

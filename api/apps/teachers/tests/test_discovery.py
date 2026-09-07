@@ -5,9 +5,9 @@ from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market
 from apps.teachers.models import (
     AvailabilityRule,
-    TeacherPrice,
     TeacherProfile,
     TeacherSpecialization,
+    TeacherStagePrice,
     TeacherSubject,
 )
 
@@ -30,15 +30,14 @@ def world():
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     physics = Subject.objects.create(name_en="Physics", name_ar="فيزياء")
 
-    def category(market, subject, price, wage, currency):
+    def category(market, subject):
         return LessonCategory.objects.create(
             market=market, vertical=primary, grade_level=g4, subject=subject,
-            student_price_minor=price, teacher_wage_minor=wage, currency=currency,
         )
 
-    eg_math = category(eg, math, 6000, 3500, "EGP")
-    eg_physics = category(eg, physics, 8000, 5000, "EGP")
-    sa_math = category(sa, math, 4000, 2500, "SAR")
+    eg_math = category(eg, math)
+    eg_physics = category(eg, physics)
+    sa_math = category(sa, math)
 
     def teacher(phone, market, name, rating, published=True):
         user = User.objects.create_user(
@@ -55,20 +54,20 @@ def world():
     def specialize(t, subject):
         TeacherSpecialization.objects.create(teacher=t, vertical=primary, track=None, subject=subject)
 
-    # T1: Math (6000) + Physics (8000) -> from 6000
+    # Teachers price per stage; both teach Primary. T1 = 6000, T2 = 5000.
+    # T1: Math + Physics (both Primary) -> from 6000
     t1 = teacher("+201000000001", eg, "Ahmed Ali", 4.5)
     TeacherSubject.objects.create(teacher=t1, lesson_category=eg_math)
     TeacherSubject.objects.create(teacher=t1, lesson_category=eg_physics)
+    TeacherStagePrice.objects.create(teacher=t1, vertical=primary, price_minor=6000)
     specialize(t1, math)
     specialize(t1, physics)
 
-    # T2: Math with an APPROVED override to 5000 -> from 5000
+    # T2: cheaper Primary price -> from 5000
     t2 = teacher("+201000000002", eg, "Sara Nabil", 4.0)
     TeacherSubject.objects.create(teacher=t2, lesson_category=eg_math)
     specialize(t2, math)
-    TeacherPrice.objects.create(
-        teacher=t2, lesson_category=eg_math, custom_student_price_minor=5000, is_approved=True
-    )
+    TeacherStagePrice.objects.create(teacher=t2, vertical=primary, price_minor=5000)
     AvailabilityRule.objects.create(
         teacher=t2, weekday=AvailabilityRule.Weekday.MON, start_time="10:00", end_time="12:00"
     )
@@ -142,20 +141,18 @@ def test_price_range_filter(api, world):
     assert res.data["results"][0]["full_name"] == "Sara Nabil"
 
 
-def test_detail_resolves_price_override(api, world):
+def test_detail_prices_offerings_by_stage(api, world):
     res = api.get(f"{TEACHERS}{world['t2'].id}/")
     assert res.status_code == 200
     offering = next(o for o in res.data["offerings"] if o["subject"] == "Mathematics")
-    assert offering["is_custom_price"] is True
     assert offering["price"]["amount_minor"] == 5000
     assert res.data["reviews_summary"]["rating_count"] == 2
     assert len(res.data["availability"]) == 1
 
 
-def test_detail_falls_back_to_category_default(api, world):
+def test_detail_offering_uses_teacher_stage_price(api, world):
     res = api.get(f"{TEACHERS}{world['t1'].id}/")
     math_offering = next(o for o in res.data["offerings"] if o["subject"] == "Mathematics")
-    assert math_offering["is_custom_price"] is False
     assert math_offering["price"]["amount_minor"] == 6000
 
 

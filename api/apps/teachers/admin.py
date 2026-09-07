@@ -3,8 +3,8 @@ from django.contrib import admin
 from .models import (
     AvailabilityRule,
     TeacherApplication,
-    TeacherPrice,
     TeacherProfile,
+    TeacherStagePrice,
     TeacherSubject,
 )
 
@@ -42,7 +42,7 @@ class TeacherProfileAdmin(admin.ModelAdmin):
     inlines = [TeacherSubjectInline, AvailabilityInline]
 
 
-@admin.register(TeacherPrice)
-class TeacherPriceAdmin(admin.ModelAdmin):
-    list_display = ("teacher", "lesson_category", "custom_student_price_minor", "is_approved")
-    list_filter = ("is_approved",)
+@admin.register(TeacherStagePrice)
+class TeacherStagePriceAdmin(admin.ModelAdmin):
+    list_display = ("teacher", "vertical", "price_minor")
+    list_filter = ("vertical",)

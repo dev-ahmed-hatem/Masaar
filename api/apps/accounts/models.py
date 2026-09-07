@@ -55,6 +55,15 @@ class StudentProfile(TimeStampedModel):
         User, on_delete=models.CASCADE, related_name="student_profile"
     )
     date_of_birth = models.DateField(null=True, blank=True)
+    # The student's current stage (Primary / Secondary / College), chosen at
+    # registration; drives what they browse and the price they see.
+    vertical = models.ForeignKey(
+        "catalog.Vertical",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="students",
+    )
     grade_level = models.ForeignKey(
         "catalog.GradeLevel",
         null=True,

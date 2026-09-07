@@ -81,7 +81,16 @@ export interface LessonCategoryOption {
   id: number;
   label: string;
   label_ar: string;
-  student_price_minor: number;
+}
+
+/** Public per-stage minimum price + commission for a market. */
+export interface StagePricing {
+  id: number;
+  vertical: number;
+  stage_name_en: string;
+  stage_name_ar: string;
+  min_price_minor: number;
+  commission_pct: string;
   currency: string;
 }
 
@@ -101,6 +110,10 @@ export const catalog = {
   listLessonCategories: (market: string) =>
     apiAuthed<LessonCategoryOption[]>(
       `/api/catalog/lesson-categories/?market=${encodeURIComponent(market)}`,
+    ),
+  listStagePricing: (market: string) =>
+    apiAuthed<StagePricing[]>(
+      `/api/catalog/stage-pricing/?market=${encodeURIComponent(market)}`,
     ),
 };
 

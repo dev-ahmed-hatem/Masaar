@@ -5,6 +5,8 @@ from .staff_views import (
     LessonCategoryAdminListCreateView,
     StageAdminDetailView,
     StageAdminListCreateView,
+    StagePricingRuleAdminDetailView,
+    StagePricingRuleAdminListCreateView,
     StageSubjectAdminDetailView,
     StageSubjectAdminListCreateView,
     SubjectAdminDetailView,
@@ -34,4 +36,6 @@ urlpatterns = [
     path("subjects/<int:pk>/", SubjectAdminDetailView.as_view(), name="subject-detail"),
     path("stage-subjects/", StageSubjectAdminListCreateView.as_view(), name="stage-subjects"),
     path("stage-subjects/<int:pk>/", StageSubjectAdminDetailView.as_view(), name="stage-subject-detail"),
+    path("stage-pricing/", StagePricingRuleAdminListCreateView.as_view(), name="stage-pricing"),
+    path("stage-pricing/<int:pk>/", StagePricingRuleAdminDetailView.as_view(), name="stage-pricing-detail"),
 ]

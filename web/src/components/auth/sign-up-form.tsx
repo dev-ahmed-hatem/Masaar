@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { App, Button, Card, Form, Input, Select, Typography } from "antd";
 
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
+import { catalog, catalogName, type Stage } from "@/lib/catalog";
 import { MARKETS, MARKET_PHONE_RE, marketLabel, type MarketCode } from "@/lib/markets";
 import { toE164 } from "@/lib/phone";
 
@@ -18,6 +19,7 @@ interface Values {
   full_name: string;
   phone: string;
   locale: string;
+  vertical: number;
   password: string;
   confirm: string;
 }
@@ -27,6 +29,11 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [market, setMarket] = useState<MarketCode | null>(null);
+  const [stages, setStages] = useState<Stage[]>([]);
+
+  useEffect(() => {
+    catalog.listStages().then(setStages).catch(() => setStages([]));
+  }, []);
 
   const selected = MARKETS.find((m) => m.code === market);
 
@@ -39,6 +46,7 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
         phone: toE164(values.phone, market),
         market,
         locale: values.locale,
+        vertical: values.vertical,
         password: values.password,
       });
       message.success(dict.signupSuccess);
@@ -150,6 +158,16 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
               { value: "ar", label: "العربية" },
               { value: "en", label: "English" },
             ]}
+          />
+        </Form.Item>
+        <Form.Item
+          name="vertical"
+          label={dict.stage}
+          rules={[{ required: true, message: dict.requiredStage }]}
+        >
+          <Select
+            placeholder={dict.selectStage}
+            options={stages.map((s) => ({ value: s.id, label: catalogName(s, locale) }))}
           />
         </Form.Item>
         <Form.Item

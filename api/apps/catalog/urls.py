@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     GradeLevelListView,
     LessonCategoryListView,
+    StagePricingRuleListView,
     StageSubjectListView,
     SubjectListView,
     TrackListView,
@@ -18,4 +19,5 @@ urlpatterns = [
     path("subjects/", SubjectListView.as_view(), name="subjects"),
     path("stage-subjects/", StageSubjectListView.as_view(), name="stage-subjects"),
     path("lesson-categories/", LessonCategoryListView.as_view(), name="lesson-categories"),
+    path("stage-pricing/", StagePricingRuleListView.as_view(), name="stage-pricing"),
 ]

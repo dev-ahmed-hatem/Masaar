@@ -4,6 +4,7 @@ from apps.accounts.models import User
 from apps.catalog.models import (
     GradeLevel,
     LessonCategory,
+    StagePricingRule,
     StageSubject,
     Subject,
     Vertical,
@@ -13,6 +14,7 @@ from apps.teachers.models import (
     TeacherApplication,
     TeacherProfile,
     TeacherSpecialization,
+    TeacherStagePrice,
     TeacherSubject,
 )
 
@@ -33,7 +35,9 @@ def catalog(market):
     StageSubject.objects.create(vertical=primary, track=None, subject=math)
     category = LessonCategory.objects.create(
         market=market, vertical=primary, grade_level=g4, subject=math,
-        student_price_minor=6000, teacher_wage_minor=3000, currency="EGP",
+    )
+    StagePricingRule.objects.create(
+        market=market, vertical=primary, min_price_minor=5000, commission_pct=15
     )
     return {"stage": primary, "subject": math, "category": category}
 
@@ -99,9 +103,18 @@ def _full_payload(catalog, **overrides):
         subjects=[catalog["category"].id],
         specializations=[{"vertical": catalog["stage"].id, "track": None, "subject": catalog["subject"].id}],
         availability=[{"weekday": 0, "start_time": "09:00", "end_time": "11:00"}],
+        stage_prices=[{"vertical": catalog["stage"].id, "price_minor": 6000}],
     )
     payload.update(overrides)
     return payload
+
+
+def test_submit_rejects_stage_price_below_minimum(api, catalog):
+    payload = _full_payload(
+        catalog, stage_prices=[{"vertical": catalog["stage"].id, "price_minor": 4000}]
+    )
+    res = api.post(APPLICATIONS, payload, format="json")
+    assert res.status_code == 400 and "stage_prices" in str(res.data)
 
 
 def test_submit_full_profile_application(api, catalog):
@@ -202,6 +215,9 @@ def test_approve_materializes_full_profile(api, catalog, staff):
         teacher=profile, vertical=catalog["stage"], track=None, subject=catalog["subject"]
     ).exists()
     assert AvailabilityRule.objects.filter(teacher=profile, weekday=0).exists()
+    assert TeacherStagePrice.objects.filter(
+        teacher=profile, vertical=catalog["stage"], price_minor=6000
+    ).exists()
 
 
 def test_review_queue_exposes_display_labels(api, catalog, staff):

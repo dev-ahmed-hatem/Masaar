@@ -1,17 +1,24 @@
 """Serializers for the teacher self-serve API (`/api/teacher/`)."""
 from rest_framework import serializers
 
-from apps.catalog.models import LessonCategory, StageSubject, Vertical
+from apps.catalog.models import LessonCategory, StagePricingRule, StageSubject, Vertical
 from apps.catalog.serializers import LessonCategorySerializer
-from apps.common.models import format_money
 
 from .models import (
     AvailabilityRule,
-    TeacherPrice,
     TeacherProfile,
     TeacherSpecialization,
+    TeacherStagePrice,
     TeacherSubject,
 )
+
+
+def stage_minimum_minor(market_id, vertical) -> int:
+    """The moderator-set minimum lesson price for a stage in a market (0 if unset)."""
+    rule = StagePricingRule.objects.filter(
+        market_id=market_id, vertical=vertical, is_active=True
+    ).first()
+    return rule.min_price_minor if rule else 0
 
 # Résumé JSON sections: the string keys allowed on each record. Anything else is
 # dropped; every value is coerced to a trimmed string. Records with no content
@@ -120,27 +127,17 @@ class TeacherPhotoSerializer(serializers.Serializer):
         return value
 
 
-def _effective_price(category: LessonCategory, overrides: dict[int, int]) -> dict:
-    custom = overrides.get(category.id)
-    amount = custom if custom is not None else category.student_price_minor
-    return {
-        "amount_minor": amount,
-        "currency": category.currency,
-        "display": format_money(amount, category.currency),
-        "is_custom": custom is not None,
-    }
-
-
 class TeacherSubjectReadSerializer(serializers.ModelSerializer):
     lesson_category = LessonCategorySerializer(read_only=True)
-    effective_price = serializers.SerializerMethodField()
+    stage = serializers.SerializerMethodField()
 
     class Meta:
         model = TeacherSubject
-        fields = ("id", "lesson_category", "effective_price")
+        fields = ("id", "lesson_category", "stage")
 
-    def get_effective_price(self, obj) -> dict:
-        return _effective_price(obj.lesson_category, self.context.get("overrides", {}))
+    def get_stage(self, obj) -> dict:
+        v = obj.lesson_category.vertical
+        return {"id": v.id, "name_en": v.name_en, "name_ar": v.name_ar}
 
 
 class _MarketCategoryField(serializers.PrimaryKeyRelatedField):
@@ -231,37 +228,53 @@ class TeacherSpecializationSerializer(serializers.ModelSerializer):
         return TeacherSpecialization.objects.create(teacher=self.context["teacher"], **validated)
 
 
-class TeacherPriceReadSerializer(serializers.ModelSerializer):
-    lesson_category = LessonCategorySerializer(read_only=True)
+class TeacherStagePriceSerializer(serializers.ModelSerializer):
+    """The teacher's price for one stage. POST upserts (one price per stage);
+    the price must be at least the market's stage minimum."""
+
+    stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
+    stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
+    min_price_minor = serializers.SerializerMethodField()
 
     class Meta:
-        model = TeacherPrice
-        fields = ("id", "lesson_category", "custom_student_price_minor", "is_approved")
+        model = TeacherStagePrice
+        fields = (
+            "id",
+            "vertical",
+            "price_minor",
+            "stage_name_en",
+            "stage_name_ar",
+            "min_price_minor",
+        )
+        read_only_fields = ("id", "stage_name_en", "stage_name_ar", "min_price_minor")
 
-
-class TeacherPriceCreateSerializer(serializers.Serializer):
-    lesson_category = _MarketCategoryField()
-    custom_student_price_minor = serializers.IntegerField(min_value=1)
+    def get_min_price_minor(self, obj) -> int:
+        teacher = self.context["teacher"]
+        return stage_minimum_minor(teacher.market_id, obj.vertical)
 
     def validate(self, attrs):
-        # A custom price must still cover the teacher's wage, otherwise the
-        # platform would pay out more than it collects for the lesson.
-        wage = attrs["lesson_category"].teacher_wage_minor
-        if attrs["custom_student_price_minor"] < wage:
+        teacher = self.context["teacher"]
+        vertical = attrs.get("vertical") or getattr(self.instance, "vertical", None)
+        price = attrs.get("price_minor", getattr(self.instance, "price_minor", None))
+        # The teacher must actually teach a subject in this stage.
+        if not TeacherSubject.objects.filter(
+            teacher=teacher, lesson_category__vertical=vertical
+        ).exists():
             raise serializers.ValidationError(
-                {"custom_student_price_minor": f"Price must be at least the teacher wage ({wage})."}
+                {"vertical": "You don't teach any subject in this stage."}
+            )
+        minimum = max(1, stage_minimum_minor(teacher.market_id, vertical))
+        if price is None or price < minimum:
+            raise serializers.ValidationError(
+                {"price_minor": f"Price must be at least the stage minimum ({minimum})."}
             )
         return attrs
 
     def create(self, validated):
         teacher = self.context["teacher"]
-        # One request per category; a new/changed request resets approval.
-        obj, _ = TeacherPrice.objects.update_or_create(
+        obj, _ = TeacherStagePrice.objects.update_or_create(
             teacher=teacher,
-            lesson_category=validated["lesson_category"],
-            defaults={
-                "custom_student_price_minor": validated["custom_student_price_minor"],
-                "is_approved": False,
-            },
+            vertical=validated["vertical"],
+            defaults={"price_minor": validated["price_minor"]},
         )
         return obj

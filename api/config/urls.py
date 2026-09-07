@@ -15,7 +15,6 @@ urlpatterns = [
     path("api/favorites/", include("apps.teachers.favorites_urls")),
     path("api/teacher/", include("apps.teachers.self_urls")),
     path("api/teacher-applications/", include("apps.teachers.application_urls")),
-    path("api/price-requests/", include("apps.teachers.moderation_urls")),
     path("api/admin/", include("apps.catalog.staff_urls")),
     path("api/bookings/", include("apps.bookings.urls")),
     path("api/reviews/", include("apps.reviews.urls")),

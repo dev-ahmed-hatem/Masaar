@@ -8,16 +8,18 @@ Cancellation policy (configurable, see settings):
   start: full refund; later than that: charged (reserve captured, teacher paid).
 """
 from datetime import datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.catalog.models import StagePricingRule
 from apps.integrations import calendar_sync
 from apps.notifications.services import notify
 from apps.payments import services as wallet
-from apps.teachers.models import TeacherPrice, TeacherSubject
+from apps.teachers.models import TeacherStagePrice, TeacherSubject
 
 from . import errors
 from .models import Booking
@@ -28,13 +30,36 @@ ACTIVE = [Booking.Status.REQUESTED, Booking.Status.CONFIRMED]
 
 # --- Pricing ---------------------------------------------------------------
 
-def effective_price_minor(teacher, category) -> int:
-    override = (
-        TeacherPrice.objects.filter(teacher=teacher, lesson_category=category, is_approved=True)
-        .values_list("custom_student_price_minor", flat=True)
+def stage_price_minor(teacher, vertical_id) -> int | None:
+    """The teacher's lesson price for a stage, or None if they haven't set one."""
+    return (
+        TeacherStagePrice.objects.filter(teacher=teacher, vertical_id=vertical_id)
+        .values_list("price_minor", flat=True)
         .first()
     )
-    return override if override is not None else category.student_price_minor
+
+
+def _commission_pct(market, vertical_id) -> Decimal:
+    """Platform commission % for a stage in a market (0 if no active rule)."""
+    pct = (
+        StagePricingRule.objects.filter(
+            market=market, vertical_id=vertical_id, is_active=True
+        )
+        .values_list("commission_pct", flat=True)
+        .first()
+    )
+    return pct if pct is not None else Decimal(0)
+
+
+def split_wage_commission(price, pct) -> tuple[int, int]:
+    """Split a lesson price into (teacher wage, platform commission).
+
+    Commission is deducted from the teacher's price, so wage + commission == price
+    exactly (commission rounded to the nearest minor unit)."""
+    commission = int(
+        (Decimal(price) * pct / Decimal(100)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+    return price - commission, commission
 
 
 # --- Slot generation -------------------------------------------------------
@@ -128,8 +153,12 @@ def request_booking(student, teacher, category, scheduled_start, *, duration_min
             raise errors.TrialUnavailable()
         price, wage = 0, 0
     else:
-        price = effective_price_minor(teacher, category)
-        wage = category.teacher_wage_minor
+        price = stage_price_minor(teacher, category.vertical_id)
+        if price is None:
+            raise errors.SlotUnavailable("This teacher hasn't set a price for this stage.")
+        wage, _commission = split_wage_commission(
+            price, _commission_pct(teacher.market, category.vertical_id)
+        )
 
     booking = Booking.objects.create(
         student=student,
@@ -139,7 +168,7 @@ def request_booking(student, teacher, category, scheduled_start, *, duration_min
         duration_min=duration,
         price_minor=price,
         teacher_wage_minor=wage,
-        currency=category.currency,
+        currency=teacher.market.currency,
         is_trial=is_trial,
         status=Booking.Status.REQUESTED,
     )

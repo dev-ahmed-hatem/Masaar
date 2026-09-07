@@ -51,6 +51,9 @@ class TeacherApplication(TimeStampedModel):
     subjects = models.JSONField(default=list, blank=True)
     specializations = models.JSONField(default=list, blank=True)
     availability = models.JSONField(default=list, blank=True)
+    # Per-stage lesson prices: list[{vertical, price_minor}], each >= the
+    # market's stage minimum. Materialized into TeacherStagePrice on approval.
+    stage_prices = models.JSONField(default=list, blank=True)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
@@ -165,23 +168,28 @@ class TeacherSpecialization(TimeStampedModel):
         return f"{self.teacher} · {self.vertical.code}{track} · {self.subject.name_en}"
 
 
-class TeacherPrice(TimeStampedModel):
-    """Per-teacher price override for a lesson category (moderator-approved)."""
+class TeacherStagePrice(TimeStampedModel):
+    """The teacher's own lesson price for a stage (Vertical).
+
+    One price per stage the teacher teaches; it applies to every subject/grade
+    in that stage. Must be at least the moderator's per-market stage minimum
+    (``catalog.StagePricingRule.min_price_minor``), enforced at write time.
+    """
 
     teacher = models.ForeignKey(
-        TeacherProfile, on_delete=models.CASCADE, related_name="prices"
+        TeacherProfile, on_delete=models.CASCADE, related_name="stage_prices"
     )
-    lesson_category = models.ForeignKey(
-        "catalog.LessonCategory", on_delete=models.PROTECT, related_name="teacher_prices"
+    vertical = models.ForeignKey(
+        "catalog.Vertical", on_delete=models.PROTECT, related_name="teacher_stage_prices"
     )
-    custom_student_price_minor = models.IntegerField()
-    is_approved = models.BooleanField(default=False)
+    price_minor = models.IntegerField()
 
     class Meta:
-        unique_together = [("teacher", "lesson_category")]
+        unique_together = [("teacher", "vertical")]
+        ordering = ["vertical"]
 
     def __str__(self):
-        return f"{self.teacher} · {self.lesson_category} = {self.custom_student_price_minor}"
+        return f"{self.teacher} · {self.vertical.code} = {self.price_minor}"
 
 
 class FavoriteTeacher(TimeStampedModel):

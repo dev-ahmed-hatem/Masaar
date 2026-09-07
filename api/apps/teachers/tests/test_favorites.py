@@ -3,7 +3,12 @@ import pytest
 from apps.accounts.models import User
 from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market
-from apps.teachers.models import FavoriteTeacher, TeacherProfile, TeacherSubject
+from apps.teachers.models import (
+    FavoriteTeacher,
+    TeacherProfile,
+    TeacherStagePrice,
+    TeacherSubject,
+)
 
 pytestmark = pytest.mark.django_db
 FAV = "/api/favorites/"
@@ -17,13 +22,13 @@ def setup():
     subj = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     cat = LessonCategory.objects.create(
         market=eg, vertical=v, grade_level=g, subject=subj,
-        student_price_minor=6000, teacher_wage_minor=3500, currency="EGP",
     )
     tuser = User.objects.create_user(
         phone="+201000000300", role=User.Role.TEACHER, market=eg, is_verified=True, full_name="T"
     )
     teacher = TeacherProfile.objects.create(user=tuser, market=eg, is_published=True)
     TeacherSubject.objects.create(teacher=teacher, lesson_category=cat)
+    TeacherStagePrice.objects.create(teacher=teacher, vertical=v, price_minor=6000)
     student = User.objects.create_user(
         phone="+201000000301", role=User.Role.STUDENT, market=eg, is_verified=True, full_name="S"
     )

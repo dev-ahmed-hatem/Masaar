@@ -5,11 +5,22 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.bookings.models import Booking
-from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
+from apps.catalog.models import (
+    GradeLevel,
+    LessonCategory,
+    StagePricingRule,
+    Subject,
+    Vertical,
+)
 from apps.markets.models import Market
 from apps.payments import services as wallet
 from apps.payments.models import Wallet
-from apps.teachers.models import AvailabilityRule, TeacherProfile, TeacherSubject
+from apps.teachers.models import (
+    AvailabilityRule,
+    TeacherProfile,
+    TeacherStagePrice,
+    TeacherSubject,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -33,11 +44,13 @@ def world():
 
     eg_math = LessonCategory.objects.create(
         market=eg, vertical=primary, grade_level=g4, subject=math,
-        student_price_minor=6000, teacher_wage_minor=3500, currency="EGP",
     )
     eg_physics = LessonCategory.objects.create(
         market=eg, vertical=primary, grade_level=g4, subject=physics,
-        student_price_minor=8000, teacher_wage_minor=5000, currency="EGP",
+    )
+    # Stage pricing: primary min 1000, 15% commission; the teacher prices at 6000.
+    StagePricingRule.objects.create(
+        market=eg, vertical=primary, min_price_minor=1000, commission_pct=15
     )
 
     tuser = User.objects.create_user(
@@ -47,6 +60,7 @@ def world():
         user=tuser, market=eg, is_published=True, free_lessons_offered=1, bio_en="hi"
     )
     TeacherSubject.objects.create(teacher=teacher, lesson_category=eg_math)
+    TeacherStagePrice.objects.create(teacher=teacher, vertical=primary, price_minor=6000)
     for wd in range(7):
         AvailabilityRule.objects.create(teacher=teacher, weekday=wd, start_time="00:00", end_time="23:59")
 
@@ -105,6 +119,15 @@ def test_request_reserves_wallet(api, world):
     assert res.data["price_minor"] == 6000
     w = _wallet(world["student"])
     assert w.available_minor == 94000 and w.reserved_minor == 6000
+
+
+def test_commission_split_freezes_wage(api, world):
+    # price 6000 @ 15% -> commission 900, wage 5100; wage + commission == price.
+    booking_id = _book(api, world, slot_at(timedelta(days=3))).data["id"]
+    b = Booking.objects.get(id=booking_id)
+    assert b.price_minor == 6000
+    assert b.teacher_wage_minor == 5100
+    assert b.price_minor - b.teacher_wage_minor == 900
 
 
 def test_insufficient_balance(api, world):

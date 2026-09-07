@@ -13,6 +13,7 @@ from .models import (
     TeacherApplication,
     TeacherProfile,
     TeacherSpecialization,
+    TeacherStagePrice,
     TeacherSubject,
 )
 
@@ -46,6 +47,12 @@ def _materialize_teaching_setup(application: TeacherApplication, profile: Teache
             weekday=rule["weekday"],
             start_time=rule["start_time"],
             end_time=rule["end_time"],
+        )
+    for sp in application.stage_prices or []:
+        TeacherStagePrice.objects.update_or_create(
+            teacher=profile,
+            vertical_id=sp.get("vertical"),
+            defaults={"price_minor": sp.get("price_minor", 0)},
         )
 
 

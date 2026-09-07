@@ -19,7 +19,6 @@ def setup():
     subj = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     cat = LessonCategory.objects.create(
         market=eg, vertical=v, grade_level=g, subject=subj,
-        student_price_minor=6000, teacher_wage_minor=3500, currency="EGP",
     )
     tuser = User.objects.create_user(
         phone="+201000000500", role=User.Role.TEACHER, market=eg, is_verified=True, full_name="T"

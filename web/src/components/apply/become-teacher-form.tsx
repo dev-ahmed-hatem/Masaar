@@ -26,6 +26,7 @@ import {
   catalogName,
   type LessonCategoryOption,
   type Stage,
+  type StagePricing,
   type StageSubject,
   type Track as CatalogTrack,
 } from "@/lib/catalog";
@@ -70,9 +71,11 @@ export default function BecomeTeacherForm({
   const [subjects, setSubjects] = useState<PickedSubject[]>([]);
   const [specializations, setSpecializations] = useState<PickedSpecialization[]>([]);
   const [availability, setAvailability] = useState<PickedAvailability[]>([]);
+  const [stageRules, setStageRules] = useState<StagePricing[]>([]);
+  const [stagePriceByStage, setStagePriceByStage] = useState<Record<number, number>>({});
 
-  // (Re)load the market's lesson categories; a market switch invalidates the
-  // subject picks, which are pricing keys scoped to one market.
+  // (Re)load the market's lesson categories + stage pricing; a market switch
+  // invalidates the subject picks and prices (scoped to one market).
   useEffect(() => {
     let alive = true;
     catalog
@@ -83,7 +86,16 @@ export default function BecomeTeacherForm({
       .catch(() => {
         if (alive) setCategories([]);
       });
+    catalog
+      .listStagePricing(market)
+      .then((rows) => {
+        if (alive) setStageRules(rows);
+      })
+      .catch(() => {
+        if (alive) setStageRules([]);
+      });
     setSubjects([]);
+    setStagePriceByStage({});
     return () => {
       alive = false;
     };
@@ -103,6 +115,22 @@ export default function BecomeTeacherForm({
     () => (c: LessonCategoryOption) => (ar ? c.label_ar : c.label),
     [ar],
   );
+
+  // Stages the applicant must price = the distinct stages of their specializations.
+  const pricedStages = useMemo(() => {
+    const seen = new Map<number, { id: number; name: string; min: number; currency: string }>();
+    for (const sp of specializations) {
+      if (seen.has(sp.vertical)) continue;
+      const rule = stageRules.find((r) => r.vertical === sp.vertical);
+      seen.set(sp.vertical, {
+        id: sp.vertical,
+        name: rule ? (ar ? rule.stage_name_ar : rule.stage_name_en) : sp.label.split(" · ")[0],
+        min: rule?.min_price_minor ?? 0,
+        currency: rule?.currency ?? "",
+      });
+    }
+    return [...seen.values()];
+  }, [specializations, stageRules, ar]);
 
   async function onFinish(values: Record<string, unknown>) {
     setSubmitting(true);
@@ -135,6 +163,9 @@ export default function BecomeTeacherForm({
           start_time: a.start_time,
           end_time: a.end_time,
         })),
+        stage_prices: pricedStages
+          .filter((st) => stagePriceByStage[st.id] != null)
+          .map((st) => ({ vertical: st.id, price_minor: stagePriceByStage[st.id] })),
         photo,
       });
       setDone(true);
@@ -352,6 +383,14 @@ export default function BecomeTeacherForm({
             </div>
             <div className="mt-6">
               <AvailabilityField dict={dict} picked={availability} onChange={setAvailability} />
+            </div>
+            <div className="mt-6">
+              <StagePricesField
+                dict={dict}
+                stages={pricedStages}
+                value={stagePriceByStage}
+                onChange={setStagePriceByStage}
+              />
             </div>
           </Card>
 
@@ -662,6 +701,58 @@ function SpecializationsField({
             {dict.addSpecialization}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StagePricesField({
+  dict,
+  stages,
+  value,
+  onChange,
+}: {
+  dict: ApplyDict;
+  stages: { id: number; name: string; min: number; currency: string }[];
+  value: Record<number, number>;
+  onChange: (next: Record<number, number>) => void;
+}) {
+  return (
+    <div>
+      <Text strong style={{ color: "var(--ink)" }}>
+        {dict.stagePricesSection}
+      </Text>
+      <div className="mt-2 flex flex-col gap-3">
+        <Text type="secondary">{dict.stagePricesHint}</Text>
+        {stages.length === 0 ? (
+          <Text type="secondary">{dict.stagePricesEmpty}</Text>
+        ) : (
+          stages.map((st) => (
+            <div
+              key={st.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"
+              style={{ border: "1px solid var(--border)" }}
+            >
+              <div className="min-w-0">
+                <div className="font-medium" style={{ color: "var(--ink)" }}>{st.name}</div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {dict.minPriceLabel}: {(st.min / 100).toFixed(2)} {st.currency}
+                </Text>
+              </div>
+              <InputNumber
+                min={st.min / 100}
+                step={0.5}
+                value={value[st.id] != null ? value[st.id] / 100 : null}
+                onChange={(v) =>
+                  onChange({ ...value, [st.id]: Math.round((v ?? 0) * 100) })
+                }
+                addonAfter={st.currency}
+                placeholder={dict.yourPrice}
+                style={{ width: 170 }}
+              />
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

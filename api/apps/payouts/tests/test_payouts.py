@@ -24,7 +24,6 @@ def world():
     math = Subject.objects.create(name_en="Math", name_ar="ر")
     cat = LessonCategory.objects.create(
         market=eg, vertical=primary, grade_level=g4, subject=math,
-        student_price_minor=6000, teacher_wage_minor=3500, currency="EGP",
     )
 
     def teacher(phone, name):

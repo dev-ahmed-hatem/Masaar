@@ -43,8 +43,8 @@ export interface Offering {
   vertical: string;
   grade_level: string | null;
   subject: string;
-  price: Money;
-  is_custom_price: boolean;
+  // Priced by the teacher's stage price; null if they haven't set one yet.
+  price: Money | null;
 }
 
 export interface Availability {

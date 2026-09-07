@@ -265,12 +265,7 @@ function TeacherDetailView({
     {
       title: dict.colPrice,
       key: "price",
-      render: (_, o) => (
-        <Space size={4}>
-          <span>{o.price.display}</span>
-          {o.is_custom_price && <Tag color="blue">{dict.custom}</Tag>}
-        </Space>
-      ),
+      render: (_, o) => <span>{o.price?.display ?? "—"}</span>,
     },
   ];
 

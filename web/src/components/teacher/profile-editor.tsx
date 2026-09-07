@@ -25,15 +25,16 @@ import {
   teacherSelf,
   type AvailabilityRule,
   type LessonCategoryOption,
-  type PriceRequest,
   type TeacherProfile,
   type TeacherSpecialization,
+  type TeacherStagePrice,
   type TeacherSubject,
 } from "@/lib/teacher-self";
 import {
   catalog,
   catalogName,
   type Stage,
+  type StagePricing,
   type StageSubject,
   type Track as CatalogTrack,
 } from "@/lib/catalog";
@@ -42,10 +43,6 @@ import GoogleCalendarCard from "@/components/integrations/google-calendar-card";
 
 type Dict = Dictionary["teacherProfile"];
 type GcalDict = Dictionary["googleCalendar"];
-
-// Custom per-teacher price requests are disabled for now. Flip to re-enable the
-// section (and its backend/admin approval queue are still in place).
-const PRICE_REQUESTS_ENABLED = false;
 
 const { Paragraph, Text } = Typography;
 
@@ -86,7 +83,8 @@ export default function ProfileEditor({
   const [categories, setCategories] = useState<LessonCategoryOption[]>([]);
   const [subjects, setSubjects] = useState<TeacherSubject[]>([]);
   const [availability, setAvailability] = useState<AvailabilityRule[]>([]);
-  const [prices, setPrices] = useState<PriceRequest[]>([]);
+  const [stagePrices, setStagePrices] = useState<TeacherStagePrice[]>([]);
+  const [stageRules, setStageRules] = useState<StagePricing[]>([]);
   const [specializations, setSpecializations] = useState<TeacherSpecialization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,16 +96,17 @@ export default function ProfileEditor({
       teacherSelf.listCategories(),
       teacherSelf.listSubjects(),
       teacherSelf.listAvailability(),
-      teacherSelf.listPrices(),
+      teacherSelf.listStagePrices(),
       teacherSelf.listSpecializations(),
     ])
-      .then(([p, c, s, a, pr, sp]) => {
+      .then(([p, c, s, a, sp, spec]) => {
         setProfile(p);
         setCategories(c);
         setSubjects(s);
         setAvailability(a);
-        setPrices(pr);
-        setSpecializations(sp);
+        setStagePrices(sp);
+        setSpecializations(spec);
+        catalog.listStagePricing(p.market).then(setStageRules).catch(() => setStageRules([]));
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError))
       .finally(() => setLoading(false));
@@ -189,6 +188,7 @@ export default function ProfileEditor({
             <ul style={{ margin: 0, paddingInlineStart: 18 }}>
               {missing.includes("subject") && <li>{dict.missingSubject}</li>}
               {missing.includes("bio") && <li>{dict.missingBio}</li>}
+              {missing.includes("price") && <li>{dict.missingPrice}</li>}
             </ul>
           }
         />
@@ -274,30 +274,22 @@ export default function ProfileEditor({
 
       <GoogleCalendarCard dict={gcal} locale={locale} />
 
-      {PRICE_REQUESTS_ENABLED && (
-        <PricesCard
-          dict={dict}
-          label={label}
-          categories={categories}
-          prices={prices}
-          onRequest={async (catId, amount) => {
-            try {
-              await teacherSelf.requestPrice(catId, amount);
-              setPrices(await teacherSelf.listPrices());
-            } catch (err) {
-              fail(err);
-            }
-          }}
-          onRemove={async (id) => {
-            try {
-              await teacherSelf.removePrice(id);
-              setPrices((prev) => prev.filter((p) => p.id !== id));
-            } catch (err) {
-              fail(err);
-            }
-          }}
-        />
-      )}
+      <StagePricesCard
+        dict={dict}
+        locale={locale}
+        subjects={subjects}
+        stagePrices={stagePrices}
+        stageRules={stageRules}
+        onSave={async (vertical, price_minor) => {
+          try {
+            const saved = await teacherSelf.setStagePrice(vertical, price_minor);
+            setStagePrices((prev) => [...prev.filter((p) => p.vertical !== vertical), saved]);
+            message.success(dict.saved);
+          } catch (err) {
+            fail(err);
+          }
+        }}
+      />
 
       {/* Sticky publish bar — clears above the mobile tab bar. */}
       <div
@@ -740,11 +732,7 @@ function SubjectsCard({
           <Space direction="vertical" style={{ width: "100%" }}>
             {subjects.map((s) => (
               <div key={s.id} className="flex items-center justify-between gap-3">
-                <span>
-                  {label(s.lesson_category)}{" "}
-                  <Text type="secondary">— {s.effective_price.display}</Text>
-                  {s.effective_price.is_custom && <Tag color="blue" className="ms-2">★</Tag>}
-                </span>
+                <span>{label(s.lesson_category)}</span>
                 <Button size="small" danger onClick={() => onRemove(s.id)}>
                   {dict.remove}
                 </Button>
@@ -839,80 +827,117 @@ function AvailabilityCard({
   );
 }
 
-function PricesCard({
+function StagePricesCard({
   dict,
-  label,
-  categories,
-  prices,
-  onRequest,
-  onRemove,
+  locale,
+  subjects,
+  stagePrices,
+  stageRules,
+  onSave,
 }: {
   dict: Dict;
-  label: (c: LessonCategoryOption) => string;
-  categories: LessonCategoryOption[];
-  prices: PriceRequest[];
-  onRequest: (categoryId: number, amount: number) => Promise<void>;
-  onRemove: (id: number) => Promise<void>;
+  locale: Locale;
+  subjects: TeacherSubject[];
+  stagePrices: TeacherStagePrice[];
+  stageRules: StagePricing[];
+  onSave: (vertical: number, priceMinor: number) => Promise<void>;
 }) {
-  const [category, setCategory] = useState<number | undefined>();
-  const [amount, setAmount] = useState<number | null>(null);
-  const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const ar = locale === "ar";
+  // The distinct stages the teacher teaches (each needs a price to publish).
+  const stages = useMemo(() => {
+    const seen = new Map<number, TeacherSubject["stage"]>();
+    for (const s of subjects) if (!seen.has(s.stage.id)) seen.set(s.stage.id, s.stage);
+    return [...seen.values()];
+  }, [subjects]);
+
+  const priceByStage = new Map(stagePrices.map((p) => [p.vertical, p]));
+  const ruleByStage = new Map(stageRules.map((r) => [r.vertical, r]));
 
   return (
-    <Section title={dict.pricesSection}>
-      <Paragraph type="secondary">{dict.pricesHint}</Paragraph>
-      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        {prices.length === 0 ? (
-          <Text type="secondary">{dict.noPrices}</Text>
-        ) : (
-          <Space direction="vertical" style={{ width: "100%" }}>
-            {prices.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-3">
-                <span>
-                  {label(p.lesson_category)} —{" "}
-                  {(p.custom_student_price_minor / 100).toFixed(2)} {p.lesson_category.currency}{" "}
-                  <Tag color={p.is_approved ? "green" : "gold"} className="ms-1">
-                    {p.is_approved ? dict.approved : dict.pending}
-                  </Tag>
-                </span>
-                <Button size="small" danger onClick={() => onRemove(p.id)}>
-                  {dict.remove}
-                </Button>
-              </div>
-            ))}
-          </Space>
-        )}
-        <Space wrap>
-          <Select
-            style={{ width: 240 }}
-            placeholder={dict.subjectPlaceholder}
-            value={category}
-            onChange={setCategory}
-            options={categories.map((c) => ({ value: c.id, label: label(c) }))}
-          />
-          <InputNumber
-            style={{ width: 200 }}
-            min={1}
-            placeholder={dict.requestedPrice}
-            value={amount}
-            onChange={setAmount}
-            addonAfter={category ? byId.get(category)?.currency : undefined}
-          />
-          <Button
-            type="primary"
-            disabled={!category || !amount}
-            onClick={async () => {
-              if (category && amount) {
-                await onRequest(category, amount);
-                setCategory(undefined);
-                setAmount(null);
-              }
-            }}
-          >
-            {dict.requestPrice}
-          </Button>
-        </Space>
-      </Space>
+    <Section title={dict.stagePricesSection}>
+      <Paragraph type="secondary">{dict.stagePricesHint}</Paragraph>
+      {stages.length === 0 ? (
+        <Text type="secondary">{dict.stagePricesEmpty}</Text>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {stages.map((st) => {
+            const rule = ruleByStage.get(st.id);
+            const existing = priceByStage.get(st.id);
+            const min = rule?.min_price_minor ?? existing?.min_price_minor ?? 0;
+            return (
+              <StageRow
+                key={st.id}
+                dict={dict}
+                name={ar ? st.name_ar : st.name_en}
+                min={min}
+                currency={rule?.currency ?? ""}
+                current={existing?.price_minor ?? null}
+                onSave={(minor) => onSave(st.id, minor)}
+              />
+            );
+          })}
+        </div>
+      )}
     </Section>
+  );
+}
+
+function StageRow({
+  dict,
+  name,
+  min,
+  currency,
+  current,
+  onSave,
+}: {
+  dict: Dict;
+  name: string;
+  min: number;
+  currency: string;
+  current: number | null;
+  onSave: (priceMinor: number) => Promise<void>;
+}) {
+  const [value, setValue] = useState<number | null>(current != null ? current / 100 : null);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"
+      style={{ border: "1px solid var(--border)" }}
+    >
+      <div className="min-w-0">
+        <div className="font-medium" style={{ color: "var(--ink)" }}>{name}</div>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {dict.minPriceLabel}: {(min / 100).toFixed(2)} {currency}
+        </Text>
+      </div>
+      <Space>
+        <InputNumber
+          min={min / 100}
+          step={0.5}
+          value={value}
+          onChange={setValue}
+          addonAfter={currency}
+          placeholder={dict.yourPrice}
+          style={{ width: 160 }}
+        />
+        <Button
+          type="primary"
+          loading={saving}
+          disabled={value == null}
+          onClick={async () => {
+            if (value == null) return;
+            setSaving(true);
+            try {
+              await onSave(Math.round(value * 100));
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {dict.save}
+        </Button>
+      </Space>
+    </div>
   );
 }

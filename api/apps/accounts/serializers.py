@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.catalog.models import Vertical
 from apps.markets.models import Market
 
 from . import errors, services
@@ -50,7 +51,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
-        fields = ("date_of_birth", "grade_level")
+        fields = ("date_of_birth", "vertical", "grade_level")
 
 
 class SignupSerializer(serializers.Serializer):
@@ -59,6 +60,9 @@ class SignupSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
     market = serializers.SlugRelatedField(slug_field="code", queryset=Market.objects.all())
     locale = serializers.ChoiceField(choices=User.Locale.choices, default=User.Locale.AR)
+    vertical = serializers.PrimaryKeyRelatedField(
+        queryset=Vertical.objects.filter(is_active=True), required=True
+    )
 
     def validate_password(self, value):
         validate_password(value)
@@ -80,7 +84,9 @@ class SignupSerializer(serializers.Serializer):
             locale=validated["locale"],
             is_verified=False,
         )
-        StudentProfile.objects.get_or_create(user=user)
+        StudentProfile.objects.update_or_create(
+            user=user, defaults={"vertical": validated["vertical"]}
+        )
         services.request_otp(user.phone, PhoneOTP.Purpose.VERIFY)
         return user
 

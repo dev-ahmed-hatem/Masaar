@@ -22,12 +22,6 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(LessonCategory)
 class LessonCategoryAdmin(admin.ModelAdmin):
-    list_display = (
-        "__str__",
-        "student_price_minor",
-        "teacher_wage_minor",
-        "currency",
-        "is_active",
-    )
+    list_display = ("__str__", "is_active")
     list_filter = ("market", "vertical", "is_active")
     search_fields = ("subject__name_en",)

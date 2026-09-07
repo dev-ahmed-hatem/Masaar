@@ -20,18 +20,17 @@ from apps.catalog.serializers import LessonCategorySerializer
 from . import errors
 from .models import (
     AvailabilityRule,
-    TeacherPrice,
     TeacherProfile,
     TeacherSpecialization,
+    TeacherStagePrice,
     TeacherSubject,
 )
 from .self_serializers import (
     AvailabilitySerializer,
     TeacherPhotoSerializer,
-    TeacherPriceCreateSerializer,
-    TeacherPriceReadSerializer,
     TeacherProfileSerializer,
     TeacherSpecializationSerializer,
+    TeacherStagePriceSerializer,
     TeacherSubjectCreateSerializer,
     TeacherSubjectReadSerializer,
 )
@@ -69,6 +68,15 @@ class TeacherProfilePublishView(_TeacherScoped, APIView):
             missing.append("subject")
         if not (teacher.bio_en or teacher.bio_ar):
             missing.append("bio")
+        # Every stage the teacher has subjects in needs a price.
+        taught_stage_ids = set(
+            TeacherSubject.objects.filter(teacher=teacher).values_list(
+                "lesson_category__vertical_id", flat=True
+            )
+        )
+        priced_stage_ids = set(teacher.stage_prices.values_list("vertical_id", flat=True))
+        if taught_stage_ids - priced_stage_ids:
+            missing.append("price")
         if missing:
             raise errors.ProfileIncomplete(missing)
         if not teacher.is_published:
@@ -113,15 +121,6 @@ class TeacherSubjectListCreateView(_TeacherScoped, ListCreateAPIView):
         return TeacherSubject.objects.filter(
             teacher=self.get_teacher()
         ).select_related("lesson_category__vertical", "lesson_category__grade_level", "lesson_category__subject")
-
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        teacher = ctx["teacher"]
-        ctx["overrides"] = {
-            p.lesson_category_id: p.custom_student_price_minor
-            for p in teacher.prices.filter(is_approved=True)
-        }
-        return ctx
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -245,28 +244,18 @@ class TeacherDashboardView(_TeacherScoped, APIView):
         )
 
 
-class TeacherPriceListCreateView(_TeacherScoped, ListCreateAPIView):
+class TeacherStagePriceListCreateView(_TeacherScoped, ListCreateAPIView):
+    """The teacher's per-stage prices. POST upserts one stage's price."""
+
+    serializer_class = TeacherStagePriceSerializer
     pagination_class = None
 
-    def get_serializer_class(self):
-        return (
-            TeacherPriceCreateSerializer
-            if self.request.method == "POST"
-            else TeacherPriceReadSerializer
-        )
-
     def get_queryset(self):
-        return TeacherPrice.objects.filter(
+        return TeacherStagePrice.objects.filter(
             teacher=self.get_teacher()
-        ).select_related("lesson_category__vertical", "lesson_category__grade_level", "lesson_category__subject")
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        price = serializer.save()
-        return Response(TeacherPriceReadSerializer(price).data, status=201)
+        ).select_related("vertical")
 
 
-class TeacherPriceDeleteView(_TeacherScoped, DestroyAPIView):
+class TeacherStagePriceDeleteView(_TeacherScoped, DestroyAPIView):
     def get_queryset(self):
-        return TeacherPrice.objects.filter(teacher=self.get_teacher())
+        return TeacherStagePrice.objects.filter(teacher=self.get_teacher())

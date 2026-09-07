@@ -1,6 +1,6 @@
 from django.db import models
 
-from apps.common.models import TimeStampedModel, format_money
+from apps.common.models import TimeStampedModel
 
 
 class Vertical(TimeStampedModel):
@@ -121,7 +121,13 @@ class StageSubject(TimeStampedModel):
 
 
 class LessonCategory(TimeStampedModel):
-    """The pricing key: market + vertical + grade + subject -> price & teacher wage."""
+    """The subject taxonomy/booking key: market + vertical + grade + subject.
+
+    Identifies what a lesson is about (and what a teacher teaches, via
+    ``TeacherSubject``). Pricing is no longer stored here — it lives per stage on
+    ``StagePricingRule`` (minimum + commission) and ``TeacherStagePrice`` (the
+    teacher's price).
+    """
 
     market = models.ForeignKey(
         "markets.Market", on_delete=models.CASCADE, related_name="lesson_categories"
@@ -139,20 +145,50 @@ class LessonCategory(TimeStampedModel):
     subject = models.ForeignKey(
         Subject, on_delete=models.PROTECT, related_name="lesson_categories"
     )
-    student_price_minor = models.IntegerField(help_text="Price charged to the student, in minor units")
-    teacher_wage_minor = models.IntegerField(help_text="Wage paid to the teacher, in minor units")
-    currency = models.CharField(max_length=3)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name_plural = "Lesson categories"
         unique_together = [("market", "vertical", "grade_level", "subject")]
 
-    @property
-    def commission_minor(self) -> int:
-        return self.student_price_minor - self.teacher_wage_minor
-
     def __str__(self):
         grade = f" · {self.grade_level.name_en}" if self.grade_level else ""
-        price = format_money(self.student_price_minor, self.currency)
-        return f"{self.market.code} · {self.vertical.code}{grade} · {self.subject.name_en} ({price})"
+        return f"{self.market.code} · {self.vertical.code}{grade} · {self.subject.name_en}"
+
+
+class StagePricingRule(TimeStampedModel):
+    """Moderator-set pricing floor + platform commission for a stage in a market.
+
+    A teacher's per-stage price must be at least ``min_price_minor``. The
+    platform keeps ``commission_pct`` percent of each lesson, deducted from the
+    teacher's price — so the teacher receives ``price × (1 − commission_pct/100)``
+    and the student pays the teacher's price unchanged.
+    """
+
+    market = models.ForeignKey(
+        "markets.Market", on_delete=models.CASCADE, related_name="stage_pricing_rules"
+    )
+    vertical = models.ForeignKey(
+        Vertical, on_delete=models.PROTECT, related_name="stage_pricing_rules"
+    )
+    min_price_minor = models.IntegerField(
+        help_text="Minimum lesson price a teacher may set, in minor units"
+    )
+    commission_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Platform commission (0-100), deducted from the teacher's price",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = [("market", "vertical")]
+        ordering = ["market", "vertical"]
+
+    @property
+    def currency(self) -> str:
+        return self.market.currency
+
+    def __str__(self):
+        return f"{self.market.code} · {self.vertical.code}: min {self.min_price_minor}, {self.commission_pct}%"
