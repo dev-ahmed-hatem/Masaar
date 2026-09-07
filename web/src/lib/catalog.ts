@@ -77,6 +77,14 @@ export function listGradeLevels(vertical?: number): Promise<GradeLevel[]> {
 
 // --- Public reads (drive the student filters + teacher/moderator pickers) ---
 
+export interface LessonCategoryOption {
+  id: number;
+  label: string;
+  label_ar: string;
+  student_price_minor: number;
+  currency: string;
+}
+
 export const catalog = {
   listStages: () => apiAuthed<Stage[]>("/api/catalog/verticals/"),
   listTracks: (vertical?: number) =>
@@ -88,6 +96,12 @@ export const catalog = {
     const qs = params.toString();
     return apiAuthed<StageSubject[]>(`/api/catalog/stage-subjects/${qs ? `?${qs}` : ""}`);
   },
+  // Market-scoped pricing keys; public so the "become a teacher" form can offer
+  // a subject picker without an authenticated market.
+  listLessonCategories: (market: string) =>
+    apiAuthed<LessonCategoryOption[]>(
+      `/api/catalog/lesson-categories/?market=${encodeURIComponent(market)}`,
+    ),
 };
 
 // --- Moderator CRUD (/api/admin/) ------------------------------------------

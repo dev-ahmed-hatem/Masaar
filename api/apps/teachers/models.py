@@ -4,13 +4,23 @@ from apps.common.models import TimeStampedModel
 
 
 class TeacherApplication(TimeStampedModel):
-    """Public teacher application reviewed/approved by moderators."""
+    """Public teacher application reviewed/approved by moderators.
+
+    Collects the applicant's full profile up-front so moderators review
+    everything before it goes live; on approval the data is materialized into
+    the created ``TeacherProfile`` (and its subject/specialization/availability
+    rows). ``bio`` holds the English bio; ``bio_ar`` the Arabic one.
+    """
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending review"
         CHANGES_REQUESTED = "CHANGES_REQUESTED", "Changes requested"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
+
+    class Gender(models.TextChoices):
+        MALE = "MALE", "Male"
+        FEMALE = "FEMALE", "Female"
 
     full_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=20)
@@ -21,6 +31,26 @@ class TeacherApplication(TimeStampedModel):
     bio = models.TextField(blank=True)
     intro_video_url = models.URLField(blank=True)
     document = models.FileField(upload_to="teacher_docs/", null=True, blank=True)
+    # --- Full profile data, mirrored from TeacherProfile and materialized on
+    # approval so moderators can review the whole profile before it's live. ---
+    gender = models.CharField(max_length=6, choices=Gender.choices, blank=True)
+    languages = models.CharField(
+        max_length=120, blank=True, help_text="Comma-separated, e.g. 'ar,en'"
+    )
+    bio_ar = models.TextField(blank=True)
+    photo = models.ImageField(upload_to="teacher_photos/", null=True, blank=True)
+    free_lessons_offered = models.PositiveSmallIntegerField(default=0)
+    specialties = models.JSONField(default=list, blank=True)
+    education = models.JSONField(default=list, blank=True)
+    work_experience = models.JSONField(default=list, blank=True)
+    certifications = models.JSONField(default=list, blank=True)
+    # Teaching setup, stored as JSON and turned into real rows on approval:
+    #   subjects:        list[int]                              (LessonCategory ids)
+    #   specializations: list[{vertical, track|null, subject}]  (catalog ids)
+    #   availability:    list[{weekday, start_time, end_time}]
+    subjects = models.JSONField(default=list, blank=True)
+    specializations = models.JSONField(default=list, blank=True)
+    availability = models.JSONField(default=list, blank=True)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )

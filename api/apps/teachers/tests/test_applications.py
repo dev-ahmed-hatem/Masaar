@@ -1,12 +1,41 @@
 import pytest
 
 from apps.accounts.models import User
-from apps.teachers.models import TeacherApplication, TeacherProfile
+from apps.catalog.models import (
+    GradeLevel,
+    LessonCategory,
+    StageSubject,
+    Subject,
+    Vertical,
+)
+from apps.teachers.models import (
+    AvailabilityRule,
+    TeacherApplication,
+    TeacherProfile,
+    TeacherSpecialization,
+    TeacherSubject,
+)
 
 pytestmark = pytest.mark.django_db
 
 APPLICATIONS = "/api/teacher-applications/"
 CHANGE_PW = "/api/auth/password/change/"
+
+
+@pytest.fixture
+def catalog(market):
+    """Minimal catalog + a lesson category in the EG market for teaching setup."""
+    primary = Vertical.objects.create(
+        code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي"
+    )
+    g4 = GradeLevel.objects.create(vertical=primary, name_en="Grade 4", name_ar="الصف 4")
+    math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
+    StageSubject.objects.create(vertical=primary, track=None, subject=math)
+    category = LessonCategory.objects.create(
+        market=market, vertical=primary, grade_level=g4, subject=math,
+        student_price_minor=6000, teacher_wage_minor=3000, currency="EGP",
+    )
+    return {"stage": primary, "subject": math, "category": category}
 
 
 def _application_payload(**overrides):
@@ -53,6 +82,136 @@ def test_duplicate_application_blocked(api, market):
     _submit(api, market)
     res = _submit(api, market)
     assert res.status_code == 400 and res.data["error"]["code"] == "duplicate_application"
+
+
+# --- Full-profile submission + materialization -----------------------------
+
+def _full_payload(catalog, **overrides):
+    payload = _application_payload(
+        gender="FEMALE",
+        languages="ar,en",
+        bio_ar="مدرّسة رياضيات ذات خبرة.",
+        free_lessons_offered=1,
+        specialties=["Algebra", "Geometry"],
+        education=[{"degree": "BSc Math", "institution": "Cairo Uni", "start_year": "2010", "end_year": "2014", "description": ""}],
+        work_experience=[{"title": "Tutor", "organization": "Self", "start_year": "2015", "end_year": "", "description": "Private lessons"}],
+        certifications=[{"name": "TEFL", "issuer": "Board", "year": "2016", "description": ""}],
+        subjects=[catalog["category"].id],
+        specializations=[{"vertical": catalog["stage"].id, "track": None, "subject": catalog["subject"].id}],
+        availability=[{"weekday": 0, "start_time": "09:00", "end_time": "11:00"}],
+    )
+    payload.update(overrides)
+    return payload
+
+
+def test_submit_full_profile_application(api, catalog):
+    res = api.post(APPLICATIONS, _full_payload(catalog), format="json")
+    assert res.status_code == 201, res.data
+    assert res.data["status"] == "PENDING"
+
+    app = TeacherApplication.objects.get(id=res.data["id"])
+    assert app.gender == "FEMALE"
+    assert app.languages == "ar,en"
+    assert app.specialties == ["Algebra", "Geometry"]
+    assert app.subjects == [catalog["category"].id]
+    assert app.specializations == [
+        {"vertical": catalog["stage"].id, "track": None, "subject": catalog["subject"].id}
+    ]
+    assert app.availability == [{"weekday": 0, "start_time": "09:00", "end_time": "11:00"}]
+
+
+def _png_bytes():
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (2, 2), "blue").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_submit_multipart_with_photo(api, catalog):
+    import json
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    payload = _full_payload(catalog)
+    data = {
+        "full_name": payload["full_name"],
+        "phone": payload["phone"],
+        "email": payload["email"],
+        "market": "EG",
+        "bio": payload["bio"],
+        "bio_ar": payload["bio_ar"],
+        "gender": "FEMALE",
+        "languages": "ar,en",
+        "free_lessons_offered": 1,
+        "specialties": json.dumps(payload["specialties"]),
+        "education": json.dumps(payload["education"]),
+        "work_experience": json.dumps(payload["work_experience"]),
+        "certifications": json.dumps(payload["certifications"]),
+        "subjects": json.dumps(payload["subjects"]),
+        "specializations": json.dumps(payload["specializations"]),
+        "availability": json.dumps(payload["availability"]),
+        "photo": SimpleUploadedFile("p.png", _png_bytes(), content_type="image/png"),
+    }
+    res = api.post(APPLICATIONS, data, format="multipart")
+    assert res.status_code == 201, res.data
+
+    app = TeacherApplication.objects.get(id=res.data["id"])
+    assert app.subjects == payload["subjects"]
+    assert app.specializations == payload["specializations"]
+    assert app.availability == payload["availability"]
+    assert bool(app.photo)
+
+
+def test_submit_rejects_subject_from_other_market(api, catalog):
+    payload = _full_payload(catalog, subjects=[999999])
+    res = api.post(APPLICATIONS, payload, format="json")
+    assert res.status_code == 400 and "subjects" in str(res.data)
+
+
+def test_submit_rejects_specialization_not_in_catalog(api, catalog):
+    payload = _full_payload(
+        catalog,
+        specializations=[{"vertical": catalog["stage"].id, "track": None, "subject": 999999}],
+    )
+    res = api.post(APPLICATIONS, payload, format="json")
+    assert res.status_code == 400
+
+
+def test_approve_materializes_full_profile(api, catalog, staff):
+    app_id = api.post(APPLICATIONS, _full_payload(catalog), format="json").data["id"]
+    api.force_authenticate(user=staff)
+
+    res = api.post(f"{APPLICATIONS}{app_id}/approve/", format="json")
+    assert res.status_code == 200
+
+    profile = TeacherProfile.objects.get(user__phone="+201000000010")
+    assert profile.gender == "FEMALE"
+    assert profile.languages == "ar,en"
+    assert profile.bio_en == "Experienced physics teacher."
+    assert profile.bio_ar == "مدرّسة رياضيات ذات خبرة."
+    assert profile.free_lessons_offered == 1
+    assert profile.specialties == ["Algebra", "Geometry"]
+    assert len(profile.education) == 1 and profile.education[0]["degree"] == "BSc Math"
+    assert TeacherSubject.objects.filter(
+        teacher=profile, lesson_category=catalog["category"]
+    ).exists()
+    assert TeacherSpecialization.objects.filter(
+        teacher=profile, vertical=catalog["stage"], track=None, subject=catalog["subject"]
+    ).exists()
+    assert AvailabilityRule.objects.filter(teacher=profile, weekday=0).exists()
+
+
+def test_review_queue_exposes_display_labels(api, catalog, staff):
+    api.post(APPLICATIONS, _full_payload(catalog), format="json")
+    api.force_authenticate(user=staff)
+
+    row = api.get(APPLICATIONS).data["results"][0]
+    assert row["subjects_display"] == ["Primary · Grade 4 · Mathematics"]
+    assert row["specializations_display"] == ["Primary · Mathematics"]
+    assert row["availability_display"] == ["Monday 09:00–11:00"]
 
 
 # --- Review queue permissions ---------------------------------------------

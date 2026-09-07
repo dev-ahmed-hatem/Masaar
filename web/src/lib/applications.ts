@@ -1,13 +1,38 @@
-import { apiAuthed, apiPost } from "./api";
-import type { Paginated } from "./teachers";
+import { apiAuthed, apiPostForm } from "./api";
+import type { Certification, Education, Experience, Paginated } from "./teachers";
 
+export interface SpecializationInput {
+  vertical: number;
+  track: number | null;
+  subject: number;
+}
+
+export interface AvailabilityInput {
+  weekday: number;
+  start_time: string;
+  end_time: string;
+}
+
+/** The full profile an applicant fills in on the public "become a teacher" form. */
 export interface ApplicationInput {
   full_name: string;
   phone: string;
   email?: string;
   market: string;
-  bio: string;
+  gender?: "MALE" | "FEMALE" | "";
+  languages?: string; // comma-separated codes, e.g. "ar,en"
+  bio: string; // English bio
+  bio_ar?: string;
   intro_video_url?: string;
+  free_lessons_offered?: number;
+  specialties?: string[];
+  education?: Education[];
+  work_experience?: Experience[];
+  certifications?: Certification[];
+  subjects?: number[]; // lesson-category ids
+  specializations?: SpecializationInput[];
+  availability?: AvailabilityInput[];
+  photo?: File | null;
 }
 
 export type ApplicationStatus =
@@ -22,9 +47,22 @@ export interface TeacherApplication {
   phone: string;
   email: string;
   market: string;
+  gender: "MALE" | "FEMALE" | "";
+  languages: string;
   bio: string;
+  bio_ar: string;
   intro_video_url: string;
+  photo: string | null;
   document: string | null;
+  free_lessons_offered: number;
+  specialties: string[];
+  education: Education[];
+  work_experience: Experience[];
+  certifications: Certification[];
+  // Resolved, human-readable labels for the catalog-linked teaching setup.
+  subjects_display: string[];
+  specializations_display: string[];
+  availability_display: string[];
   status: ApplicationStatus;
   review_notes: string;
   reviewed_by: string | null;
@@ -32,9 +70,35 @@ export interface TeacherApplication {
   created_at: string;
 }
 
-/** Public "become a teacher" submission (no auth required). */
+const JSON_FIELDS = [
+  "specialties",
+  "education",
+  "work_experience",
+  "certifications",
+  "subjects",
+  "specializations",
+  "availability",
+] as const;
+
+/** Public "become a teacher" submission (no auth). Sent as multipart so the
+ *  optional photo rides along; list/object fields are JSON-encoded strings. */
 export function submitApplication(body: ApplicationInput): Promise<TeacherApplication> {
-  return apiPost<TeacherApplication>("/api/teacher-applications/", body);
+  const form = new FormData();
+  form.set("full_name", body.full_name);
+  form.set("phone", body.phone);
+  form.set("market", body.market);
+  form.set("bio", body.bio);
+  if (body.email) form.set("email", body.email);
+  if (body.gender) form.set("gender", body.gender);
+  if (body.languages) form.set("languages", body.languages);
+  if (body.bio_ar) form.set("bio_ar", body.bio_ar);
+  if (body.intro_video_url) form.set("intro_video_url", body.intro_video_url);
+  form.set("free_lessons_offered", String(body.free_lessons_offered ?? 0));
+  for (const key of JSON_FIELDS) {
+    form.set(key, JSON.stringify(body[key] ?? []));
+  }
+  if (body.photo) form.set("photo", body.photo);
+  return apiPostForm<TeacherApplication>("/api/teacher-applications/", form);
 }
 
 export function listApplications(

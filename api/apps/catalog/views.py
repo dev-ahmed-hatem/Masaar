@@ -1,9 +1,13 @@
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 
-from .models import GradeLevel, StageSubject, Subject, Track, Vertical
+from apps.markets.models import Market
+
+from .models import GradeLevel, LessonCategory, StageSubject, Subject, Track, Vertical
 from .serializers import (
     GradeLevelSerializer,
+    LessonCategorySerializer,
     StageSubjectSerializer,
     SubjectSerializer,
     TrackSerializer,
@@ -60,3 +64,27 @@ class SubjectListView(ListAPIView):
     pagination_class = None
     serializer_class = SubjectSerializer
     queryset = Subject.objects.filter(is_active=True)
+
+
+class LessonCategoryListView(ListAPIView):
+    """Public list of pickable lesson categories, scoped to a market (?market=EG).
+
+    Powers the teaching-subject picker on the public "become a teacher" form,
+    which has no authenticated market to fall back on.
+    """
+
+    permission_classes = [AllowAny]
+    pagination_class = None
+    serializer_class = LessonCategorySerializer
+
+    def get_queryset(self):
+        code = self.request.query_params.get("market")
+        if not code:
+            raise ValidationError({"market": "Specify a market (?market=EG)."})
+        try:
+            market = Market.objects.get(code=code.upper())
+        except Market.DoesNotExist:
+            raise ValidationError({"market": "Unknown market code."})
+        return LessonCategory.objects.filter(
+            market=market, is_active=True
+        ).select_related("vertical", "grade_level", "subject")

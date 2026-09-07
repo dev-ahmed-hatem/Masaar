@@ -67,6 +67,12 @@ export async function apiPost<T = unknown>(path: string, body: unknown): Promise
   return parse<T>(res);
 }
 
+/** Unauthenticated multipart POST (public application submission with a photo). */
+export async function apiPostForm<T = unknown>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, { method: "POST", body: form });
+  return parse<T>(res);
+}
+
 async function refreshAccess(): Promise<boolean> {
   const refresh = tokens.refresh();
   if (!refresh) return false;

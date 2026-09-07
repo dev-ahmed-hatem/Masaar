@@ -34,6 +34,56 @@ type Dict = Dictionary["adminApplications"];
 
 const { Paragraph, Text } = Typography;
 
+function TextBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Text strong>{label}</Text>
+      <Paragraph style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>{children}</Paragraph>
+    </div>
+  );
+}
+
+function ChipBlock({ label, items }: { label: string; items: string[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div>
+      <Text strong>{label}</Text>
+      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {items.map((item, i) => (
+          <Tag key={i} style={{ marginInlineEnd: 0 }}>
+            {item}
+          </Tag>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ResumeBlock({
+  label,
+  rows,
+}: {
+  label: string;
+  rows: { head: string; sub: string; body: string }[];
+}) {
+  const filled = rows.filter((r) => r.head || r.sub || r.body);
+  if (filled.length === 0) return null;
+  return (
+    <div>
+      <Text strong>{label}</Text>
+      <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
+        {filled.map((r, i) => (
+          <div key={i} style={{ borderInlineStart: "2px solid var(--border)", paddingInlineStart: 10 }}>
+            {r.head && <div style={{ fontWeight: 600 }}>{r.head}</div>}
+            {r.sub && <Text type="secondary">{r.sub}</Text>}
+            {r.body && <Paragraph style={{ margin: 0 }}>{r.body}</Paragraph>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
   PENDING: "gold",
   CHANGES_REQUESTED: "blue",
@@ -183,15 +233,36 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             <Tag color={STATUS_COLORS[selected.status]}>{statusLabel(selected.status)}</Tag>
 
+            {selected.photo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selected.photo}
+                alt={selected.full_name}
+                style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover" }}
+              />
+            )}
+
             <DetailRow label={dict.colPhone} value={selected.phone} />
             <DetailRow label={dict.email} value={selected.email || "—"} />
             <DetailRow label={dict.colMarket} value={marketLabel(selected.market, locale)} />
+            {selected.gender && (
+              <DetailRow
+                label={dict.gender}
+                value={selected.gender === "MALE" ? dict.male : dict.female}
+              />
+            )}
+            {selected.languages && (
+              <DetailRow label={dict.languages} value={selected.languages} />
+            )}
+            <DetailRow label={dict.freeLessons} value={String(selected.free_lessons_offered)} />
 
             {selected.bio && (
-              <div>
-                <Text strong>{dict.bio}</Text>
-                <Paragraph style={{ marginTop: 4 }}>{selected.bio}</Paragraph>
-              </div>
+              <TextBlock label={dict.bioEn}>{selected.bio}</TextBlock>
+            )}
+            {selected.bio_ar && (
+              <TextBlock label={dict.bioAr}>
+                <span dir="rtl">{selected.bio_ar}</span>
+              </TextBlock>
             )}
 
             {selected.intro_video_url && (
@@ -205,6 +276,36 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
                 {dict.document} ↗
               </a>
             )}
+
+            <ChipBlock label={dict.specialties} items={selected.specialties} />
+            <ChipBlock label={dict.subjects} items={selected.subjects_display} />
+            <ChipBlock label={dict.specializations} items={selected.specializations_display} />
+            <ChipBlock label={dict.availability} items={selected.availability_display} />
+
+            <ResumeBlock
+              label={dict.education}
+              rows={selected.education.map((e) => ({
+                head: [e.degree, e.institution].filter(Boolean).join(" — "),
+                sub: [e.start_year, e.end_year].filter(Boolean).join("–"),
+                body: e.description,
+              }))}
+            />
+            <ResumeBlock
+              label={dict.experience}
+              rows={selected.work_experience.map((e) => ({
+                head: [e.title, e.organization].filter(Boolean).join(" — "),
+                sub: [e.start_year, e.end_year].filter(Boolean).join("–"),
+                body: e.description,
+              }))}
+            />
+            <ResumeBlock
+              label={dict.certifications}
+              rows={selected.certifications.map((c) => ({
+                head: [c.name, c.issuer].filter(Boolean).join(" — "),
+                sub: c.year,
+                body: c.description,
+              }))}
+            />
 
             {selected.reviewed_by && (
               <DetailRow label={dict.reviewedBy} value={selected.reviewed_by} />
