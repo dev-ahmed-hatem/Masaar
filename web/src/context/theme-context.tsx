@@ -10,7 +10,7 @@ import {
 
 export type Theme = "light" | "dark";
 
-export const THEME_STORAGE_KEY = "masaar-theme";
+export const THEME_STORAGE_KEY = "wisal-theme";
 
 interface ThemeContextValue {
   theme: Theme;

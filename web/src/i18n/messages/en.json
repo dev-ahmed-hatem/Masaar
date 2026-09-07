@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Masaar",
+    "name": "Wisal",
     "tagline": "Book lessons with vetted teachers across the Arab world."
   },
   "nav": {
@@ -243,10 +243,10 @@
     "subtitle": "Tutoring reservation marketplace",
     "heroLead": "Learn faster with the right",
     "heroAccent": "teacher.",
-    "heroSub": "Masaar connects students with vetted tutors across the Arab world. Browse profiles, book a time that fits, and learn live — all in one place.",
+    "heroSub": "Wisal connects students with vetted tutors across the Arab world. Browse profiles, book a time that fits, and learn live — all in one place.",
     "trust": ["Vetted teachers", "Flexible scheduling", "Secure payments"],
     "steps": {
-      "title": "How Masaar works",
+      "title": "How Wisal works",
       "subtitle": "Three simple steps from sign-up to your first lesson.",
       "items": [
         {
@@ -297,7 +297,7 @@
     },
     "footer": {
       "tagline": "Book lessons with vetted teachers across the Arab world.",
-      "rights": "© 2026 Masaar. All rights reserved."
+      "rights": "© 2026 Wisal. All rights reserved."
     }
   },
   "teacher": {
@@ -664,7 +664,7 @@
     "sendResetCode": "Send reset code",
     "setPassword": "Update password",
     "haveAccount": "Already have an account?",
-    "noAccount": "New to Masaar?",
+    "noAccount": "New to Wisal?",
     "forgotPassword": "Forgot password?",
     "backToSignIn": "Back to sign in",
     "codeSentTo": "We sent a 6-digit code on WhatsApp to {phone}",
@@ -687,7 +687,7 @@
     "changeSuccess": "Password updated."
   },
   "apply": {
-    "badge": "Teach on Masaar",
+    "badge": "Teach on Wisal",
     "title": "Become a teacher",
     "intro": "Share your knowledge with students across the Arab world. Apply in minutes — our team reviews every application.",
     "step1": "Submit your application with a short bio and an intro video.",

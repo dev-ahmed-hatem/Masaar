@@ -16,11 +16,11 @@ def world():
     eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
     sa = Market.objects.create(code="SA", name="Saudi Arabia", currency="SAR", timezone="Asia/Riyadh")
     PaymentAccount.objects.create(
-        market=eg, kind=PaymentAccount.Kind.BANK, display_name="Masaar EG Bank",
+        market=eg, kind=PaymentAccount.Kind.BANK, display_name="Wisal EG Bank",
         details="IBAN EG...", sort_order=0,
     )
     PaymentAccount.objects.create(
-        market=sa, kind=PaymentAccount.Kind.BANK, display_name="Masaar SA Bank",
+        market=sa, kind=PaymentAccount.Kind.BANK, display_name="Wisal SA Bank",
         details="IBAN SA...", sort_order=0,
     )
     student = User.objects.create_user(
@@ -43,7 +43,7 @@ def test_payment_accounts_market_scoped(api, world):
     api.force_authenticate(user=world["student"])
     res = api.get(ACCOUNTS)
     assert res.status_code == 200
-    assert [a["display_name"] for a in res.data] == ["Masaar EG Bank"]
+    assert [a["display_name"] for a in res.data] == ["Wisal EG Bank"]
 
 
 def test_upload_receipt_is_pending_topup(api, world, settings, tmp_path):

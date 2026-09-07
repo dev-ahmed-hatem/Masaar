@@ -1,4 +1,4 @@
-# Masaar — Engineering Roadmap
+# Wisal — Engineering Roadmap
 
 > The **product** is specified in [`PROJECT_SPEC.md`](./PROJECT_SPEC.md). This document is the
 > **build plan**: the order we implement in and what "done" means for each step. Scaffold

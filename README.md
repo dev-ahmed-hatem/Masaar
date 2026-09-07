@@ -1,4 +1,4 @@
-# Masaar
+# Wisal
 
 A Preply/Modarby-style **lesson-reservation marketplace** for Egypt & Saudi Arabia.
 Students book individual live lesson slots with vetted teachers; lessons are delivered on

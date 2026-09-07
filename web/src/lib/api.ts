@@ -1,7 +1,7 @@
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-/** Error carrying the standard Masaar API envelope { error: { code, message } }. */
+/** Error carrying the standard Wisal API envelope { error: { code, message } }. */
 export class ApiError extends Error {
   status: number;
   code: string;
@@ -16,8 +16,8 @@ export class ApiError extends Error {
   }
 }
 
-const ACCESS_KEY = "masaar.access";
-const REFRESH_KEY = "masaar.refresh";
+const ACCESS_KEY = "wisal.access";
+const REFRESH_KEY = "wisal.refresh";
 
 export const tokens = {
   access: (): string | null =>

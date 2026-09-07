@@ -13,7 +13,7 @@ from . import events
 from .models import Notification
 from .providers import get_provider
 
-logger = logging.getLogger("masaar.notify")
+logger = logging.getLogger("wisal.notify")
 
 
 def notify(user, event_type, payload=None, channels=None) -> list[Notification]:

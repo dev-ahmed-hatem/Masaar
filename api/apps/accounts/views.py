@@ -9,7 +9,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import StudentProfile
 from .permissions import IsStudent
 from .serializers import (
-    MasaarTokenObtainPairSerializer,
+    WisalTokenObtainPairSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -68,7 +68,7 @@ class ResendOtpView(APIView):
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
     throttle_scope = "login"
-    serializer_class = MasaarTokenObtainPairSerializer
+    serializer_class = WisalTokenObtainPairSerializer
 
 
 class PasswordResetRequestView(APIView):

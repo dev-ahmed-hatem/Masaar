@@ -10,7 +10,7 @@ import urllib.request
 
 from django.conf import settings
 
-logger = logging.getLogger("masaar.gcal")
+logger = logging.getLogger("wisal.gcal")
 
 # Google returns scopes reordered and adds a bare "email", so the granted set
 # never matches the requested set exactly — without this, requests-oauthlib

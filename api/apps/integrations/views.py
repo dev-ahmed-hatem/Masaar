@@ -18,7 +18,7 @@ from .serializers import (
     GoogleStatusSerializer,
 )
 
-logger = logging.getLogger("masaar.gcal")
+logger = logging.getLogger("wisal.gcal")
 
 STATE_SALT = "integrations.google.oauth"
 

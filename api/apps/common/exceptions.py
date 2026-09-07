@@ -1,7 +1,7 @@
 from rest_framework.views import exception_handler as drf_exception_handler
 
 
-def masaar_exception_handler(exc, context):
+def wisal_exception_handler(exc, context):
     """Wrap DRF errors in a consistent envelope.
 
     { "error": { "code": <str>, "message": <str>, "detail": <original DRF body> } }

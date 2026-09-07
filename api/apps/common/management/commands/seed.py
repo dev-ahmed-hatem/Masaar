@@ -1,4 +1,4 @@
-"""Seed baseline reference data + rich demo content for Masaar.
+"""Seed baseline reference data + rich demo content for Wisal.
 
 Reference data (markets, catalog, teachers, students, packages, payment
 accounts) is idempotent via get_or_create. The transactional demo activity
@@ -46,7 +46,7 @@ YT = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # placeholder intro video
 
 
 class Command(BaseCommand):
-    help = "Seed baseline reference data + rich demo content for Masaar."
+    help = "Seed baseline reference data + rich demo content for Wisal."
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -304,17 +304,17 @@ class Command(BaseCommand):
 
         # --- Payment accounts ---------------------------------------------
         PaymentAccount.objects.get_or_create(
-            market=eg, display_name="Masaar — Bank (EG)",
+            market=eg, display_name="Wisal — Bank (EG)",
             defaults={"kind": PaymentAccount.Kind.BANK, "details": "IBAN: EG000000000000000000000000000",
                       "instructions": "Transfer the exact amount and upload the receipt.", "sort_order": 0},
         )
         PaymentAccount.objects.get_or_create(
-            market=eg, display_name="Masaar — Vodafone Cash",
+            market=eg, display_name="Wisal — Vodafone Cash",
             defaults={"kind": PaymentAccount.Kind.WALLET, "details": "01000000000",
                       "instructions": "Send to this wallet number, then upload the confirmation.", "sort_order": 1},
         )
         PaymentAccount.objects.get_or_create(
-            market=sa, display_name="Masaar — Bank (SA)",
+            market=sa, display_name="Wisal — Bank (SA)",
             defaults={"kind": PaymentAccount.Kind.BANK, "details": "IBAN: SA0000000000000000000000",
                       "instructions": "Transfer the exact amount and upload the receipt.", "sort_order": 0},
         )

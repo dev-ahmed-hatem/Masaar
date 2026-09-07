@@ -8,7 +8,7 @@ import logging
 
 from django.conf import settings
 
-logger = logging.getLogger("masaar.gcal")
+logger = logging.getLogger("wisal.gcal")
 
 
 def _enabled() -> bool:

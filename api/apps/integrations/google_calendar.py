@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from .models import BookingCalendarEvent, GoogleCredential
 
-logger = logging.getLogger("masaar.gcal")
+logger = logging.getLogger("wisal.gcal")
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 
@@ -81,7 +81,7 @@ def _event_body(booking, user, meet_link=""):
         counterpart = f"Student: {student_name}"
 
     link = meet_link or booking.meeting_link
-    desc = ["Masaar lesson", counterpart, f"Duration: {booking.duration_min} min"]
+    desc = ["Wisal lesson", counterpart, f"Duration: {booking.duration_min} min"]
     if link:
         desc.append(f"Join: {link}")
 
@@ -116,7 +116,7 @@ def upsert_event(booking, user, *, with_conference=False, meet_link=""):
         if with_conference:
             body["conferenceData"] = {
                 "createRequest": {
-                    "requestId": f"masaar-booking-{booking.id}",
+                    "requestId": f"wisal-booking-{booking.id}",
                     "conferenceSolutionKey": {"type": "hangoutsMeet"},
                 }
             }

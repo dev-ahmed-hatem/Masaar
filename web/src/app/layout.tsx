@@ -23,13 +23,13 @@ const jakarta = localFont({
 // than next/font for the Arabic subset.
 
 export const metadata: Metadata = {
-  title: "Masaar",
+  title: "Wisal",
   description: "Tutoring reservation marketplace — the Arab world.",
 };
 
 // Runs before first paint to set the theme class from localStorage / system,
 // preventing a light-to-dark flash on load. Mirrors ThemeProvider's logic.
-const noFlashTheme = `(function(){try{var t=localStorage.getItem("masaar-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var r=document.documentElement;if(t==="dark"){r.classList.add("dark");}r.style.colorScheme=t;}catch(e){}})();`;
+const noFlashTheme = `(function(){try{var t=localStorage.getItem("wisal-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var r=document.documentElement;if(t==="dark"){r.classList.add("dark");}r.style.colorScheme=t;}catch(e){}})();`;
 
 export default function RootLayout({
   children,

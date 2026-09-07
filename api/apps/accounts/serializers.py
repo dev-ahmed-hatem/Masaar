@@ -149,7 +149,7 @@ class PasswordChangeSerializer(serializers.Serializer):
         return user
 
 
-class MasaarTokenObtainPairSerializer(TokenObtainPairSerializer):
+class WisalTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = User.USERNAME_FIELD  # "phone"
 
     @classmethod

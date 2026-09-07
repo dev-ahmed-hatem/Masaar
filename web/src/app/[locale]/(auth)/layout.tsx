@@ -29,7 +29,7 @@ export default async function AuthLayout({
           >
             <GraduationCap size={20} strokeWidth={2.4} />
           </span>
-          Masaar
+          Wisal
         </Link>
         {children}
       </div>

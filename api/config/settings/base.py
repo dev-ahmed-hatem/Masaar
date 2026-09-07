@@ -116,7 +116,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "EXCEPTION_HANDLER": "apps.common.exceptions.masaar_exception_handler",
+    "EXCEPTION_HANDLER": "apps.common.exceptions.wisal_exception_handler",
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.OrderingFilter",
@@ -134,7 +134,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Masaar API",
+    "TITLE": "Wisal API",
     "DESCRIPTION": "Tutoring reservation marketplace — Egypt & Saudi Arabia.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -168,7 +168,7 @@ NOTIFICATION_PROVIDERS = {
     "PUSH": env("NOTIFY_PUSH_PROVIDER", default="apps.notifications.providers.ConsoleProvider"),
     "EMAIL": env("NOTIFY_EMAIL_PROVIDER", default="apps.notifications.providers.EmailProvider"),
 }
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Masaar <no-reply@masaar.local>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Wisal <no-reply@wisal.local>")
 
 # --- Google Calendar integration ---
 # Teachers/students connect their Google account so confirmed lessons are pushed

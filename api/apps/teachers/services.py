@@ -51,7 +51,7 @@ def approve_application(application: TeacherApplication, reviewer: User) -> User
 
     get_account_sender().send_message(
         application.phone,
-        f"Your Masaar teacher account is approved. Temporary password: {temp_password}. "
+        f"Your Wisal teacher account is approved. Temporary password: {temp_password}. "
         "Sign in and set a new password.",
     )
     return user

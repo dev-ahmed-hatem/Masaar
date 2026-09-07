@@ -9,8 +9,8 @@ from typing import Protocol
 from django.conf import settings
 from django.utils.module_loading import import_string
 
-logger = logging.getLogger("masaar.otp")
-notify_logger = logging.getLogger("masaar.notify")
+logger = logging.getLogger("wisal.otp")
+notify_logger = logging.getLogger("wisal.notify")
 
 
 class OTPSender(Protocol):

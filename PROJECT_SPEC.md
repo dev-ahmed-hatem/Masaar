@@ -1,4 +1,4 @@
-# Masaar — Tutoring Reservation Marketplace · Product Spec (v1)
+# Wisal — Tutoring Reservation Marketplace · Product Spec (v1)
 
 **Date:** 2026-07-20
 **Status:** Agreed via stakeholder interview. This document supersedes `feasibility-study-questionnaire.md`, which described a different product (course-subscription LMS) and is **no longer in scope**.

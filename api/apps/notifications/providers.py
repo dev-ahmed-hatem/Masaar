@@ -12,7 +12,7 @@ from django.utils.module_loading import import_string
 
 from .events import render
 
-logger = logging.getLogger("masaar.notify")
+logger = logging.getLogger("wisal.notify")
 
 
 class NotificationProvider(Protocol):
