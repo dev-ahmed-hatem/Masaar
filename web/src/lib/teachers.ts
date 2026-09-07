@@ -110,6 +110,8 @@ export interface TeacherQuery {
   track?: number;
   subject?: number;
   gender?: string;
+  language?: string;
+  weekday?: number;
   min_rating?: number;
   ordering?: string;
   page?: number;

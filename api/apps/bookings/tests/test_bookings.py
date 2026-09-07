@@ -176,6 +176,41 @@ def test_complete_requires_confirmed(api, world):
     assert res.status_code == 400 and res.data["error"]["code"] == "invalid_transition"
 
 
+def test_cancel_frees_the_slot(api, world):
+    from apps.bookings import services
+
+    when = slot_at(timedelta(days=3))
+    booking_id = _book(api, world, when).data["id"]
+
+    def has_slot(t):
+        return any(s["start"] == t for s in services.generate_slots(world["teacher"], days=5))
+
+    assert not has_slot(when)  # booked -> the slot is blocked
+    api.force_authenticate(user=world["student"])
+    api.post(f"{BOOKINGS}{booking_id}/cancel/", {"reason": "x"}, format="json")
+    assert has_slot(when)  # cancelling frees it again
+
+
+def test_reschedule_moves_the_blocked_slot(api, world):
+    from apps.bookings import services
+
+    old_when = slot_at(timedelta(days=3))
+    new_when = slot_at(timedelta(days=4))
+    booking_id = _book(api, world, old_when).data["id"]
+
+    def has_slot(t):
+        return any(s["start"] == t for s in services.generate_slots(world["teacher"], days=6))
+
+    assert not has_slot(old_when) and has_slot(new_when)
+    api.force_authenticate(user=world["student"])
+    api.post(
+        f"{BOOKINGS}{booking_id}/reschedule/",
+        {"scheduled_start": new_when.isoformat()},
+        format="json",
+    )
+    assert has_slot(old_when) and not has_slot(new_when)  # old freed, new blocked
+
+
 def test_decline_refunds(api, world):
     booking_id = _book(api, world, slot_at(timedelta(days=3))).data["id"]
     api.force_authenticate(user=world["tuser"])

@@ -129,7 +129,7 @@ export default function AppHeader({
             placement="bottomRight"
             arrow={false}
             content={
-              <div className="flex w-52 flex-col gap-3 p-1">
+              <div className="flex w-52 flex-col gap-2 p-1">
                 {user && (
                   <div className="min-w-0 px-1">
                     <div className="truncate text-sm font-semibold" style={{ color: "var(--ink)" }}>
@@ -139,6 +139,33 @@ export default function AppHeader({
                       <div className="truncate text-xs" style={{ color: "var(--ink-faint)" }}>{user.phone}</div>
                     )}
                   </div>
+                )}
+                {/* Primary nav for guests on mobile (desktop shows it in the top bar;
+                    signed-in users navigate via the bottom tab bar). */}
+                {!user && (
+                  <div className="flex flex-col lg:hidden">
+                    {links.map(({ href, label }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        className="rounded-xl px-2 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-2)]"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {/* Secondary entry to the teacher application (not for teachers/staff). */}
+                {!isTeacher && !isStaff && (
+                  <Link
+                    href={p("become-a-teacher")}
+                    className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-2)]"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    <GraduationCap size={16} />
+                    {nav.apply}
+                  </Link>
                 )}
                 {profileHref && (
                   <Link

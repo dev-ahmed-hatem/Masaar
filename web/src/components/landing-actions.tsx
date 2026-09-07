@@ -43,6 +43,9 @@ export default function LandingActions({
         {signUp}
         <ArrowRight size={18} className="rtl:-scale-x-100" />
       </Link>
+      <Link href={`/${locale}/teachers`} className="btn btn-ghost">
+        {browse}
+      </Link>
       <Link href={`/${locale}/sign-in`} className="btn btn-ghost">
         {signIn}
       </Link>

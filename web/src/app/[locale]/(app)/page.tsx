@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import LandingActions from "@/components/landing-actions";
+import SiteFooter from "@/components/site-footer";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -208,29 +209,16 @@ export default async function LandingPage({
       </div>
 
       {/* ---------- Footer ---------- */}
-      <footer
-        className="flex flex-col items-center gap-3 pt-4 text-center"
-        style={{ borderTop: "1px solid var(--border)" }}
-      >
-        <div
-          className="mt-8 flex items-center gap-2.5 text-lg font-bold"
-          style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-        >
-          <span
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-white"
-            style={{ background: "var(--grad-brand)" }}
-          >
-            <GraduationCap size={18} strokeWidth={2.4} />
-          </span>
-          {d.app.name}
-        </div>
-        <p className="max-w-md text-sm" style={{ color: "var(--ink-muted)" }}>
-          {L.footer.tagline}
-        </p>
-        <p className="text-xs" style={{ color: "var(--ink-faint)" }}>
-          {L.footer.rights}
-        </p>
-      </footer>
+      <SiteFooter
+        brand={d.app.name}
+        tagline={L.footer.tagline}
+        rights={L.footer.rights}
+        links={[
+          { label: d.nav.browse, href: `/${locale}/teachers` },
+          { label: d.nav.apply, href: `/${locale}/become-a-teacher` },
+          { label: d.auth.signIn, href: `/${locale}/sign-in` },
+        ]}
+      />
     </section>
   );
 }

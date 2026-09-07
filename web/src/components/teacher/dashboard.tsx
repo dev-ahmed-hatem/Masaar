@@ -11,6 +11,7 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { listBookings, type Booking } from "@/lib/bookings";
 import { teacherSelf, type TeacherDashboard } from "@/lib/teacher-self";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 type Dict = Dictionary["teacherDashboard"];
 type BookingsDict = Dictionary["bookings"];
@@ -49,6 +50,8 @@ export default function TeacherDashboardView({
   }, [dict.loadError]);
 
   useEffect(() => load(), [load]);
+  // Reflect student-initiated reschedules/cancels on the open tab.
+  useRefreshOnFocus(load);
 
   if (error) {
     return (

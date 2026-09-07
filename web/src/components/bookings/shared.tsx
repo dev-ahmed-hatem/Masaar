@@ -1,12 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Tag } from "antd";
 
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { listBookings, type Booking, type BookingStatus } from "@/lib/bookings";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 type Dict = Dictionary["bookings"];
 
@@ -33,11 +34,14 @@ export function useGroupedBookings(errorMsg: string) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Current page per group, so a background refresh reloads what's on screen.
+  const pagesRef = useRef<Record<BookingGroup, number>>({ requested: 1, upcoming: 1, past: 1 });
 
   const loadGroup = useCallback((group: BookingGroup, page: number) => {
-    return listBookings(undefined, { group, page, page_size: LESSONS_PAGE_SIZE }).then((res) =>
-      setGroups((prev) => ({ ...prev, [group]: { rows: res.results, total: res.count, page } })),
-    );
+    return listBookings(undefined, { group, page, page_size: LESSONS_PAGE_SIZE }).then((res) => {
+      pagesRef.current[group] = page;
+      setGroups((prev) => ({ ...prev, [group]: { rows: res.results, total: res.count, page } }));
+    });
   }, []);
 
   const reload = useCallback(() => {
@@ -51,6 +55,18 @@ export function useGroupedBookings(errorMsg: string) {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  // Silently refresh (no spinner) on tab focus / poll, so a reschedule or cancel
+  // made by the other participant surfaces without a manual reload.
+  const silentReload = useCallback(() => {
+    const pages = pagesRef.current;
+    Promise.all([
+      loadGroup("requested", pages.requested),
+      loadGroup("upcoming", pages.upcoming),
+      loadGroup("past", pages.past),
+    ]).catch(() => {});
+  }, [loadGroup]);
+  useRefreshOnFocus(silentReload);
 
   const setPage = useCallback(
     (group: BookingGroup, page: number) => {

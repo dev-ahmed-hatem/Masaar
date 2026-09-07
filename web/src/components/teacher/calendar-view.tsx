@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { Alert, Button, Spin, Tag } from "antd";
 
@@ -9,6 +9,7 @@ import { STATUS_COLORS, statusLabel } from "@/components/bookings/shared";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { listBookings, type Booking } from "@/lib/bookings";
 import { teacherSelf, type AvailabilityRule } from "@/lib/teacher-self";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 type Dict = Dictionary["teacherCalendar"];
 type BookingsDict = Dictionary["bookings"];
@@ -46,19 +47,30 @@ export default function CalendarView({
       });
   }, [bookingsDict.loadError]);
 
+  const loadBookings = useCallback(
+    (showSpinner: boolean) => {
+      if (showSpinner) setBookings(null);
+      return listBookings(undefined, {
+        from: weekStart.toISOString(),
+        to: weekStart.add(7, "day").toISOString(),
+        page_size: 100,
+      })
+        .then((res) => setBookings(res.results))
+        .catch(() => {
+          setBookings([]);
+          setError(bookingsDict.loadError);
+        });
+    },
+    [weekStart, bookingsDict.loadError],
+  );
+
   useEffect(() => {
-    setBookings(null);
-    listBookings(undefined, {
-      from: weekStart.toISOString(),
-      to: weekStart.add(7, "day").toISOString(),
-      page_size: 100,
-    })
-      .then((res) => setBookings(res.results))
-      .catch(() => {
-        setBookings([]);
-        setError(bookingsDict.loadError);
-      });
-  }, [weekStart, bookingsDict.loadError]);
+    loadBookings(true);
+  }, [loadBookings]);
+
+  // Reflect student-initiated reschedules/cancels on the open tab (no spinner).
+  const refresh = useCallback(() => loadBookings(false), [loadBookings]);
+  useRefreshOnFocus(refresh);
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
@@ -71,6 +83,8 @@ export default function CalendarView({
     (rules ?? []).filter((r) => r.weekday === ((day.day() + 6) % 7));
   const bookingsFor = (day: dayjs.Dayjs) =>
     (bookings ?? [])
+      // Cancelled/declined lessons free their slot, so don't render them as busy.
+      .filter((b) => b.status !== "CANCELLED" && b.status !== "DECLINED")
       .filter((b) => dayjs(b.scheduled_start).isSame(day, "day"))
       .sort((a, b) => a.scheduled_start.localeCompare(b.scheduled_start));
 

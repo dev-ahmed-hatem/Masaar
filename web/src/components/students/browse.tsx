@@ -46,6 +46,8 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   const [track, setTrack] = useState<number | undefined>();
   const [subject, setSubject] = useState<number | undefined>();
   const [gender, setGender] = useState<string | undefined>();
+  const [language, setLanguage] = useState<string | undefined>();
+  const [weekday, setWeekday] = useState<number | undefined>();
   const [minRating, setMinRating] = useState<number | undefined>();
   const [ordering, setOrdering] = useState<string>("-rating_avg");
   const [page, setPage] = useState(1);
@@ -100,7 +102,7 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     let active = true;
     setLoading(true);
     setError(null);
-    listTeachers({ market, name: nameQuery || undefined, stage, track, subject, gender, min_rating: minRating, ordering, page, page_size: PAGE_SIZE })
+    listTeachers({ market, name: nameQuery || undefined, stage, track, subject, gender, language, weekday, min_rating: minRating, ordering, page, page_size: PAGE_SIZE })
       .then((data) => {
         if (!active) return;
         setRows(data.results);
@@ -116,9 +118,9 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     return () => {
       active = false;
     };
-  }, [market, nameQuery, stage, track, subject, gender, minRating, ordering, page, dict.loadError]);
+  }, [market, nameQuery, stage, track, subject, gender, language, weekday, minRating, ordering, page, dict.loadError]);
 
-  useEffect(() => setPage(1), [market, nameQuery, stage, track, subject, gender, minRating, ordering]);
+  useEffect(() => setPage(1), [market, nameQuery, stage, track, subject, gender, language, weekday, minRating, ordering]);
 
   // Subject options: scoped to the chosen stage/track when set, else the full list.
   const subjectOptions = stage
@@ -129,7 +131,11 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     : subjects.map((s) => ({ value: s.id, label: subjectName(s) }));
 
   const advancedCount =
-    (gender ? 1 : 0) + (minRating != null ? 1 : 0) + (ordering !== "-rating_avg" ? 1 : 0);
+    (gender ? 1 : 0) +
+    (language ? 1 : 0) +
+    (weekday != null ? 1 : 0) +
+    (minRating != null ? 1 : 0) +
+    (ordering !== "-rating_avg" ? 1 : 0);
   const anyFilter =
     nameQuery !== "" || stage != null || track != null || subject != null || advancedCount > 0;
 
@@ -140,9 +146,23 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     setTrack(undefined);
     setSubject(undefined);
     setGender(undefined);
+    setLanguage(undefined);
+    setWeekday(undefined);
     setMinRating(undefined);
     setOrdering("-rating_avg");
   }
+
+  const weekdayLabels = dict.weekdays ?? [];
+  // Removable summary chips for each applied filter.
+  const activeChips: { key: string; label: string; clear: () => void }[] = [];
+  if (nameQuery) activeChips.push({ key: "name", label: `"${nameQuery}"`, clear: () => { setName(""); setNameQuery(""); } });
+  if (stage != null) activeChips.push({ key: "stage", label: activeStage ? catalogName(activeStage, locale) : "", clear: () => setStage(undefined) });
+  if (track != null) { const t = tracks.find((x) => x.id === track); activeChips.push({ key: "track", label: t ? catalogName(t, locale) : "", clear: () => setTrack(undefined) }); }
+  if (subject != null) { const opt = subjectOptions.find((o) => o.value === subject); activeChips.push({ key: "subject", label: opt?.label ?? "", clear: () => setSubject(undefined) }); }
+  if (gender) activeChips.push({ key: "gender", label: gender === "MALE" ? dict.male : dict.female, clear: () => setGender(undefined) });
+  if (language) activeChips.push({ key: "language", label: language === "ar" ? dict.arabic : dict.english, clear: () => setLanguage(undefined) });
+  if (weekday != null) activeChips.push({ key: "weekday", label: weekdayLabels[weekday] ?? "", clear: () => setWeekday(undefined) });
+  if (minRating != null) activeChips.push({ key: "rating", label: `${minRating}★+`, clear: () => setMinRating(undefined) });
 
   return (
     <section className="flex flex-col gap-5">
@@ -210,6 +230,17 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
         </div>
       )}
 
+      {/* Active-filter chips — each removable */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {activeChips.map((c) => (
+            <Tag key={c.key} closable onClose={c.clear} style={{ marginInlineEnd: 0 }}>
+              {c.label}
+            </Tag>
+          ))}
+        </div>
+      )}
+
       {/* Results header */}
       {!loading && !error && (
         <div className="flex items-center justify-between">
@@ -273,6 +304,29 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
                 { value: "MALE", label: dict.male },
                 { value: "FEMALE", label: dict.female },
               ]}
+            />
+          </FilterField>
+          <FilterField label={dict.language}>
+            <Select
+              allowClear
+              placeholder={dict.anyLanguage}
+              value={language}
+              onChange={(v) => setLanguage(v)}
+              style={{ width: "100%" }}
+              options={[
+                { value: "ar", label: dict.arabic },
+                { value: "en", label: dict.english },
+              ]}
+            />
+          </FilterField>
+          <FilterField label={dict.availableOn}>
+            <Select
+              allowClear
+              placeholder={dict.anyDay}
+              value={weekday}
+              onChange={(v) => setWeekday(v)}
+              style={{ width: "100%" }}
+              options={weekdayLabels.map((label, i) => ({ value: i, label }))}
             />
           </FilterField>
           <FilterField label={dict.minRating}>

@@ -51,7 +51,7 @@ class _Events:
         return _Exec({"id": "evt-1", "htmlLink": "https://cal/evt-1", "hangoutLink": MEET_LINK})
 
     def patch(self, calendarId, eventId, body, **kw):  # noqa: N803
-        self.log.append(("patch", eventId))
+        self.log.append(("patch", eventId, body))
         return _Exec({"id": eventId, "htmlLink": "https://cal/evt-1", "hangoutLink": MEET_LINK})
 
     def delete(self, calendarId, eventId):  # noqa: N803
@@ -286,6 +286,53 @@ def test_cancel_deletes_events(
     assert res.status_code == 200
     assert BookingCalendarEvent.objects.filter(booking_id=booking_id).count() == 0
     assert [c[0] for c in fake_gcal] == ["delete"]
+
+
+# --- Student-initiated changes reflect on the teacher's calendar -----------
+
+def test_student_cancel_deletes_teacher_event(
+    api, world, enabled, fake_gcal, django_capture_on_commit_callbacks
+):
+    # Only the teacher is connected; the STUDENT cancels the confirmed lesson.
+    _connect(world["tuser"])
+    booking_id = _book(api, world)
+    _confirm_meet(api, world, booking_id, django_capture_on_commit_callbacks)
+    assert BookingCalendarEvent.objects.filter(booking_id=booking_id).count() == 1
+    fake_gcal.clear()
+
+    api.force_authenticate(user=world["student"])
+    with django_capture_on_commit_callbacks(execute=True):
+        res = api.post(f"{BOOKINGS}{booking_id}/cancel/", {"reason": "x"}, format="json")
+    assert res.status_code == 200
+    # The teacher's Google event is removed even though the student initiated it.
+    assert BookingCalendarEvent.objects.filter(booking_id=booking_id).count() == 0
+    assert [c[0] for c in fake_gcal] == ["delete"]
+
+
+def test_student_reschedule_patches_both_events_with_new_time(
+    api, world, enabled, fake_gcal, django_capture_on_commit_callbacks
+):
+    _connect(world["tuser"])
+    _connect(world["student"])
+    booking_id = _book(api, world)
+    _confirm_meet(api, world, booking_id, django_capture_on_commit_callbacks)
+    assert BookingCalendarEvent.objects.filter(booking_id=booking_id).count() == 2
+    fake_gcal.clear()
+
+    new_start = _slot(timedelta(days=5))
+    api.force_authenticate(user=world["student"])
+    with django_capture_on_commit_callbacks(execute=True):
+        res = api.post(
+            f"{BOOKINGS}{booking_id}/reschedule/",
+            {"scheduled_start": new_start.isoformat()},
+            format="json",
+        )
+    assert res.status_code == 200
+    # BOTH participants' events are patched, each carrying the NEW start time.
+    patches = [c for c in fake_gcal if c[0] == "patch"]
+    assert len(patches) == 2
+    for _op, _eid, body in patches:
+        assert body["start"]["dateTime"] == new_start.isoformat()
 
 
 # --- Disabled integration is inert -----------------------------------------
