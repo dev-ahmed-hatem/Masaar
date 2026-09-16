@@ -1,4 +1,5 @@
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -8,6 +9,7 @@ from apps.markets.models import Market
 
 from . import errors, services
 from .models import PhoneOTP, StudentProfile, User
+from .senders import uses_email
 from .utils import normalize_phone
 
 
@@ -57,6 +59,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 class SignupSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     full_name = serializers.CharField(max_length=150)
+    # Required when OTP_CHANNEL=email (the code is sent there); optional otherwise.
+    email = serializers.EmailField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
     market = serializers.SlugRelatedField(slug_field="code", queryset=Market.objects.all())
     locale = serializers.ChoiceField(choices=User.Locale.choices, default=User.Locale.AR)
@@ -72,13 +76,23 @@ class SignupSerializer(serializers.Serializer):
         attrs["phone"] = normalize_phone(attrs["phone"], attrs["market"].code)
         if User.objects.filter(phone=attrs["phone"]).exists():
             raise errors.PhoneAlreadyRegistered()
+        email = User.objects.normalize_email(attrs.get("email") or "").strip()
+        if uses_email() and not email:
+            raise serializers.ValidationError({"email": "An email address is required."})
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise errors.EmailAlreadyRegistered()
+        attrs["email"] = email
         return attrs
 
+    @transaction.atomic
     def create(self, validated):
+        # Atomic: if the code can't be delivered, don't leave behind an
+        # unverified account that blocks re-signup with the same phone.
         user = User.objects.create_user(
             phone=validated["phone"],
             password=validated["password"],
             full_name=validated["full_name"],
+            email=validated["email"],
             role=User.Role.STUDENT,
             market=validated["market"],
             locale=validated["locale"],

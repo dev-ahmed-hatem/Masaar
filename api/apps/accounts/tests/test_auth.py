@@ -124,3 +124,91 @@ def test_resend_cooldown(api, market, fixed_code, settings):
     phone = _signup(api, market).data["phone"]  # issues the first VERIFY code
     res = api.post(RESEND, {"phone": phone, "purpose": "VERIFY"}, format="json")
     assert res.status_code == 429 and res.data["error"]["code"] == "otp_cooldown"
+
+
+# --- Email OTP channel (OTP_CHANNEL=email) -----------------------------------
+
+CONFIG = "/api/auth/config/"
+
+
+@pytest.fixture
+def email_channel(settings):
+    settings.OTP_CHANNEL = "email"
+
+
+def test_config_reports_channel(api, settings):
+    assert api.get(CONFIG).data == {"otp_channel": "whatsapp"}
+    settings.OTP_CHANNEL = "email"
+    assert api.get(CONFIG).data == {"otp_channel": "email"}
+
+
+def _signup_email(api, email="student@example.com", **extra):
+    from apps.catalog.models import Vertical
+
+    stage, _ = Vertical.objects.get_or_create(
+        code=Vertical.Code.PRIMARY, defaults={"name_en": "Primary", "name_ar": "ابتدائي"}
+    )
+    body = {"phone": "01000000001", "full_name": "Test Student", "password": PWD,
+            "market": "EG", "locale": "en", "vertical": stage.id, **extra}
+    if email is not None:
+        body["email"] = email
+    return api.post(SIGNUP, body, format="json")
+
+
+def test_email_signup_sends_code_by_email(api, market, fixed_code, email_channel, mailoutbox):
+    res = _signup_email(api)
+    assert res.status_code == 201
+    assert res.data["otp_channel"] == "email"
+    assert res.data["destination"] == "s******@example.com"
+
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to == ["student@example.com"]
+    assert fixed_code in mailoutbox[0].body
+
+    res = api.post(VERIFY, {"phone": res.data["phone"], "code": fixed_code}, format="json")
+    assert res.status_code == 200 and res.data["user"]["is_verified"] is True
+
+
+def test_email_signup_requires_email(api, market, email_channel):
+    res = _signup_email(api, email=None)
+    assert res.status_code == 400
+    assert not User.objects.exists()
+
+
+def test_email_signup_duplicate_email(api, market, fixed_code, email_channel):
+    _signup_email(api)
+    res = _signup_email(api, email="STUDENT@example.com", phone="01000000002")
+    assert res.status_code == 400 and res.data["error"]["code"] == "email_taken"
+
+
+def test_email_delivery_failure_rolls_back_signup(api, market, email_channel, monkeypatch):
+    from apps.accounts import senders
+
+    def boom(*args, **kwargs):
+        raise OSError("SMTP down")
+
+    monkeypatch.setattr(senders, "send_mail", boom)
+    res = _signup_email(api)
+    assert res.status_code == 503 and res.data["error"]["code"] == "otp_delivery_failed"
+    assert not User.objects.exists() and not PhoneOTP.objects.exists()
+
+
+def test_email_reset_skips_accounts_without_email(api, market, email_channel, mailoutbox):
+    User.objects.create_user(phone="+201000000009", password=PWD, is_verified=True)
+    res = api.post(RESET, {"phone": "+201000000009"}, format="json")
+    assert res.status_code == 200  # generic response, nothing sent
+    assert mailoutbox == [] and not PhoneOTP.objects.exists()
+
+
+def test_email_password_reset_flow(api, market, fixed_code, email_channel, mailoutbox):
+    phone = _signup_email(api).data["phone"]
+    api.post(VERIFY, {"phone": phone, "code": fixed_code}, format="json")
+    mailoutbox.clear()
+
+    assert api.post(RESET, {"phone": phone}, format="json").status_code == 200
+    assert len(mailoutbox) == 1 and mailoutbox[0].to == ["student@example.com"]
+    res = api.post(
+        RESET_CONFIRM, {"phone": phone, "code": fixed_code, "new_password": "Even-Str0nger!"},
+        format="json",
+    )
+    assert res.status_code == 200

@@ -710,7 +710,16 @@
     "changeIntro": "For your security, choose a new password before continuing.",
     "currentPassword": "Current password",
     "changeSubmit": "Update password and continue",
-    "changeSuccess": "Password updated."
+    "changeSuccess": "Password updated.",
+    "email": "Email",
+    "requiredEmail": "Enter your email address",
+    "invalidEmail": "Enter a valid email address",
+    "emailHint": "We'll send your verification code to this email.",
+    "verifyAccountTitle": "Verify your account",
+    "codeSentToEmail": "We sent a 6-digit code to {email}. Check your spam folder if you don't see it.",
+    "codeSentToAccountEmail": "We sent a 6-digit code to the email address on your account. Check your spam folder if you don't see it.",
+    "forgotIntroEmail": "Enter your phone number and we'll send a reset code to the email address on your account.",
+    "verifiedSuccessEmail": "Account verified. Welcome!"
   },
   "apply": {
     "badge": "Teach on Wisal",
@@ -797,7 +806,13 @@
     "requiredName": "Enter your full name",
     "requiredPhone": "Enter your phone number",
     "requiredBio": "Tell us about yourself",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "emailRequiredLabel": "Email",
+    "requiredEmail": "Enter your email address",
+    "emailHintEmail": "We'll send your sign-in details to this email.",
+    "phoneHintEmail": "You'll sign in with this phone number.",
+    "step2Email": "Our team reviews it and emails your sign-in details.",
+    "successBodyEmail": "Thank you — our team will review your application and email you."
   },
   "teacherDashboard": {
     "welcome": "Welcome back, {name}",

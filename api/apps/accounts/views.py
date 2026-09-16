@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import StudentProfile
 from .permissions import IsStudent
+from .senders import otp_channel, uses_email
 from .serializers import (
     WisalTokenObtainPairSerializer,
     PasswordChangeSerializer,
@@ -21,6 +22,17 @@ from .serializers import (
     VerifyOtpSerializer,
     tokens_for_user,
 )
+from .utils import mask_email
+
+
+class AuthConfigView(APIView):
+    """Public auth settings the clients need, e.g. where OTP codes are delivered."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(responses={200: OpenApiResponse(description='{"otp_channel": "whatsapp" | "email"}')})
+    def get(self, request):
+        return Response({"otp_channel": otp_channel()})
 
 
 class SignupView(APIView):
@@ -34,7 +46,13 @@ class SignupView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(
-            {"message": "Verification code sent.", "phone": user.phone},
+            {
+                "message": "Verification code sent.",
+                "phone": user.phone,
+                "otp_channel": otp_channel(),
+                # Masked address the code went to, for the verify screen.
+                "destination": mask_email(user.email) if uses_email() else user.phone,
+            },
             status=status.HTTP_201_CREATED,
         )
 

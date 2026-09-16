@@ -5,7 +5,7 @@ import string
 from django.db import transaction
 
 from apps.accounts.models import User
-from apps.accounts.senders import get_account_sender
+from apps.accounts.senders import get_account_sender, uses_email
 
 from . import errors
 from .models import (
@@ -60,10 +60,12 @@ def _materialize_teaching_setup(application: TeacherApplication, profile: Teache
 def approve_application(application: TeacherApplication, reviewer: User) -> User:
     """Approve an application: create the teacher account and a draft profile
     populated with everything the applicant submitted (so the reviewed data
-    becomes their profile), and WhatsApp a temporary password to change on
-    first sign-in."""
+    becomes their profile), and send (WhatsApp or email, per OTP_CHANNEL) a
+    temporary password to change on first sign-in."""
     if application.status != TeacherApplication.Status.PENDING:
         raise errors.ApplicationNotPending()
+    if uses_email() and not application.email:
+        raise errors.ApplicationEmailMissing()
     if User.objects.filter(phone=application.phone).exists():
         raise errors.PhoneAlreadyUser()
 

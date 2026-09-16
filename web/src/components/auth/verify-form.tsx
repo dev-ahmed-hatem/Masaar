@@ -7,6 +7,7 @@ import { App, Button, Card, Input, Typography } from "antd";
 import { useAuth } from "@/context/auth-context";
 import { ApiError } from "@/lib/api";
 import { authApi, homePathForRole, storeSession } from "@/lib/auth";
+import { useOtpChannel } from "@/lib/auth-config";
 
 import { fmt, type AuthDict } from "./fmt";
 import { maskPhone, useCountdown } from "./use-countdown";
@@ -17,10 +18,13 @@ export default function VerifyForm({
   dict,
   locale,
   phone,
+  to,
 }: {
   dict: AuthDict;
   locale: string;
   phone: string;
+  /** Masked email the code was sent to (email channel, straight after signup). */
+  to?: string;
 }) {
   const { message } = App.useApp();
   const router = useRouter();
@@ -28,6 +32,7 @@ export default function VerifyForm({
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { left, reset } = useCountdown(60);
+  const emailOtp = useOtpChannel() === "email";
 
   async function submit(value: string) {
     if (loading) return;
@@ -36,7 +41,7 @@ export default function VerifyForm({
       const res = await authApi.verify(phone, value);
       storeSession(res);
       setUser(res.user);
-      message.success(dict.verifiedSuccess);
+      message.success(emailOtp ? dict.verifiedSuccessEmail : dict.verifiedSuccess);
       router.push(homePathForRole(locale, res.user.role));
     } catch (err) {
       setCode("");
@@ -63,9 +68,13 @@ export default function VerifyForm({
 
   return (
     <Card>
-      <Title level={3}>{dict.verifyTitle}</Title>
+      <Title level={3}>{emailOtp ? dict.verifyAccountTitle : dict.verifyTitle}</Title>
       <Paragraph type="secondary">
-        {fmt(dict.codeSentTo, { phone: maskPhone(phone) })}
+        {emailOtp
+          ? to
+            ? fmt(dict.codeSentToEmail, { email: to })
+            : dict.codeSentToAccountEmail
+          : fmt(dict.codeSentTo, { phone: maskPhone(phone) })}
       </Paragraph>
       <div className="my-4 flex justify-center">
         <Input.OTP length={6} value={code} onChange={onChange} disabled={loading} />

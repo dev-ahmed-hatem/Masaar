@@ -8,9 +8,15 @@ class PhoneAlreadyRegistered(APIException):
     default_code = "phone_taken"
 
 
+class EmailAlreadyRegistered(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "This email is already registered."
+    default_code = "email_taken"
+
+
 class PhoneNotVerified(APIException):
     status_code = status.HTTP_403_FORBIDDEN
-    default_detail = "Phone number is not verified yet."
+    default_detail = "Your account is not verified yet."
     default_code = "phone_not_verified"
 
 
@@ -36,3 +42,9 @@ class OTPCooldown(APIException):
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
     default_detail = "Please wait before requesting another code."
     default_code = "otp_cooldown"
+
+
+class OTPDeliveryFailed(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = "We couldn't send the verification code. Please try again shortly."
+    default_code = "otp_delivery_failed"

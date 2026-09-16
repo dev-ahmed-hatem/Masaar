@@ -21,6 +21,7 @@ import {
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { submitApplication } from "@/lib/applications";
+import { useOtpChannel } from "@/lib/auth-config";
 import {
   catalog,
   catalogName,
@@ -63,6 +64,7 @@ export default function BecomeTeacherForm({
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const emailOtp = useOtpChannel() === "email";
 
   const [market, setMarket] = useState("EG");
   const [categories, setCategories] = useState<LessonCategoryOption[]>([]);
@@ -186,7 +188,7 @@ export default function BecomeTeacherForm({
         <Result
           status="success"
           title={dict.successTitle}
-          subTitle={dict.successBody}
+          subTitle={emailOtp ? dict.successBodyEmail : dict.successBody}
           extra={
             <Link href={`/${locale}`} className="btn btn-primary">
               {dict.backHome}
@@ -215,7 +217,7 @@ export default function BecomeTeacherForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {[dict.step1, dict.step2, dict.step3].map((step, i) => (
+        {[dict.step1, emailOtp ? dict.step2Email : dict.step2, dict.step3].map((step, i) => (
           <div key={step} className="surface surface-hover flex items-start gap-3 p-5">
             <span
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
@@ -262,11 +264,16 @@ export default function BecomeTeacherForm({
                 name="phone"
                 label={dict.phone}
                 rules={[{ required: true, message: dict.requiredPhone }]}
-                extra={dict.phoneHint}
+                extra={emailOtp ? dict.phoneHintEmail : dict.phoneHint}
               >
                 <Input inputMode="tel" placeholder="01xxxxxxxxx" autoComplete="tel" />
               </Form.Item>
-              <Form.Item name="email" label={dict.email} rules={[{ type: "email" }]}>
+              <Form.Item
+                name="email"
+                label={emailOtp ? dict.emailRequiredLabel : dict.email}
+                extra={emailOtp ? dict.emailHintEmail : undefined}
+                rules={[{ type: "email" }, { required: emailOtp, message: dict.requiredEmail }]}
+              >
                 <Input inputMode="email" autoComplete="email" />
               </Form.Item>
               <Form.Item name="gender" label={dict.gender}>

@@ -7,6 +7,7 @@ import { App, Button, Card, Form, Input, Typography } from "antd";
 
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
+import { useOtpChannel } from "@/lib/auth-config";
 
 import { fmt, type AuthDict } from "./fmt";
 import { maskPhone, useCountdown } from "./use-countdown";
@@ -32,6 +33,7 @@ export default function ResetPasswordForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const { left, reset } = useCountdown(60);
+  const emailOtp = useOtpChannel() === "email";
 
   async function onFinish(values: Values) {
     setLoading(true);
@@ -60,7 +62,7 @@ export default function ResetPasswordForm({
     <Card>
       <Title level={3}>{dict.resetTitle}</Title>
       <Paragraph type="secondary">
-        {fmt(dict.codeSentTo, { phone: maskPhone(phone) })}
+        {emailOtp ? dict.codeSentToAccountEmail : fmt(dict.codeSentTo, { phone: maskPhone(phone) })}
       </Paragraph>
       <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
         <Form.Item

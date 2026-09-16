@@ -3,6 +3,7 @@ from datetime import datetime
 
 from rest_framework import serializers
 
+from apps.accounts.senders import uses_email
 from apps.accounts.utils import normalize_phone
 from apps.catalog.models import (
     LessonCategory,
@@ -424,6 +425,10 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
             phone=attrs["phone"], status__in=open_statuses
         ).exists():
             raise errors.DuplicateApplication()
+
+        # In email-OTP mode the approval (temp password) is emailed, so require it.
+        if uses_email() and not attrs.get("email"):
+            raise serializers.ValidationError({"email": "An email address is required."})
 
         # Teaching subjects must be live lesson categories in the chosen market.
         subjects = attrs.get("subjects") or []

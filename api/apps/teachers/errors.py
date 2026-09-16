@@ -20,6 +20,12 @@ class PhoneAlreadyUser(APIException):
     default_code = "phone_taken"
 
 
+class ApplicationEmailMissing(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "This application has no email, so the sign-in details can't be sent."
+    default_code = "application_email_missing"
+
+
 class ProfileIncomplete(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Complete your profile before publishing."

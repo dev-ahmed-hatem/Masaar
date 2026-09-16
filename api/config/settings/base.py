@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 # BASE_DIR points at the `api/` directory (settings is config/settings/base.py).
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -147,7 +148,14 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 
-# --- OTP (phone verification + password reset via WhatsApp) ---
+# --- OTP (account verification + password reset) ---
+# Delivery channel for one-time codes: "whatsapp" (default; uses OTP_SENDER) or
+# "email" (sends to the user's email over SMTP). Email is the interim channel
+# while the Meta business profile for WhatsApp Cloud API is pending verification.
+# In email mode, signup and teacher applications require an email address.
+OTP_CHANNEL = env("OTP_CHANNEL", default="whatsapp").strip().lower()
+if OTP_CHANNEL not in ("whatsapp", "email"):
+    raise ImproperlyConfigured("OTP_CHANNEL must be 'whatsapp' or 'email'.")
 OTP_LENGTH = env.int("OTP_LENGTH", default=6)
 OTP_TTL_SECONDS = env.int("OTP_TTL_SECONDS", default=300)
 OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
@@ -169,6 +177,15 @@ NOTIFICATION_PROVIDERS = {
     "EMAIL": env("NOTIFY_EMAIL_PROVIDER", default="apps.notifications.providers.EmailProvider"),
 }
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Wisal <no-reply@wisal.local>")
+
+# SMTP (used by the SMTP email backend). Defaults target Gmail: use a Google
+# account with 2-Step Verification and an App Password as EMAIL_HOST_PASSWORD.
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=15)
 
 # --- Google Calendar integration ---
 # Teachers/students connect their Google account so confirmed lessons are pushed

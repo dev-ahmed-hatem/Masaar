@@ -7,6 +7,7 @@ import { App, Button, Card, Form, Input, Typography } from "antd";
 
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
+import { useOtpChannel } from "@/lib/auth-config";
 import { MARKETS, marketLabel, type MarketCode } from "@/lib/markets";
 import { toE164 } from "@/lib/phone";
 
@@ -25,6 +26,7 @@ export default function ForgotPasswordForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [market, setMarket] = useState<MarketCode | null>(null);
+  const emailOtp = useOtpChannel() === "email";
 
   const selected = MARKETS.find((m) => m.code === market);
 
@@ -86,7 +88,7 @@ export default function ForgotPasswordForm({
   return (
     <Card>
       <Title level={3}>{dict.forgotTitle}</Title>
-      <Paragraph type="secondary">{dict.forgotIntro}</Paragraph>
+      <Paragraph type="secondary">{emailOtp ? dict.forgotIntroEmail : dict.forgotIntro}</Paragraph>
       <div
         className="mb-5 flex items-center justify-between rounded-xl px-3 py-2"
         style={{ background: "var(--brand-tint)" }}

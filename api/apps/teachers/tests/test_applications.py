@@ -326,3 +326,32 @@ def test_change_password_wrong_old_rejected(api, market):
         CHANGE_PW, {"old_password": "wrong", "new_password": "Brand-New-99!"}, format="json"
     )
     assert res.status_code == 400
+
+
+# --- Email OTP channel (OTP_CHANNEL=email) -----------------------------------
+
+def test_email_mode_requires_application_email(api, market, settings):
+    settings.OTP_CHANNEL = "email"
+    res = _submit(api, market, email="")
+    assert res.status_code == 400
+
+
+def test_email_mode_emails_temp_password(api, market, staff, settings, mailoutbox):
+    settings.OTP_CHANNEL = "email"
+    app_id = _submit(api, market).data["id"]
+    api.force_authenticate(user=staff)
+
+    res = api.post(f"{APPLICATIONS}{app_id}/approve/", format="json")
+    assert res.status_code == 200
+    assert len(mailoutbox) == 1 and mailoutbox[0].to == ["mona@example.com"]
+    assert "Temporary password" in mailoutbox[0].body
+
+
+def test_email_mode_approve_without_email_rejected(api, market, staff, settings):
+    app_id = _submit(api, market, email="").data["id"]  # submitted in WhatsApp mode
+    settings.OTP_CHANNEL = "email"
+    api.force_authenticate(user=staff)
+
+    res = api.post(f"{APPLICATIONS}{app_id}/approve/", format="json")
+    assert res.status_code == 400 and res.data["error"]["code"] == "application_email_missing"
+    assert not User.objects.filter(phone="+201000000010").exists()

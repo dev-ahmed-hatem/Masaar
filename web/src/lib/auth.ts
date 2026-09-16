@@ -23,6 +23,7 @@ export interface SignupInput {
   phone: string;
   full_name: string;
   password: string;
+  email?: string; // required when the API's OTP channel is "email"
   market: string;
   locale: string;
   vertical: number; // the student's current stage
@@ -30,7 +31,12 @@ export interface SignupInput {
 
 export const authApi = {
   signup: (body: SignupInput) =>
-    apiPost<{ message: string; phone: string }>("/api/auth/signup/", body),
+    apiPost<{
+      message: string;
+      phone: string;
+      otp_channel: "whatsapp" | "email";
+      destination: string; // where the code went (masked email, or the phone)
+    }>("/api/auth/signup/", body),
   verify: (phone: string, code: string) =>
     apiPost<TokenPair & { user: AuthUser }>("/api/auth/otp/verify/", { phone, code }),
   resend: (phone: string, purpose: "VERIFY" | "RESET") =>
