@@ -13,7 +13,7 @@ REVIEWS = "/api/reviews/"
 
 @pytest.fixture
 def setup():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "UTC"})[0]
     v = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي")
     g = GradeLevel.objects.create(vertical=v, name_en="Grade 4", name_ar="الصف 4")
     subj = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")

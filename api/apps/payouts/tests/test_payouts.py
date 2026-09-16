@@ -18,7 +18,7 @@ MY = "/api/my-payouts/"
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "UTC"})[0]
     primary = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ا")
     g4 = GradeLevel.objects.create(vertical=primary, name_en="Grade 4", name_ar="4")
     math = Subject.objects.create(name_en="Math", name_ar="ر")

@@ -10,7 +10,6 @@ import {
   Drawer,
   Empty,
   Input,
-  Select,
   Space,
   Table,
   Tag,
@@ -22,7 +21,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
-import { MARKETS, marketLabel } from "@/lib/markets";
+import CountrySelect from "@/components/ui/country-select";
 import {
   generateCycle,
   getCycle,
@@ -168,7 +167,7 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
   const filters = (
     <>
       <FilterField label={dict.market}>
-        <Select value={market} onChange={setMarket} style={{ width: 120 }} options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))} />
+        <CountrySelect locale={locale} value={market} onChange={setMarket} style={{ width: 240 }} />
       </FilterField>
       <FilterField label={dict.periodStart}>
         <DatePicker value={start} onChange={setStart} />

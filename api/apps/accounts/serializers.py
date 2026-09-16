@@ -62,7 +62,9 @@ class SignupSerializer(serializers.Serializer):
     # Required when OTP_CHANNEL=email (the code is sent there); optional otherwise.
     email = serializers.EmailField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
-    market = serializers.SlugRelatedField(slug_field="code", queryset=Market.objects.all())
+    market = serializers.SlugRelatedField(
+        slug_field="code", queryset=Market.objects.filter(is_active=True)
+    )
     locale = serializers.ChoiceField(choices=User.Locale.choices, default=User.Locale.AR)
     vertical = serializers.PrimaryKeyRelatedField(
         queryset=Vertical.objects.filter(is_active=True), required=True

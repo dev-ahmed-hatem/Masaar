@@ -642,11 +642,7 @@
     "confirmPassword": "Confirm password",
     "newPassword": "New password",
     "market": "Country",
-    "marketEG": "Egypt",
-    "marketSA": "Saudi Arabia",
-    "chooseCountryTitle": "Where are you based?",
-    "chooseCountrySubtitle": "This sets the currency for your lessons and the format of your phone number.",
-    "changeCountry": "Change",
+    "chooseCountrySubtitle": "Sets the currency for your lessons and the dial code of your phone number.",
     "continueBtn": "Continue",
     "invalidPhoneForCountry": "Enter a valid {country} mobile number",
     "language": "Language",
@@ -693,7 +689,8 @@
     "codeSentToEmail": "We sent a 6-digit code to {email}. Check your spam folder if you don't see it.",
     "codeSentToAccountEmail": "We sent a 6-digit code to the email address on your account. Check your spam folder if you don't see it.",
     "forgotIntroEmail": "Enter your phone number and we'll send a reset code to the email address on your account.",
-    "verifiedSuccessEmail": "Account verified. Welcome!"
+    "verifiedSuccessEmail": "Account verified. Welcome!",
+    "requiredCountry": "Choose your country"
   },
   "apply": {
     "badge": "Teach on Wisal",
@@ -707,8 +704,6 @@
     "teachingSection": "Stages you teach",
     "teachingHint": "Add each stage (and branch or faculty) you teach. The price, free trial lessons and weekly hours you set apply to every subject in that stage. Moderators review everything before your profile goes live.",
     "market": "Country",
-    "marketEG": "Egypt",
-    "marketSA": "Saudi Arabia",
     "fullName": "Full name",
     "phone": "Phone number",
     "phoneHint": "We'll contact you on WhatsApp at this number.",

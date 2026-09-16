@@ -11,7 +11,7 @@ ME_PROFILE = "/api/auth/me/profile/"
 
 @pytest.fixture
 def student():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "UTC"})[0]
     return User.objects.create_user(
         phone="+201000000400", role=User.Role.STUDENT, market=eg,
         is_verified=True, full_name="Old Name", locale="ar",

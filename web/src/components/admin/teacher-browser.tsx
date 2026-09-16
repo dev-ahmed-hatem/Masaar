@@ -19,8 +19,8 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { MARKETS, marketLabel } from "@/lib/markets";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
+import CountrySelect from "@/components/ui/country-select";
 import {
   getTeacher,
   listSubjects,
@@ -153,12 +153,7 @@ export default function TeacherBrowser({
   const filters = (
     <>
       <FilterField label={dict.market}>
-        <Select
-          value={market}
-          onChange={setMarket}
-          style={{ width: 160 }}
-          options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))}
-        />
+        <CountrySelect locale={locale} value={market} onChange={setMarket} style={{ width: 240 }} />
       </FilterField>
       <FilterField label={dict.subject}>
         <Select

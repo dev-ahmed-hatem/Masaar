@@ -20,8 +20,10 @@ import { ApiError } from "@/lib/api";
 import { submitApplication } from "@/lib/applications";
 import { useOtpChannel } from "@/lib/auth-config";
 import { LANGUAGE_OPTIONS } from "@/lib/languages";
+import { findMarket, guessMarket, rememberMarket } from "@/lib/markets";
 import { toStageCardInput, type StageCard } from "@/lib/stage-cards";
 import StageCardsEditor from "@/components/teaching/stage-cards-editor";
+import CountrySelect, { CountryFlag } from "@/components/ui/country-select";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -43,11 +45,16 @@ export default function BecomeTeacherForm({
   const [done, setDone] = useState(false);
   const emailOtp = useOtpChannel() === "email";
 
-  const [market, setMarket] = useState("EG");
+  // The chosen country (form field); preselected from the last choice / device timezone.
+  const market: string = Form.useWatch("market", form) ?? "EG";
   const [photo, setPhoto] = useState<File | null>(null);
   // Draft stage cards (validated again server-side on submit).
   const [stages, setStages] = useState<StageCard[]>([]);
   const [stagesError, setStagesError] = useState(false);
+
+  useEffect(() => {
+    form.setFieldValue("market", guessMarket());
+  }, [form]);
 
   const photoPreview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
   useEffect(
@@ -153,7 +160,7 @@ export default function BecomeTeacherForm({
         onValuesChange={(changed: { market?: string }) => {
           // Prices and minimums are per market: a country switch clears the stages.
           if (changed.market) {
-            setMarket(changed.market);
+            rememberMarket(changed.market);
             setStages([]);
           }
         }}
@@ -162,12 +169,7 @@ export default function BecomeTeacherForm({
           <Card title={dict.basicsSection}>
             <div className="grid gap-x-4 sm:grid-cols-2">
               <Form.Item name="market" label={dict.market} rules={[{ required: true }]}>
-                <Select
-                  options={[
-                    { value: "EG", label: dict.marketEG },
-                    { value: "SA", label: dict.marketSA },
-                  ]}
-                />
+                <CountrySelect locale={locale} showDial />
               </Form.Item>
               <Form.Item
                 name="full_name"
@@ -182,7 +184,21 @@ export default function BecomeTeacherForm({
                 rules={[{ required: true, message: dict.requiredPhone }]}
                 extra={emailOtp ? dict.phoneHintEmail : dict.phoneHint}
               >
-                <Input inputMode="tel" placeholder="01xxxxxxxxx" autoComplete="tel" />
+                <Input
+                  dir="ltr"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  prefix={
+                    <span
+                      dir="ltr"
+                      className="me-1 inline-flex items-center gap-1.5 pe-2 tabular-nums"
+                      style={{ borderInlineEnd: "1px solid var(--border)", color: "var(--ink-muted)" }}
+                    >
+                      <CountryFlag code={market} size={14} />
+                      {findMarket(market)?.dial}
+                    </span>
+                  }
+                />
               </Form.Item>
               <Form.Item
                 name="email"

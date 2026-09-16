@@ -22,8 +22,8 @@ def _image(name="r.png", content_type="image/png"):
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
-    sa = Market.objects.create(code="SA", name="Saudi Arabia", currency="SAR", timezone="Asia/Riyadh")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "Africa/Cairo"})[0]
+    sa = Market.objects.update_or_create(code="SA", defaults={"name": "Saudi Arabia", "currency": "SAR", "timezone": "Asia/Riyadh"})[0]
     eg_bank = PaymentAccount.objects.create(
         market=eg, kind=PaymentAccount.Kind.BANK, display_name="Wisal EG Bank",
         details="IBAN EG...", sort_order=0,

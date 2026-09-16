@@ -18,10 +18,10 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { bookingActions, listBookings, type Booking, type BookingStatus } from "@/lib/bookings";
-import { findMarket, marketLabel } from "@/lib/markets";
 
 import { StatusTag, formatWhen, subjectLabel } from "@/components/bookings/shared";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
+import { CountryName } from "@/components/ui/country-select";
 
 type Dict = Dictionary["bookings"];
 
@@ -29,11 +29,9 @@ const { Text } = Typography;
 
 function CountryTag({ code, locale }: { code: string; locale: Locale }) {
   if (!code) return <>—</>;
-  const m = findMarket(code);
   return (
     <span className="whitespace-nowrap">
-      {m ? `${m.flag} ` : ""}
-      {marketLabel(code, locale)}
+      <CountryName code={code} locale={locale} />
     </span>
   );
 }

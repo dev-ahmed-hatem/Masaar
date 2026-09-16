@@ -12,8 +12,8 @@ STUDENT_LIST = "/api/payment-accounts/"
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
-    sa = Market.objects.create(code="SA", name="Saudi Arabia", currency="SAR", timezone="Asia/Riyadh")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "Africa/Cairo"})[0]
+    sa = Market.objects.update_or_create(code="SA", defaults={"name": "Saudi Arabia", "currency": "SAR", "timezone": "Asia/Riyadh"})[0]
     staff = User.objects.create_user(phone="+201000000700", role=User.Role.MODERATOR, is_verified=True)
     student = User.objects.create_user(
         phone="+201000000701", role=User.Role.STUDENT, market=eg, is_verified=True

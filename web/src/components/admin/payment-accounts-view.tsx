@@ -20,7 +20,7 @@ import { Plus } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { MARKETS, marketLabel } from "@/lib/markets";
+import CountrySelect from "@/components/ui/country-select";
 import {
   paymentAccountsApi,
   type PaymentAccountAdmin,
@@ -133,14 +133,14 @@ export default function PaymentAccountsView({ dict, locale }: { dict: Dict; loca
 
   const toolbar = (
     <div className="flex w-full flex-wrap items-center justify-between gap-3">
-      <Select
+      <CountrySelect
+        locale={locale}
         value={market}
         onChange={(v) => {
           setRows(null);
           setMarket(v);
         }}
-        options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))}
-        style={{ width: 160 }}
+        style={{ width: 240 }}
         aria-label={dict.market}
       />
       <Button type="primary" icon={<Plus size={15} />} onClick={() => setEditing("new")}>
@@ -257,7 +257,7 @@ function AccountModal({
       >
         <div className="grid gap-x-3 sm:grid-cols-2">
           <Form.Item name="market" label={dict.market} rules={[{ required: true }]}>
-            <Select options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))} />
+            <CountrySelect locale={locale} />
           </Form.Item>
           <Form.Item name="kind" label={dict.colKind} rules={[{ required: true }]}>
             <Select

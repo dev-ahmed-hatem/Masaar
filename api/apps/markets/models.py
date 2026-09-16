@@ -2,15 +2,19 @@ from django.db import models
 
 from apps.common.models import TimeStampedModel
 
+from .countries import COUNTRY_CHOICES
+
 
 class Market(TimeStampedModel):
-    """A country market — Egypt or Saudi Arabia — with its own currency & timezone."""
+    """A country market (any Arab League country, see `countries.py`) with its
+    own currency & timezone. Inactive markets are hidden from sign-up and pickers."""
 
     class Code(models.TextChoices):
+        # Shortcuts for the original launch markets (used by the seed/tests).
         EG = "EG", "Egypt"
         SA = "SA", "Saudi Arabia"
 
-    code = models.CharField(max_length=2, choices=Code.choices, unique=True)
+    code = models.CharField(max_length=2, choices=COUNTRY_CHOICES, unique=True)
     name = models.CharField(max_length=100)
     currency = models.CharField(max_length=3, help_text="ISO 4217, e.g. EGP / SAR")
     timezone = models.CharField(max_length=64, default="UTC")

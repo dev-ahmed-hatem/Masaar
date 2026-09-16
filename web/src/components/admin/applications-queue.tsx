@@ -21,9 +21,9 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { languageName } from "@/lib/languages";
-import { marketLabel } from "@/lib/markets";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 import StageCardSummary from "@/components/teaching/stage-card-summary";
+import { CountryName } from "@/components/ui/country-select";
 import {
   approveApplication,
   listApplications,
@@ -206,7 +206,7 @@ export default function ApplicationsQueue({
   const columns: ColumnsType<TeacherApplication> = [
     { title: dict.colName, dataIndex: "full_name", key: "name" },
     { title: dict.colPhone, dataIndex: "phone", key: "phone" },
-    { title: dict.colMarket, key: "market", render: (_, a) => marketLabel(a.market, locale) },
+    { title: dict.colMarket, key: "market", render: (_, a) => <CountryName code={a.market} locale={locale} /> },
     {
       title: dict.colStatus,
       key: "status",
@@ -297,7 +297,7 @@ export default function ApplicationsQueue({
                 label={dict.email}
                 value={selected.email ? <span dir="ltr">{selected.email}</span> : <Missing dict={dict} />}
               />
-              <DetailRow label={dict.market} value={marketLabel(selected.market, locale)} />
+              <DetailRow label={dict.market} value={<CountryName code={selected.market} locale={locale} />} />
               <DetailRow
                 label={dict.gender}
                 value={

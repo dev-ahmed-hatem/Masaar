@@ -19,7 +19,8 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import { MARKETS, marketLabel } from "@/lib/markets";
+import { findMarket } from "@/lib/markets";
+import CountrySelect from "@/components/ui/country-select";
 import { PageHeader } from "@/components/ui";
 import {
   pricingApi,
@@ -153,12 +154,7 @@ function StageRulesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Select
-          value={market}
-          onChange={setMarket}
-          options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))}
-          style={{ width: 120 }}
-        />
+        <CountrySelect locale={locale} value={market} onChange={setMarket} style={{ width: 240 }} />
         <Button type="primary" onClick={() => setCreating(true)}>
           {dict.newRule}
         </Button>
@@ -246,7 +242,7 @@ function NewStageRuleModal({
         </Form.Item>
         <div className="grid grid-cols-2 gap-x-4">
           <Form.Item name="min_price" label={dict.colMinPrice} rules={[{ required: true }]}>
-            <InputNumber min={0} step={0.5} style={{ width: "100%" }} addonAfter={market === "SA" ? "SAR" : "EGP"} />
+            <InputNumber min={0} step={0.5} style={{ width: "100%" }} addonAfter={findMarket(market)?.currency} />
           </Form.Item>
           <Form.Item name="commission_pct" label={dict.colCommission} rules={[{ required: true }]}>
             <InputNumber min={0} max={100} step={1} style={{ width: "100%" }} addonAfter="%" />
@@ -308,12 +304,7 @@ function CategoriesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Select
-          value={market}
-          onChange={setMarket}
-          options={MARKETS.map((m) => ({ value: m.code, label: marketLabel(m.code, locale) }))}
-          style={{ width: 120 }}
-        />
+        <CountrySelect locale={locale} value={market} onChange={setMarket} style={{ width: 240 }} />
         <Button type="primary" onClick={() => setCreating(true)}>
           {dict.newCategory}
         </Button>

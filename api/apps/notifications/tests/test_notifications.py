@@ -46,7 +46,7 @@ def test_email_channel_sends(mailoutbox):
 
 
 def test_receipt_approval_notifies_student(db):
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "UTC"})[0]
     student = User.objects.create_user(phone="+201000000702", role=User.Role.STUDENT, market=eg)
     staff = User.objects.create_user(phone="+201000000703", role=User.Role.MODERATOR)
     receipt = Receipt.objects.create(

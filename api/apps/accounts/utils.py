@@ -1,7 +1,6 @@
 import re
 
-# Default country dialing codes per market code.
-MARKET_DIAL_CODES = {"EG": "20", "SA": "966"}
+from apps.markets.countries import DIAL_CODES as MARKET_DIAL_CODES
 
 
 def normalize_phone(phone: str, market_code: str | None = None) -> str:

@@ -12,8 +12,8 @@ PUBLIC = "/api/catalog/stage-pricing/"
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
-    sa = Market.objects.create(code="SA", name="Saudi Arabia", currency="SAR", timezone="UTC")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "UTC"})[0]
+    sa = Market.objects.update_or_create(code="SA", defaults={"name": "Saudi Arabia", "currency": "SAR", "timezone": "UTC"})[0]
     primary = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي")
     secondary = Vertical.objects.create(code=Vertical.Code.SECONDARY, name_en="Secondary", name_ar="ثانوي")
     staff = User.objects.create_user(phone="+201000000901", role=User.Role.MODERATOR, is_verified=True)

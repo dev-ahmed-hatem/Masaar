@@ -21,7 +21,7 @@ DISCOVERY = "/api/teachers/"
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "Africa/Cairo"})[0]
     primary = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي")
     secondary = Vertical.objects.create(
         code=Vertical.Code.SECONDARY, name_en="Secondary", name_ar="ثانوي",

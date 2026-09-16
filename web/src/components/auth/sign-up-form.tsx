@@ -9,14 +9,15 @@ import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
 import { useOtpChannel } from "@/lib/auth-config";
 import { catalog, catalogName, type Stage } from "@/lib/catalog";
-import { MARKETS, MARKET_PHONE_RE, marketLabel, type MarketCode } from "@/lib/markets";
 import { toE164 } from "@/lib/phone";
 
-import { fmt, type AuthDict } from "./fmt";
+import CountryPhoneFields from "./country-phone-fields";
+import type { AuthDict } from "./fmt";
 
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 
 interface Values {
+  market: string;
   full_name: string;
   phone: string;
   email?: string;
@@ -30,7 +31,7 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
   const { message } = App.useApp();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [market, setMarket] = useState<MarketCode | null>(null);
+  const [form] = Form.useForm<Values>();
   const [stages, setStages] = useState<Stage[]>([]);
   const otpChannel = useOtpChannel();
   const emailOtp = otpChannel === "email";
@@ -39,17 +40,14 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
     catalog.listStages().then(setStages).catch(() => setStages([]));
   }, []);
 
-  const selected = MARKETS.find((m) => m.code === market);
-
   async function onFinish(values: Values) {
-    if (!market) return;
     setLoading(true);
     try {
       const res = await authApi.signup({
         full_name: values.full_name,
-        phone: toE164(values.phone, market),
+        phone: toE164(values.phone, values.market),
         ...(emailOtp ? { email: values.email } : {}),
-        market,
+        market: values.market,
         locale: values.locale,
         vertical: values.vertical,
         password: values.password,
@@ -64,72 +62,13 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
     }
   }
 
-  // ---- Step 1: choose country ----
-  if (!selected) {
-    return (
-      <Card>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          {dict.chooseCountryTitle}
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 20 }}>
-          {dict.chooseCountrySubtitle}
-        </Paragraph>
-        <div className="flex flex-col gap-3">
-          {MARKETS.map((m) => (
-            <button
-              key={m.code}
-              type="button"
-              onClick={() => setMarket(m.code)}
-              className="flex items-center gap-4 rounded-2xl p-4 text-start transition-colors"
-              style={{ border: "1px solid var(--border-strong)", background: "var(--surface)" }}
-            >
-              <span className="text-3xl leading-none">{m.flag}</span>
-              <span className="flex flex-col">
-                <span className="text-base font-semibold" style={{ color: "var(--ink)" }}>
-                  {marketLabel(m.code, locale)}
-                </span>
-                <span className="text-sm" style={{ color: "var(--ink-muted)" }} dir="ltr">
-                  {m.dial}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="mt-5 text-center text-sm">
-          {dict.haveAccount} <Link href={`/${locale}/sign-in`}>{dict.signIn}</Link>
-        </div>
-      </Card>
-    );
-  }
-
-  // ---- Step 2: account details ----
-  const countryName = marketLabel(selected.code, locale);
   return (
     <Card>
-      <Title level={3} style={{ marginBottom: 12 }}>
+      <Title level={3} style={{ marginBottom: 16 }}>
         {dict.signUpTitle}
       </Title>
-      <div
-        className="mb-5 flex items-center justify-between rounded-xl px-3 py-2"
-        style={{ background: "var(--brand-tint)" }}
-      >
-        <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--ink)" }}>
-          <span className="text-lg leading-none">{selected.flag}</span>
-          {countryName}
-          <span dir="ltr" style={{ color: "var(--ink-muted)" }}>
-            {selected.dial}
-          </span>
-        </span>
-        <button
-          type="button"
-          onClick={() => setMarket(null)}
-          className="text-sm font-semibold"
-          style={{ color: "var(--brand)" }}
-        >
-          {dict.changeCountry}
-        </button>
-      </div>
       <Form
+        form={form}
         layout="vertical"
         onFinish={onFinish}
         requiredMark={false}
@@ -142,22 +81,13 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
         >
           <Input autoComplete="name" />
         </Form.Item>
-        <Form.Item
-          name="phone"
-          label={dict.phone}
-          rules={[
-            { required: true, message: dict.requiredPhone },
-            {
-              validator(_, value) {
-                if (!value || MARKET_PHONE_RE[selected.code].test(String(value).replace(/[\s\-()]/g, "")))
-                  return Promise.resolve();
-                return Promise.reject(new Error(fmt(dict.invalidPhoneForCountry, { country: countryName })));
-              },
-            },
-          ]}
-        >
-          <Input addonBefore={<span dir="ltr">{selected.dial}</span>} inputMode="tel" autoComplete="tel" />
-        </Form.Item>
+        <CountryPhoneFields
+          dict={dict}
+          locale={locale}
+          form={form}
+          validateMobile
+          countryHint={dict.chooseCountrySubtitle}
+        />
         {emailOtp && (
           <Form.Item
             name="email"

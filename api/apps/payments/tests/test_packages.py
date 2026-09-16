@@ -25,8 +25,8 @@ def _media(settings, tmp_path):
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
-    sa = Market.objects.create(code="SA", name="Saudi Arabia", currency="SAR", timezone="Asia/Riyadh")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "Africa/Cairo"})[0]
+    sa = Market.objects.update_or_create(code="SA", defaults={"name": "Saudi Arabia", "currency": "SAR", "timezone": "Asia/Riyadh"})[0]
     eg_pkg = Package.objects.create(
         market=eg, name="Value 10", credits=10, price_minor=60000, currency="EGP"
     )

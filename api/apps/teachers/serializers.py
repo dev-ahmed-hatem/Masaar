@@ -176,7 +176,9 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
     JSON-encoded strings and are decoded in ``to_internal_value``.
     """
 
-    market = serializers.SlugRelatedField(slug_field="code", queryset=Market.objects.all())
+    market = serializers.SlugRelatedField(
+        slug_field="code", queryset=Market.objects.filter(is_active=True)
+    )
     specialties = serializers.JSONField(required=False, default=list)
     education = serializers.JSONField(required=False, default=list)
     work_experience = serializers.JSONField(required=False, default=list)

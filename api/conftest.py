@@ -30,7 +30,7 @@ def api():
 def market(db):
     from apps.markets.models import Market
 
-    return Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
+    return Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "Africa/Cairo"})[0]
 
 
 @pytest.fixture

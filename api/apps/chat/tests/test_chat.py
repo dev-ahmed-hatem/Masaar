@@ -14,8 +14,8 @@ UNREAD = "/api/chat/unread-count/"
 
 @pytest.fixture
 def world():
-    eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
-    sa = Market.objects.create(code="SA", name="Saudi", currency="SAR", timezone="UTC")
+    eg = Market.objects.update_or_create(code="EG", defaults={"name": "Egypt", "currency": "EGP", "timezone": "UTC"})[0]
+    sa = Market.objects.update_or_create(code="SA", defaults={"name": "Saudi", "currency": "SAR", "timezone": "UTC"})[0]
     tuser = User.objects.create_user(
         phone="+201000000600", full_name="Chat Teacher", role=User.Role.TEACHER, market=eg, is_verified=True
     )
