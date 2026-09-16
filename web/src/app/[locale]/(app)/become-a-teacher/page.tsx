@@ -19,5 +19,5 @@ export default async function BecomeATeacherPage({
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
   const d = await getDictionary(locale);
-  return <BecomeTeacherForm dict={d.apply} locale={locale} />;
+  return <BecomeTeacherForm dict={d.apply} cards={d.stageCards} locale={locale} />;
 }

@@ -20,8 +20,10 @@ import type { ColumnsType } from "antd/es/table";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { languageName } from "@/lib/languages";
 import { marketLabel } from "@/lib/markets";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
+import StageCardSummary from "@/components/teaching/stage-card-summary";
 import {
   approveApplication,
   listApplications,
@@ -31,46 +33,77 @@ import {
 } from "@/lib/applications";
 
 type Dict = Dictionary["adminApplications"];
+type CardsDict = Dictionary["stageCards"];
 
 const { Paragraph, Text } = Typography;
 
-function TextBlock({ label, children }: { label: string; children: React.ReactNode }) {
+/** Placeholder for anything the applicant left empty, so gaps are explicit. */
+function Missing({ dict }: { dict: Dict }) {
+  return <Text type="secondary" italic>{dict.notProvided}</Text>;
+}
+
+function DrawerSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <Text strong>{label}</Text>
-      <Paragraph style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>{children}</Paragraph>
+    <div className="flex flex-col gap-2">
+      <div
+        className="text-xs font-semibold uppercase tracking-wide"
+        style={{ color: "var(--ink-faint)", borderBottom: "1px solid var(--border)", paddingBottom: 4 }}
+      >
+        {title}
+      </div>
+      {children}
     </div>
   );
 }
 
-function ChipBlock({ label, items }: { label: string; items: string[] }) {
-  if (!items || items.length === 0) return null;
+function TextBlock({ dict, label, children }: { dict: Dict; label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Text strong>{label}</Text>
+      <Paragraph style={{ marginTop: 4, marginBottom: 0, whiteSpace: "pre-wrap" }}>
+        {children || <Missing dict={dict} />}
+      </Paragraph>
+    </div>
+  );
+}
+
+function ChipBlock({ dict, label, items }: { dict: Dict; label: string; items: string[] }) {
   return (
     <div>
       <Text strong>{label}</Text>
       <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {items.map((item, i) => (
-          <Tag key={i} style={{ marginInlineEnd: 0 }}>
-            {item}
-          </Tag>
-        ))}
+        {items && items.length > 0 ? (
+          items.map((item, i) => (
+            <Tag key={i} style={{ marginInlineEnd: 0 }}>
+              {item}
+            </Tag>
+          ))
+        ) : (
+          <Missing dict={dict} />
+        )}
       </div>
     </div>
   );
 }
 
 function ResumeBlock({
+  dict,
   label,
   rows,
 }: {
+  dict: Dict;
   label: string;
   rows: { head: string; sub: string; body: string }[];
 }) {
   const filled = rows.filter((r) => r.head || r.sub || r.body);
-  if (filled.length === 0) return null;
   return (
     <div>
       <Text strong>{label}</Text>
+      {filled.length === 0 && (
+        <div style={{ marginTop: 4 }}>
+          <Missing dict={dict} />
+        </div>
+      )}
       <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
         {filled.map((r, i) => (
           <div key={i} style={{ borderInlineStart: "2px solid var(--border)", paddingInlineStart: 10 }}>
@@ -98,7 +131,15 @@ const STATUSES: ApplicationStatus[] = [
   "REJECTED",
 ];
 
-export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale: Locale }) {
+export default function ApplicationsQueue({
+  dict,
+  cards,
+  locale,
+}: {
+  dict: Dict;
+  cards: CardsDict;
+  locale: Locale;
+}) {
   const { message } = App.useApp();
   const statusLabel = useCallback(
     (s: ApplicationStatus) => dict[`status${s}` as keyof Dict] as string,
@@ -225,88 +266,131 @@ export default function ApplicationsQueue({ dict, locale }: { dict: Dict; locale
       <Drawer
         open={selected !== null}
         onClose={() => setSelected(null)}
-        width={460}
+        width={560}
         title={selected?.full_name ?? ""}
         placement={locale === "ar" ? "left" : "right"}
       >
         {selected && (
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-            <Tag color={STATUS_COLORS[selected.status]}>{statusLabel(selected.status)}</Tag>
+            <Tag color={STATUS_COLORS[selected.status]} className="w-fit">
+              {statusLabel(selected.status)}
+            </Tag>
 
-            {selected.photo && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={selected.photo}
-                alt={selected.full_name}
-                style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover" }}
+            <DrawerSection title={dict.sectionBasics}>
+              <div className="flex items-center gap-3">
+                {selected.photo ? (
+                  <a href={selected.photo} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selected.photo}
+                      alt={selected.full_name}
+                      style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover" }}
+                    />
+                  </a>
+                ) : (
+                  <DetailRow label={dict.photo} value={<Missing dict={dict} />} />
+                )}
+              </div>
+              <DetailRow label={dict.fullName} value={selected.full_name || <Missing dict={dict} />} />
+              <DetailRow label={dict.phone} value={<span dir="ltr">{selected.phone}</span>} />
+              <DetailRow
+                label={dict.email}
+                value={selected.email ? <span dir="ltr">{selected.email}</span> : <Missing dict={dict} />}
               />
-            )}
-
-            <DetailRow label={dict.colPhone} value={selected.phone} />
-            <DetailRow label={dict.email} value={selected.email || "—"} />
-            <DetailRow label={dict.colMarket} value={marketLabel(selected.market, locale)} />
-            {selected.gender && (
+              <DetailRow label={dict.market} value={marketLabel(selected.market, locale)} />
               <DetailRow
                 label={dict.gender}
-                value={selected.gender === "MALE" ? dict.male : dict.female}
+                value={
+                  selected.gender ? (selected.gender === "MALE" ? dict.male : dict.female) : <Missing dict={dict} />
+                }
               />
-            )}
-            {selected.languages && (
-              <DetailRow label={dict.languages} value={selected.languages} />
-            )}
-            <DetailRow label={dict.freeLessons} value={String(selected.free_lessons_offered)} />
+              <DetailRow
+                label={dict.languages}
+                value={
+                  selected.languages.length > 0
+                    ? selected.languages.map((code) => languageName(code, locale)).join(locale === "ar" ? "، " : ", ")
+                    : <Missing dict={dict} />
+                }
+              />
+              <DetailRow
+                label={dict.submitted}
+                value={new Date(selected.created_at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}
+              />
+            </DrawerSection>
 
-            {selected.bio && (
-              <TextBlock label={dict.bioEn}>{selected.bio}</TextBlock>
-            )}
-            {selected.bio_ar && (
-              <TextBlock label={dict.bioAr}>
-                <span dir="rtl">{selected.bio_ar}</span>
+            <DrawerSection title={dict.sectionAbout}>
+              <TextBlock dict={dict} label={dict.bioEn}>{selected.bio}</TextBlock>
+              <TextBlock dict={dict} label={dict.bioAr}>
+                {selected.bio_ar ? <span dir="rtl">{selected.bio_ar}</span> : null}
               </TextBlock>
-            )}
+              <DetailRow
+                label={dict.introVideo}
+                value={
+                  selected.intro_video_url ? (
+                    <a href={selected.intro_video_url} target="_blank" rel="noreferrer" dir="ltr">
+                      {selected.intro_video_url} ↗
+                    </a>
+                  ) : (
+                    <Missing dict={dict} />
+                  )
+                }
+              />
+              <DetailRow
+                label={dict.document}
+                value={
+                  selected.document ? (
+                    <a href={selected.document} target="_blank" rel="noreferrer">
+                      {dict.document} ↗
+                    </a>
+                  ) : (
+                    <Missing dict={dict} />
+                  )
+                }
+              />
+              <ChipBlock dict={dict} label={dict.specialties} items={selected.specialties} />
+            </DrawerSection>
 
-            {selected.intro_video_url && (
-              <a href={selected.intro_video_url} target="_blank" rel="noreferrer">
-                {dict.introVideo} ↗
-              </a>
-            )}
+            <DrawerSection title={dict.sectionTeaching}>
+              {selected.stages_display.length === 0 ? (
+                <Text type="secondary">{dict.noStages}</Text>
+              ) : (
+                selected.stages_display.map((card, i) =>
+                  card.stage ? (
+                    <StageCardSummary key={i} card={{ ...card, id: i }} dict={cards} locale={locale} />
+                  ) : null,
+                )
+              )}
+            </DrawerSection>
 
-            {selected.document && (
-              <a href={selected.document} target="_blank" rel="noreferrer">
-                {dict.document} ↗
-              </a>
-            )}
-
-            <ChipBlock label={dict.specialties} items={selected.specialties} />
-            <ChipBlock label={dict.subjects} items={selected.subjects_display} />
-            <ChipBlock label={dict.specializations} items={selected.specializations_display} />
-            <ChipBlock label={dict.stagePrices} items={selected.stage_prices_display} />
-            <ChipBlock label={dict.availability} items={selected.availability_display} />
-
-            <ResumeBlock
-              label={dict.education}
-              rows={selected.education.map((e) => ({
-                head: [e.degree, e.institution].filter(Boolean).join(" — "),
-                sub: [e.start_year, e.end_year].filter(Boolean).join("–"),
-                body: e.description,
-              }))}
-            />
-            <ResumeBlock
-              label={dict.experience}
-              rows={selected.work_experience.map((e) => ({
-                head: [e.title, e.organization].filter(Boolean).join(" — "),
-                sub: [e.start_year, e.end_year].filter(Boolean).join("–"),
-                body: e.description,
-              }))}
-            />
-            <ResumeBlock
-              label={dict.certifications}
-              rows={selected.certifications.map((c) => ({
-                head: [c.name, c.issuer].filter(Boolean).join(" — "),
-                sub: c.year,
-                body: c.description,
-              }))}
-            />
+            <DrawerSection title={dict.sectionResume}>
+              <ResumeBlock
+                dict={dict}
+                label={dict.education}
+                rows={selected.education.map((e) => ({
+                  head: [e.degree, e.institution].filter(Boolean).join(" — "),
+                  sub: [e.start_year, e.end_year].filter(Boolean).join("–"),
+                  body: e.description,
+                }))}
+              />
+              <ResumeBlock
+                dict={dict}
+                label={dict.experience}
+                rows={selected.work_experience.map((e) => ({
+                  head: [e.title, e.organization].filter(Boolean).join(" — "),
+                  sub: [e.start_year, e.end_year].filter(Boolean).join("–"),
+                  body: e.description,
+                }))}
+              />
+              <ResumeBlock
+                dict={dict}
+                label={dict.certifications}
+                rows={selected.certifications.map((c) => ({
+                  head: [c.name, c.issuer].filter(Boolean).join(" — "),
+                  sub: c.year,
+                  body: c.description,
+                }))}
+              />
+            </DrawerSection>
 
             {selected.reviewed_by && (
               <DetailRow label={dict.reviewedBy} value={selected.reviewed_by} />

@@ -16,7 +16,7 @@ export default async function AdminTeachersPage({
 
   return (
     <RouteGuard locale={locale} allow={["MODERATOR", "SUPERADMIN"]}>
-      <TeacherBrowser dict={d.adminTeachers} locale={locale} />
+      <TeacherBrowser dict={d.adminTeachers} cards={d.stageCards} locale={locale} />
     </RouteGuard>
   );
 }

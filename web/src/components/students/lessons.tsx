@@ -183,14 +183,15 @@ function RescheduleModal({
 
   useEffect(() => {
     let active = true;
-    listSlots(booking.teacher_id)
+    // Offer the hours of the stage the lesson was booked in.
+    listSlots(booking.teacher_id, 14, booking.teacher_stage)
       .then((s) => active && setSlots(s))
       .catch(() => active && setSlots([]))
       .finally(() => active && setLoadingSlots(false));
     return () => {
       active = false;
     };
-  }, [booking.teacher_id]);
+  }, [booking.teacher_id, booking.teacher_stage]);
 
   async function submit() {
     if (!start) return;

@@ -8,8 +8,7 @@ class TeacherApplication(TimeStampedModel):
 
     Collects the applicant's full profile up-front so moderators review
     everything before it goes live; on approval the data is materialized into
-    the created ``TeacherProfile`` (and its subject/specialization/availability
-    rows). ``bio`` holds the English bio; ``bio_ar`` the Arabic one.
+    the created ``TeacherProfile`` (and its stage cards). ``bio`` holds the English bio; ``bio_ar`` the Arabic one.
     """
 
     class Status(models.TextChoices):
@@ -39,21 +38,14 @@ class TeacherApplication(TimeStampedModel):
     )
     bio_ar = models.TextField(blank=True)
     photo = models.ImageField(upload_to="teacher_photos/", null=True, blank=True)
-    free_lessons_offered = models.PositiveSmallIntegerField(default=0)
     specialties = models.JSONField(default=list, blank=True)
     education = models.JSONField(default=list, blank=True)
     work_experience = models.JSONField(default=list, blank=True)
     certifications = models.JSONField(default=list, blank=True)
-    # Teaching setup, stored as JSON and turned into real rows on approval:
-    #   subjects:        list[int]                              (LessonCategory ids)
-    #   specializations: list[{vertical, track|null, subject}]  (catalog ids)
-    #   availability:    list[{weekday, start_time, end_time}]
-    subjects = models.JSONField(default=list, blank=True)
-    specializations = models.JSONField(default=list, blank=True)
-    availability = models.JSONField(default=list, blank=True)
-    # Per-stage lesson prices: list[{vertical, price_minor}], each >= the
-    # market's stage minimum. Materialized into TeacherStagePrice on approval.
-    stage_prices = models.JSONField(default=list, blank=True)
+    # Teaching setup as stage cards, turned into real rows on approval:
+    #   list[{vertical, track|null, subjects: [subject ids], price_minor,
+    #         free_lessons_offered, availability: [{weekday, start_time, end_time}]}]
+    stages = models.JSONField(default=list, blank=True)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
@@ -108,7 +100,6 @@ class TeacherProfile(TimeStampedModel):
     education = models.JSONField(default=list, blank=True)
     work_experience = models.JSONField(default=list, blank=True)
     certifications = models.JSONField(default=list, blank=True)
-    free_lessons_offered = models.PositiveSmallIntegerField(default=0)
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     rating_count = models.PositiveIntegerField(default=0)
     lessons_count = models.PositiveIntegerField(default=0)
@@ -118,78 +109,70 @@ class TeacherProfile(TimeStampedModel):
         return f"Teacher: {self.user}"
 
 
-class TeacherSubject(TimeStampedModel):
-    """A lesson category (market/vertical/grade/subject) the teacher teaches."""
+class TeacherStage(TimeStampedModel):
+    """A "stage card": one stage (+ branch/faculty) the teacher teaches.
+
+    Everything set here — price, free trial lessons and weekly availability —
+    applies to every subject in the card. ``track`` is null for stages with no
+    branch/faculty grouping (e.g. Primary). The price must be at least the
+    market's stage minimum (``catalog.StagePricingRule.min_price_minor``); see
+    ``teachers.stage_setup`` for the shared validation rules.
+    """
 
     teacher = models.ForeignKey(
-        TeacherProfile, on_delete=models.CASCADE, related_name="subjects"
-    )
-    lesson_category = models.ForeignKey(
-        "catalog.LessonCategory", on_delete=models.PROTECT, related_name="teachers"
-    )
-
-    class Meta:
-        unique_together = [("teacher", "lesson_category")]
-
-    def __str__(self):
-        return f"{self.teacher} · {self.lesson_category}"
-
-
-class TeacherSpecialization(TimeStampedModel):
-    """A discovery tag: a stage → (branch/faculty) → subject the teacher specializes in.
-
-    Separate from TeacherSubject (which drives pricing/bookings). Powers search
-    filters and the profile/card specialization tags. `track` is optional (null
-    for stages with no branch/faculty grouping, e.g. Primary)."""
-
-    teacher = models.ForeignKey(
-        TeacherProfile, on_delete=models.CASCADE, related_name="specializations"
+        TeacherProfile, on_delete=models.CASCADE, related_name="stages"
     )
     vertical = models.ForeignKey(
-        "catalog.Vertical", on_delete=models.PROTECT, related_name="teacher_specializations"
+        "catalog.Vertical", on_delete=models.PROTECT, related_name="teacher_stages"
     )
     track = models.ForeignKey(
         "catalog.Track",
         null=True,
         blank=True,
         on_delete=models.PROTECT,
-        related_name="teacher_specializations",
-    )
-    subject = models.ForeignKey(
-        "catalog.Subject", on_delete=models.PROTECT, related_name="teacher_specializations"
-    )
-
-    class Meta:
-        ordering = ["vertical", "track", "subject"]
-        unique_together = [("teacher", "vertical", "track", "subject")]
-
-    def __str__(self):
-        track = f" · {self.track.name_en}" if self.track else ""
-        return f"{self.teacher} · {self.vertical.code}{track} · {self.subject.name_en}"
-
-
-class TeacherStagePrice(TimeStampedModel):
-    """The teacher's own lesson price for a stage (Vertical).
-
-    One price per stage the teacher teaches; it applies to every subject/grade
-    in that stage. Must be at least the moderator's per-market stage minimum
-    (``catalog.StagePricingRule.min_price_minor``), enforced at write time.
-    """
-
-    teacher = models.ForeignKey(
-        TeacherProfile, on_delete=models.CASCADE, related_name="stage_prices"
-    )
-    vertical = models.ForeignKey(
-        "catalog.Vertical", on_delete=models.PROTECT, related_name="teacher_stage_prices"
+        related_name="teacher_stages",
     )
     price_minor = models.IntegerField()
+    free_lessons_offered = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
-        unique_together = [("teacher", "vertical")]
-        ordering = ["vertical"]
+        ordering = ["vertical__order", "track__order", "id"]
+        constraints = [
+            # Two constraints because NULL tracks never collide in a plain
+            # unique index.
+            models.UniqueConstraint(
+                fields=["teacher", "vertical", "track"],
+                condition=models.Q(track__isnull=False),
+                name="uniq_teacher_stage_track",
+            ),
+            models.UniqueConstraint(
+                fields=["teacher", "vertical"],
+                condition=models.Q(track__isnull=True),
+                name="uniq_teacher_stage_notrack",
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.teacher} · {self.vertical.code} = {self.price_minor}"
+        track = f" · {self.track.name_en}" if self.track_id else ""
+        return f"{self.teacher} · {self.vertical.code}{track}"
+
+
+class TeacherStageSubject(TimeStampedModel):
+    """A subject taught within a stage card."""
+
+    teacher_stage = models.ForeignKey(
+        TeacherStage, on_delete=models.CASCADE, related_name="subjects"
+    )
+    subject = models.ForeignKey(
+        "catalog.Subject", on_delete=models.PROTECT, related_name="teacher_stage_subjects"
+    )
+
+    class Meta:
+        ordering = ["subject__name_en"]
+        unique_together = [("teacher_stage", "subject")]
+
+    def __str__(self):
+        return f"{self.teacher_stage} · {self.subject.name_en}"
 
 
 class FavoriteTeacher(TimeStampedModel):
@@ -224,6 +207,10 @@ class AvailabilityRule(TimeStampedModel):
 
     teacher = models.ForeignKey(
         TeacherProfile, on_delete=models.CASCADE, related_name="availability"
+    )
+    # The stage card this window belongs to (availability is set per card).
+    teacher_stage = models.ForeignKey(
+        TeacherStage, on_delete=models.CASCADE, related_name="availability"
     )
     weekday = models.IntegerField(choices=Weekday.choices)
     start_time = models.TimeField()

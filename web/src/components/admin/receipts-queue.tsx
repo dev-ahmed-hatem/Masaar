@@ -176,6 +176,21 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
               </Tag>
               <DetailRow label={dict.colAmount} value={selected.amount_display} />
               <DetailRow label={dict.phone} value={selected.user_phone} />
+              <DetailRow
+                label={dict.paidTo}
+                value={
+                  selected.payment_account ? (
+                    <span className="flex flex-col items-end">
+                      <span>{selected.payment_account.display_name}</span>
+                      <span className="text-xs font-normal" dir="ltr" style={{ color: "var(--ink-muted)" }}>
+                        {selected.payment_account.details}
+                      </span>
+                    </span>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
               <DetailRow label={dict.colMethod} value={tr("method", selected.method)} />
               <DetailRow label={dict.colPurpose} value={tr("purpose", selected.purpose)} />
               {selected.reference && <DetailRow label={dict.reference} value={selected.reference} />}

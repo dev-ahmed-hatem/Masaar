@@ -71,7 +71,7 @@ def _event_body(booking, user, meet_link=""):
     end = start + timedelta(minutes=booking.duration_min)
     teacher_name = booking.teacher.user.full_name or "Teacher"
     student_name = booking.student.full_name or "Student"
-    subject = getattr(getattr(booking.lesson_category, "subject", None), "name_en", "") or "Lesson"
+    subject = getattr(booking.subject, "name_en", "") or "Lesson"
 
     if user.id == booking.student_id:
         summary = f"{subject} lesson with {teacher_name}"

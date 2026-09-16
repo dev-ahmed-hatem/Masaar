@@ -1,6 +1,6 @@
 import { apiAuthed } from "./api";
+import type { NamedRef } from "./stage-cards";
 import type { Paginated } from "./teachers";
-import type { LessonCategoryOption } from "./teacher-self";
 
 export type BookingStatus =
   | "REQUESTED"
@@ -17,7 +17,16 @@ export interface Booking {
   student_market: string;
   teacher_id: number;
   teacher_name: string;
-  lesson_category: LessonCategoryOption;
+  /** The teacher's stage card this was booked in (null if since removed). */
+  teacher_stage: number | null;
+  /** What was booked: stage, optional branch/faculty and subject. */
+  lesson: {
+    stage: NamedRef;
+    track: NamedRef | null;
+    subject: NamedRef;
+    label: string;
+    label_ar: string;
+  };
   scheduled_start: string;
   duration_min: number;
   status: BookingStatus;
@@ -40,8 +49,8 @@ export interface Slot {
 }
 
 export interface CreateBookingInput {
-  teacher: number;
-  lesson_category: number;
+  teacher_stage: number;
+  subject: number;
   scheduled_start: string;
   duration_min?: number;
   is_trial?: boolean;
@@ -55,9 +64,11 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
   });
 }
 
-/** Concrete open slots for a teacher over the next `days` (default 14). */
-export function listSlots(teacherId: number, days = 14): Promise<Slot[]> {
-  return apiAuthed<Slot[]>(`/api/bookings/slots/?teacher=${teacherId}&days=${days}`);
+/** Concrete open slots for a teacher over the next `days` (default 14) — for one
+ *  stage card when `stageId` is given, otherwise across all of their stages. */
+export function listSlots(teacherId: number, days = 14, stageId?: number | null): Promise<Slot[]> {
+  const stage = stageId ? `&stage=${stageId}` : "";
+  return apiAuthed<Slot[]>(`/api/bookings/slots/?teacher=${teacherId}&days=${days}${stage}`);
 }
 
 /** Move a REQUESTED/CONFIRMED lesson to a new time (price/reserve unchanged). */

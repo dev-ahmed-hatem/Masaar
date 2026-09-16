@@ -109,7 +109,7 @@ export function formatWhen(iso: string, locale: string): string {
 }
 
 export function subjectLabel(booking: Booking, locale: string): string {
-  return locale === "ar" ? booking.lesson_category.label_ar : booking.lesson_category.label;
+  return locale === "ar" ? booking.lesson.label_ar : booking.lesson.label;
 }
 
 export const PROVIDERS = [

@@ -1,30 +1,22 @@
 import json
-from datetime import datetime
+import re
 
 from rest_framework import serializers
 
-from apps.accounts.senders import uses_email
 from apps.accounts.utils import normalize_phone
-from apps.catalog.models import (
-    LessonCategory,
-    StagePricingRule,
-    StageSubject,
-    Subject,
-    Track,
-    Vertical,
-)
+from apps.catalog.models import Subject, Track, Vertical
 from apps.common.models import format_money
 from apps.markets.models import Market
 from apps.reviews.models import Review
 
-from . import errors
+from . import errors, stage_setup
 from .models import AvailabilityRule, TeacherApplication, TeacherProfile
 from .self_serializers import (
     _MAX_FIELD_LEN,
-    _MAX_RECORDS,
     _MAX_SPECIALTIES,
     _RESUME_KEYS,
     _clean_records,
+    stage_card_data,
 )
 
 
@@ -53,7 +45,8 @@ class TeacherListSerializer(serializers.ModelSerializer):
     market = serializers.SlugRelatedField(slug_field="code", read_only=True)
     languages = serializers.SerializerMethodField()
     subjects = serializers.SerializerMethodField()
-    specializations = serializers.SerializerMethodField()
+    stages = serializers.SerializerMethodField()
+    free_lessons_offered = serializers.SerializerMethodField()
     from_price = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
 
@@ -74,7 +67,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
             "lessons_count",
             "free_lessons_offered",
             "subjects",
-            "specializations",
+            "stages",
             "from_price",
         )
 
@@ -88,54 +81,28 @@ class TeacherListSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
 
     def get_subjects(self, obj) -> list[dict]:
+        # Distinct subjects across all of the teacher's stage cards.
         seen: dict[int, dict] = {}
-        for ts in obj.subjects.all():
-            subject = ts.lesson_category.subject
-            seen.setdefault(
-                subject.id,
-                {"id": subject.id, "name_en": subject.name_en, "name_ar": subject.name_ar},
-            )
+        for card in obj.stages.all():
+            for cs in card.subjects.all():
+                subject = cs.subject
+                seen.setdefault(
+                    subject.id,
+                    {"id": subject.id, "name_en": subject.name_en, "name_ar": subject.name_ar},
+                )
         return list(seen.values())
 
-    def get_specializations(self, obj) -> list[dict]:
-        # Flat list of stage → (track) → subject tags. The frontend groups them
-        # for the profile and briefs them for the card.
-        out = []
-        for sp in obj.specializations.all():
-            out.append(
-                {
-                    "stage": {
-                        "id": sp.vertical_id,
-                        "name_en": sp.vertical.name_en,
-                        "name_ar": sp.vertical.name_ar,
-                    },
-                    "track": (
-                        {"id": sp.track_id, "name_en": sp.track.name_en, "name_ar": sp.track.name_ar}
-                        if sp.track_id
-                        else None
-                    ),
-                    "subject": {
-                        "id": sp.subject_id,
-                        "name_en": sp.subject.name_en,
-                        "name_ar": sp.subject.name_ar,
-                    },
-                }
-            )
-        return out
+    def get_stages(self, obj) -> list[dict]:
+        # Stage cards: stage/track, subjects, price, trials and weekly availability.
+        return [stage_card_data(card, obj.market.currency) for card in obj.stages.all()]
+
+    def get_free_lessons_offered(self, obj) -> int:
+        # Badge only: the most free trial lessons offered in any stage.
+        return max((card.free_lessons_offered for card in obj.stages.all()), default=0)
 
     def get_from_price(self, obj) -> dict | None:
-        # `from_price_minor` is annotated on the queryset (min effective price).
+        # `from_price_minor` is annotated on the queryset (cheapest stage price).
         return _money(getattr(obj, "from_price_minor", None), obj.market.currency)
-
-
-class OfferingSerializer(serializers.Serializer):
-    """One subject the teacher offers, priced by the teacher's stage price."""
-
-    lesson_category_id = serializers.IntegerField()
-    vertical = serializers.CharField()
-    grade_level = serializers.CharField(allow_null=True)
-    subject = serializers.CharField()
-    price = serializers.DictField(allow_null=True)
 
 
 class AvailabilitySerializer(serializers.ModelSerializer):
@@ -161,7 +128,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 class TeacherDetailSerializer(TeacherListSerializer):
-    offerings = serializers.SerializerMethodField()
+    # Union of all stage cards' windows (per-card windows are under `stages`).
     availability = AvailabilitySerializer(many=True, read_only=True)
     reviews_summary = serializers.SerializerMethodField()
     recent_reviews = serializers.SerializerMethodField()
@@ -173,30 +140,10 @@ class TeacherDetailSerializer(TeacherListSerializer):
             "education",
             "work_experience",
             "certifications",
-            "offerings",
             "availability",
             "reviews_summary",
             "recent_reviews",
         )
-
-    def get_offerings(self, obj) -> list[dict]:
-        # Each subject is priced by the teacher's price for that subject's stage.
-        prices = {sp.vertical_id: sp.price_minor for sp in obj.stage_prices.all()}
-        currency = obj.market.currency
-        offerings = []
-        for ts in obj.subjects.all():
-            cat = ts.lesson_category
-            amount = prices.get(cat.vertical_id)
-            offerings.append(
-                {
-                    "lesson_category_id": cat.id,
-                    "vertical": cat.vertical.name_en,
-                    "grade_level": cat.grade_level.name_en if cat.grade_level else None,
-                    "subject": cat.subject.name_en,
-                    "price": _money(amount, currency),
-                }
-            )
-        return offerings
 
     def get_reviews_summary(self, obj) -> dict:
         return {"rating_avg": obj.rating_avg, "rating_count": obj.rating_count}
@@ -215,25 +162,10 @@ _JSON_FIELDS = (
     "education",
     "work_experience",
     "certifications",
-    "subjects",
-    "specializations",
-    "availability",
-    "stage_prices",
+    "stages",
 )
 
-_WEEKDAYS = dict(AvailabilityRule.Weekday.choices)
-
-
-def _parse_hhmm(raw):
-    """Parse 'HH:MM' or 'HH:MM:SS' into a time, or None if unparseable."""
-    if not raw:
-        return None
-    for fmt in ("%H:%M", "%H:%M:%S"):
-        try:
-            return datetime.strptime(str(raw), fmt).time()
-        except ValueError:
-            continue
-    return None
+_LANGUAGE_CODE = re.compile(r"^[a-z]{2,3}$")
 
 
 class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
@@ -249,10 +181,7 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
     education = serializers.JSONField(required=False, default=list)
     work_experience = serializers.JSONField(required=False, default=list)
     certifications = serializers.JSONField(required=False, default=list)
-    subjects = serializers.JSONField(required=False, default=list)
-    specializations = serializers.JSONField(required=False, default=list)
-    availability = serializers.JSONField(required=False, default=list)
-    stage_prices = serializers.JSONField(required=False, default=list)
+    stages = serializers.JSONField()
 
     class Meta:
         model = TeacherApplication
@@ -268,16 +197,20 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
             "intro_video_url",
             "photo",
             "document",
-            "free_lessons_offered",
             "specialties",
             "education",
             "work_experience",
             "certifications",
-            "subjects",
-            "specializations",
-            "availability",
-            "stage_prices",
+            "stages",
         )
+        # Mandatory on every application (the model keeps them blank-able for
+        # older rows): email, gender, languages and the intro video.
+        extra_kwargs = {
+            "email": {"required": True, "allow_blank": False},
+            "gender": {"required": True, "allow_blank": False},
+            "languages": {"required": True, "allow_blank": False},
+            "intro_video_url": {"required": True, "allow_blank": False},
+        }
 
     def to_internal_value(self, data):
         # Multipart bodies deliver everything as strings; decode the JSON fields
@@ -294,6 +227,14 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
                 except ValueError:
                     raise serializers.ValidationError({name: "Invalid JSON."})
         return super().to_internal_value(data)
+
+    def validate_languages(self, value):
+        codes = list(dict.fromkeys(c.strip().lower() for c in value.split(",") if c.strip()))
+        if not codes:
+            raise serializers.ValidationError("Choose at least one language.")
+        if any(not _LANGUAGE_CODE.match(c) for c in codes):
+            raise serializers.ValidationError("Invalid language code.")
+        return ",".join(codes)
 
     def validate_specialties(self, value):
         if not isinstance(value, list):
@@ -314,106 +255,6 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
     def validate_certifications(self, value):
         return _clean_records(value, _RESUME_KEYS["certifications"])
 
-    def validate_subjects(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Expected a list.")
-        ids = []
-        for item in value:
-            try:
-                cid = int(item)
-            except (TypeError, ValueError):
-                raise serializers.ValidationError("Subject ids must be integers.")
-            if cid not in ids:
-                ids.append(cid)
-        return ids
-
-    def validate_specializations(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Expected a list.")
-        cleaned, seen = [], set()
-        for item in value[:_MAX_RECORDS]:
-            if not isinstance(item, dict):
-                raise serializers.ValidationError("Each specialization must be an object.")
-            try:
-                vertical_id = int(item["vertical"])
-                subject_id = int(item["subject"])
-            except (KeyError, TypeError, ValueError):
-                raise serializers.ValidationError("Specialization needs vertical and subject ids.")
-            track_raw = item.get("track")
-            track_id = int(track_raw) if track_raw not in (None, "", 0, "0") else None
-
-            try:
-                vertical = Vertical.objects.get(id=vertical_id, is_active=True)
-            except Vertical.DoesNotExist:
-                raise serializers.ValidationError("Unknown stage.")
-            track = None
-            if vertical.child_kind != Vertical.ChildKind.NONE:
-                if track_id is None:
-                    raise serializers.ValidationError("This stage requires a branch/faculty.")
-                try:
-                    track = Track.objects.get(id=track_id, vertical=vertical, is_active=True)
-                except Track.DoesNotExist:
-                    raise serializers.ValidationError("Track belongs to a different stage.")
-            else:
-                track_id = None
-            if not StageSubject.objects.filter(
-                vertical=vertical, track=track, subject_id=subject_id,
-                is_active=True, subject__is_active=True,
-            ).exists():
-                raise serializers.ValidationError(
-                    "This subject is not offered under that stage/branch."
-                )
-            key = (vertical_id, track_id, subject_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            cleaned.append({"vertical": vertical_id, "track": track_id, "subject": subject_id})
-        return cleaned
-
-    def validate_stage_prices(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Expected a list.")
-        cleaned, seen = [], set()
-        for item in value:
-            if not isinstance(item, dict):
-                raise serializers.ValidationError("Each stage price must be an object.")
-            try:
-                vertical_id = int(item["vertical"])
-                price = int(item["price_minor"])
-            except (KeyError, TypeError, ValueError):
-                raise serializers.ValidationError("Stage price needs vertical and price_minor.")
-            if vertical_id in seen:
-                continue
-            seen.add(vertical_id)
-            cleaned.append({"vertical": vertical_id, "price_minor": price})
-        return cleaned
-
-    def validate_availability(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Expected a list.")
-        cleaned = []
-        for item in value[:_MAX_RECORDS]:
-            if not isinstance(item, dict):
-                raise serializers.ValidationError("Each availability entry must be an object.")
-            try:
-                weekday = int(item["weekday"])
-            except (KeyError, TypeError, ValueError):
-                raise serializers.ValidationError("Availability needs a weekday.")
-            if weekday not in _WEEKDAYS:
-                raise serializers.ValidationError("Invalid weekday.")
-            start = _parse_hhmm(item.get("start_time"))
-            end = _parse_hhmm(item.get("end_time"))
-            if start is None or end is None:
-                raise serializers.ValidationError("Availability needs start and end times.")
-            if end <= start:
-                raise serializers.ValidationError("end_time must be after start_time.")
-            cleaned.append({
-                "weekday": weekday,
-                "start_time": start.strftime("%H:%M"),
-                "end_time": end.strftime("%H:%M"),
-            })
-        return cleaned
-
     def validate(self, attrs):
         # Normalize with the market dial code (a local "01…" is ambiguous alone).
         attrs["phone"] = normalize_phone(attrs["phone"], attrs["market"].code)
@@ -426,50 +267,33 @@ class TeacherApplicationCreateSerializer(serializers.ModelSerializer):
         ).exists():
             raise errors.DuplicateApplication()
 
-        # In email-OTP mode the approval (temp password) is emailed, so require it.
-        if uses_email() and not attrs.get("email"):
-            raise serializers.ValidationError({"email": "An email address is required."})
-
-        # Teaching subjects must be live lesson categories in the chosen market.
-        subjects = attrs.get("subjects") or []
-        if subjects:
-            valid = set(
-                LessonCategory.objects.filter(
-                    id__in=subjects, market=attrs["market"], is_active=True
-                ).values_list("id", flat=True)
-            )
-            if any(cid not in valid for cid in subjects):
-                raise serializers.ValidationError(
-                    {"subjects": "Some subjects aren't available in this market."}
-                )
-
-        # Each stage price must clear the market's stage minimum.
-        for sp in attrs.get("stage_prices") or []:
-            if not Vertical.objects.filter(id=sp["vertical"], is_active=True).exists():
-                raise serializers.ValidationError({"stage_prices": "Unknown stage."})
-            rule = StagePricingRule.objects.filter(
-                market=attrs["market"], vertical_id=sp["vertical"], is_active=True
-            ).first()
-            minimum = max(1, rule.min_price_minor if rule else 0)
-            if sp["price_minor"] < minimum:
-                raise serializers.ValidationError(
-                    {"stage_prices": f"A stage price is below its minimum ({minimum})."}
-                )
+        # Stage cards are validated against the chosen market's catalog/minimums.
+        try:
+            stages = stage_setup.validate_cards(attrs["market"].id, attrs.get("stages"))
+        except serializers.ValidationError as exc:
+            raise serializers.ValidationError({"stages": exc.detail})
+        if not stages:
+            raise serializers.ValidationError({"stages": "Add at least one stage you teach."})
+        attrs["stages"] = stages
         return attrs
 
 
+def _names(queryset) -> dict[int, dict]:
+    return {o.id: {"id": o.id, "name_en": o.name_en, "name_ar": o.name_ar} for o in queryset}
+
+
 class TeacherApplicationSerializer(serializers.ModelSerializer):
-    """Read view for the moderator review queue — surfaces the full submission
-    plus human-readable labels for the catalog-linked teaching setup."""
+    """Read view for the moderator review queue — the full submission, with the
+    stage cards resolved to bilingual catalog names."""
 
     market = serializers.SlugRelatedField(slug_field="code", read_only=True)
+    currency = serializers.CharField(source="market.currency", read_only=True)
     reviewed_by = serializers.CharField(source="reviewed_by.full_name", read_only=True, default=None)
     created_profile_id = serializers.IntegerField(source="created_profile.id", read_only=True, default=None)
+    languages = serializers.SerializerMethodField()
     photo = serializers.SerializerMethodField()
-    subjects_display = serializers.SerializerMethodField()
-    specializations_display = serializers.SerializerMethodField()
-    availability_display = serializers.SerializerMethodField()
-    stage_prices_display = serializers.SerializerMethodField()
+    document = serializers.SerializerMethodField()
+    stages_display = serializers.SerializerMethodField()
 
     class Meta:
         model = TeacherApplication
@@ -479,6 +303,7 @@ class TeacherApplicationSerializer(serializers.ModelSerializer):
             "phone",
             "email",
             "market",
+            "currency",
             "gender",
             "languages",
             "bio",
@@ -486,75 +311,62 @@ class TeacherApplicationSerializer(serializers.ModelSerializer):
             "intro_video_url",
             "photo",
             "document",
-            "free_lessons_offered",
             "specialties",
             "education",
             "work_experience",
             "certifications",
-            "subjects_display",
-            "specializations_display",
-            "availability_display",
-            "stage_prices_display",
+            "stages_display",
             "status",
             "review_notes",
             "reviewed_by",
             "created_profile_id",
             "created_at",
+            "updated_at",
         )
         read_only_fields = fields
 
-    def get_photo(self, obj) -> str | None:
-        if not obj.photo:
+    def _file_url(self, field) -> str | None:
+        if not field:
             return None
         request = self.context.get("request")
-        return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
+        return request.build_absolute_uri(field.url) if request else field.url
 
-    def get_subjects_display(self, obj) -> list[str]:
-        if not obj.subjects:
+    def get_languages(self, obj) -> list[str]:
+        return _split_languages(obj.languages)
+
+    def get_photo(self, obj) -> str | None:
+        return self._file_url(obj.photo)
+
+    def get_document(self, obj) -> str | None:
+        return self._file_url(obj.document)
+
+    def get_stages_display(self, obj) -> list[dict]:
+        cards = [c for c in obj.stages or [] if isinstance(c, dict)]
+        if not cards:
             return []
-        cats = LessonCategory.objects.filter(id__in=obj.subjects).select_related(
-            "vertical", "grade_level", "subject"
+        verticals = _names(Vertical.objects.filter(id__in={c.get("vertical") for c in cards}))
+        tracks = _names(Track.objects.filter(id__in={c.get("track") for c in cards if c.get("track")}))
+        subjects = _names(
+            Subject.objects.filter(id__in={s for c in cards for s in c.get("subjects") or []})
         )
-        out = []
-        for cat in cats:
-            parts = [
-                cat.vertical.name_en,
-                cat.grade_level.name_en if cat.grade_level else None,
-                cat.subject.name_en,
-            ]
-            out.append(" · ".join(p for p in parts if p))
-        return out
-
-    def get_specializations_display(self, obj) -> list[str]:
-        out = []
-        for sp in obj.specializations or []:
-            try:
-                vertical = Vertical.objects.get(id=sp["vertical"])
-                subject = Subject.objects.get(id=sp["subject"])
-            except (KeyError, TypeError, Vertical.DoesNotExist, Subject.DoesNotExist):
-                continue
-            track = None
-            if sp.get("track"):
-                track = Track.objects.filter(id=sp["track"]).first()
-            parts = [vertical.name_en] + ([track.name_en] if track else []) + [subject.name_en]
-            out.append(" · ".join(parts))
-        return out
-
-    def get_availability_display(self, obj) -> list[str]:
-        out = []
-        for rule in obj.availability or []:
-            name = _WEEKDAYS.get(rule.get("weekday"), "?")
-            out.append(f"{name} {rule.get('start_time', '')}–{rule.get('end_time', '')}")
-        return out
-
-    def get_stage_prices_display(self, obj) -> list[str]:
-        out = []
         currency = obj.market.currency
-        for sp in obj.stage_prices or []:
-            vertical = Vertical.objects.filter(id=sp.get("vertical")).first()
-            if not vertical:
-                continue
-            out.append(f"{vertical.name_en}: {format_money(sp.get('price_minor', 0), currency)}")
+        out = []
+        for card in cards:
+            price = card.get("price_minor") or 0
+            out.append(
+                {
+                    "stage": verticals.get(card.get("vertical")),
+                    "track": tracks.get(card.get("track")),
+                    "subjects": [subjects[s] for s in card.get("subjects") or [] if s in subjects],
+                    "price": {
+                        "amount_minor": price,
+                        "currency": currency,
+                        "display": format_money(price, currency),
+                    },
+                    "free_lessons_offered": card.get("free_lessons_offered") or 0,
+                    "availability": list(card.get("availability") or []),
+                }
+            )
         return out
 
 

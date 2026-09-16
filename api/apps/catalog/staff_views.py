@@ -1,7 +1,5 @@
 """Staff-facing catalog/pricing management (`/api/admin/`)."""
-from django.db.models import ProtectedError
 from rest_framework import serializers
-from rest_framework.exceptions import APIException
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateAPIView,
@@ -9,6 +7,7 @@ from rest_framework.generics import (
 )
 
 from apps.accounts.permissions import IsStaff
+from apps.common.staff import ProtectedDestroyMixin
 from apps.markets.models import Market
 
 from .models import (
@@ -19,22 +18,6 @@ from .models import (
     Track,
     Vertical,
 )
-
-
-class InUse(APIException):
-    status_code = 409
-    default_detail = "This item is in use and cannot be deleted. Deactivate it instead."
-    default_code = "in_use"
-
-
-class _ProtectedDestroyMixin:
-    """Turn a PROTECT-guarded delete (row still referenced) into a clean 409."""
-
-    def perform_destroy(self, instance):
-        try:
-            instance.delete()
-        except ProtectedError as exc:
-            raise InUse() from exc
 
 
 class LessonCategoryAdminSerializer(serializers.ModelSerializer):
@@ -140,7 +123,7 @@ class StagePricingRuleAdminListCreateView(ListCreateAPIView):
         return qs
 
 
-class StagePricingRuleAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+class StagePricingRuleAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaff]
     serializer_class = StagePricingRuleAdminSerializer
     queryset = StagePricingRule.objects.select_related("market", "vertical")
@@ -199,7 +182,7 @@ class StageAdminListCreateView(ListCreateAPIView):
     queryset = Vertical.objects.all().order_by("order")
 
 
-class StageAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+class StageAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaff]
     serializer_class = StageAdminSerializer
     queryset = Vertical.objects.all()
@@ -216,7 +199,7 @@ class TrackAdminListCreateView(ListCreateAPIView):
         return qs
 
 
-class TrackAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+class TrackAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaff]
     serializer_class = TrackAdminSerializer
     queryset = Track.objects.all()
@@ -228,7 +211,7 @@ class SubjectAdminListCreateView(ListCreateAPIView):
     queryset = Subject.objects.all().order_by("name_en")
 
 
-class SubjectAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+class SubjectAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaff]
     serializer_class = SubjectAdminSerializer
     queryset = Subject.objects.all()
@@ -250,7 +233,7 @@ class StageSubjectAdminListCreateView(ListCreateAPIView):
         return qs
 
 
-class StageSubjectAdminDetailView(_ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+class StageSubjectAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaff]
     serializer_class = StageSubjectAdminSerializer
     queryset = StageSubject.objects.all()

@@ -20,6 +20,7 @@ const HORIZON_DAYS = 21;
  */
 export default function TeacherSchedule({
   teacherId,
+  stageId = null,
   locale,
   dict,
   onPick,
@@ -27,6 +28,8 @@ export default function TeacherSchedule({
   selected,
 }: {
   teacherId: number;
+  /** Show only this stage card's hours (null: all of the teacher's stages). */
+  stageId?: number | null;
   locale: Locale;
   dict: Dict;
   onPick: (startIso: string) => void;
@@ -38,14 +41,14 @@ export default function TeacherSchedule({
 
   useEffect(() => {
     let active = true;
-    listSlots(teacherId, HORIZON_DAYS)
+    listSlots(teacherId, HORIZON_DAYS, stageId)
       .then((s) => active && setSlots(s))
       .catch(() => active && setSlots([]))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [teacherId]);
+  }, [teacherId, stageId]);
 
   const tz = useMemo(() => {
     try {

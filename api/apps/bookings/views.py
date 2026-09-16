@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsStaff, IsStudent, IsTeacher
-from apps.teachers.models import TeacherProfile
+from apps.teachers.models import TeacherProfile, TeacherStage
 
 from . import services
 from .models import Booking
@@ -24,7 +24,8 @@ from .serializers import (
 
 
 class SlotListView(APIView):
-    """Bookable slots generated from a teacher's recurring availability.
+    """Bookable slots generated from a teacher's recurring availability — for one
+    stage card (``?stage=``) or across all of the teacher's cards.
 
     Public: anonymous visitors browsing a teacher's profile see real open times
     (booking itself still requires a signed-in student).
@@ -35,6 +36,7 @@ class SlotListView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter("teacher", int, required=True, description="Teacher profile id"),
+            OpenApiParameter("stage", int, description="Stage card id (the teacher's TeacherStage)"),
             OpenApiParameter("days", int, description="Horizon in days (default from settings)"),
         ],
         responses={200: SlotSerializer(many=True)},
@@ -44,8 +46,11 @@ class SlotListView(APIView):
         if not teacher_id:
             raise ValidationError({"teacher": "This query parameter is required."})
         teacher = get_object_or_404(TeacherProfile, pk=teacher_id, is_published=True)
+        stage = None
+        if stage_id := request.query_params.get("stage"):
+            stage = get_object_or_404(TeacherStage, pk=stage_id, teacher=teacher)
         days = request.query_params.get("days")
-        slots = services.generate_slots(teacher, days=int(days) if days else None)
+        slots = services.generate_slots(teacher, stage=stage, days=int(days) if days else None)
         return Response(SlotSerializer(slots, many=True).data)
 
 
@@ -65,8 +70,7 @@ class BookingListCreateView(ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         qs = Booking.objects.select_related(
-            "student", "teacher__user", "lesson_category__vertical",
-            "lesson_category__grade_level", "lesson_category__subject",
+            "student", "teacher__user", "vertical", "track", "subject",
         )
         if user.role == User.Role.STUDENT:
             qs = qs.filter(student=user)
@@ -105,8 +109,8 @@ class BookingListCreateView(ListCreateAPIView):
         data = serializer.validated_data
         booking = services.request_booking(
             request.user,
-            data["teacher"],
-            data["lesson_category"],
+            data["teacher_stage"],
+            data["subject"],
             data["scheduled_start"],
             duration_min=data.get("duration_min"),
             is_trial=data["is_trial"],
@@ -120,8 +124,7 @@ class BookingDetailView(RetrieveAPIView):
 
     def get_queryset(self):
         return Booking.objects.select_related(
-            "student", "teacher__user", "lesson_category__vertical",
-            "lesson_category__grade_level", "lesson_category__subject",
+            "student", "teacher__user", "vertical", "track", "subject",
         )
 
     def get_object(self):
@@ -144,7 +147,10 @@ class _BookingAction(APIView):
 
     def get_booking(self, pk):
         return get_object_or_404(
-            Booking.objects.select_related("student", "teacher__user", "lesson_category"), pk=pk
+            Booking.objects.select_related(
+                "student", "teacher__user", "teacher_stage", "vertical", "track", "subject"
+            ),
+            pk=pk,
         )
 
     def ok(self, booking):

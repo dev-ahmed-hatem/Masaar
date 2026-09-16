@@ -1,4 +1,5 @@
 import { apiAuthed, apiAuthedForm } from "./api";
+import type { StageCard, StageCardInput } from "./stage-cards";
 import type { Certification, Education, Experience } from "./teachers";
 
 export interface TeacherProfile {
@@ -15,59 +16,10 @@ export interface TeacherProfile {
   education: Education[];
   work_experience: Experience[];
   certifications: Certification[];
-  free_lessons_offered: number;
   rating_avg: string | number;
   rating_count: number;
   lessons_count: number;
   is_published: boolean;
-}
-
-export interface LessonCategoryOption {
-  id: number;
-  label: string;
-  label_ar: string;
-}
-
-export interface TeacherSubject {
-  id: number;
-  lesson_category: LessonCategoryOption;
-  stage: { id: number; name_en: string; name_ar: string };
-}
-
-export interface AvailabilityRule {
-  id: number;
-  weekday: number;
-  start_time: string;
-  end_time: string;
-}
-
-/** The teacher's own price for one stage (>= the market's stage minimum). */
-export interface TeacherStagePrice {
-  id: number;
-  vertical: number;
-  price_minor: number;
-  stage_name_en: string;
-  stage_name_ar: string;
-  min_price_minor: number;
-}
-
-export interface TeacherSpecialization {
-  id: number;
-  vertical: number;
-  track: number | null;
-  subject: number;
-  stage_name_en: string;
-  stage_name_ar: string;
-  track_name_en: string | null;
-  track_name_ar: string | null;
-  subject_name_en: string;
-  subject_name_ar: string;
-}
-
-export interface SpecializationInput {
-  vertical: number;
-  track?: number | null;
-  subject: number;
 }
 
 export interface TeacherDashboard {
@@ -107,29 +59,13 @@ export const teacherSelf = {
   publish: () => post("/api/teacher/profile/publish/", {}) as Promise<TeacherProfile>,
   unpublish: () => post("/api/teacher/profile/unpublish/", {}) as Promise<TeacherProfile>,
 
-  listCategories: () => apiAuthed<LessonCategoryOption[]>("/api/teacher/lesson-categories/"),
-
-  listSubjects: () => apiAuthed<TeacherSubject[]>("/api/teacher/subjects/"),
-  addSubject: (lesson_category: number) =>
-    post("/api/teacher/subjects/", { lesson_category }) as Promise<TeacherSubject>,
-  removeSubject: (id: number) => apiAuthed(`/api/teacher/subjects/${id}/`, { method: "DELETE" }),
-
-  listAvailability: () => apiAuthed<AvailabilityRule[]>("/api/teacher/availability/"),
-  addAvailability: (body: Omit<AvailabilityRule, "id">) =>
-    post("/api/teacher/availability/", body) as Promise<AvailabilityRule>,
-  removeAvailability: (id: number) =>
-    apiAuthed(`/api/teacher/availability/${id}/`, { method: "DELETE" }),
-
-  listSpecializations: () =>
-    apiAuthed<TeacherSpecialization[]>("/api/teacher/specializations/"),
-  addSpecialization: (body: SpecializationInput) =>
-    post("/api/teacher/specializations/", body) as Promise<TeacherSpecialization>,
-  removeSpecialization: (id: number) =>
-    apiAuthed(`/api/teacher/specializations/${id}/`, { method: "DELETE" }),
-
-  listStagePrices: () => apiAuthed<TeacherStagePrice[]>("/api/teacher/stage-prices/"),
-  setStagePrice: (vertical: number, price_minor: number) =>
-    post("/api/teacher/stage-prices/", { vertical, price_minor }) as Promise<TeacherStagePrice>,
-  removeStagePrice: (id: number) =>
-    apiAuthed(`/api/teacher/stage-prices/${id}/`, { method: "DELETE" }),
+  // Stage cards: subjects, price, free trials and weekly hours per stage.
+  listStages: () => apiAuthed<StageCard[]>("/api/teacher/stages/"),
+  createStage: (body: StageCardInput) => post("/api/teacher/stages/", body) as Promise<StageCard>,
+  updateStage: (id: number, body: Partial<StageCardInput>) =>
+    apiAuthed<StageCard>(`/api/teacher/stages/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteStage: (id: number) => apiAuthed(`/api/teacher/stages/${id}/`, { method: "DELETE" }),
 };

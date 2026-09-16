@@ -31,6 +31,20 @@ class ProfileIncomplete(APIException):
     default_detail = "Complete your profile before publishing."
     default_code = "profile_incomplete"
 
-    def __init__(self, missing: list[str]):
+    def __init__(self, missing: list[str], incomplete_stages: list[int] | None = None):
         # Carry the machine-readable list of what's missing in the envelope detail.
-        super().__init__(detail={"code": self.default_code, "detail": self.default_detail, "missing": missing})
+        super().__init__(
+            detail={
+                "code": self.default_code,
+                "detail": self.default_detail,
+                "missing": missing,
+            }
+        )
+        # Keep the ids numeric (DRF turns detail values into strings).
+        self.detail["incomplete_stages"] = list(incomplete_stages or [])
+
+
+class StageInUse(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "This stage has upcoming lessons. Cancel or finish them before removing it."
+    default_code = "stage_in_use"

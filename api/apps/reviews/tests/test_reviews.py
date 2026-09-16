@@ -37,7 +37,7 @@ def world():
 
 def _booking(world, student, status=Booking.Status.COMPLETED):
     return Booking.objects.create(
-        student=student, teacher=world["teacher"], lesson_category=world["cat"],
+        student=student, teacher=world["teacher"], vertical=world["cat"].vertical, subject=world["cat"].subject,
         scheduled_start=timezone.now() - timedelta(days=1), duration_min=60,
         price_minor=6000, teacher_wage_minor=3500, currency="EGP", status=status,
     )

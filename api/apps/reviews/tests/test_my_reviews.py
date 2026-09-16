@@ -5,7 +5,7 @@ from apps.accounts.models import User
 from apps.bookings.models import Booking
 from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
 from apps.markets.models import Market
-from apps.teachers.models import TeacherProfile, TeacherSubject
+from apps.teachers.models import TeacherProfile
 
 pytestmark = pytest.mark.django_db
 REVIEWS = "/api/reviews/"
@@ -24,12 +24,11 @@ def setup():
         phone="+201000000500", role=User.Role.TEACHER, market=eg, is_verified=True, full_name="T"
     )
     teacher = TeacherProfile.objects.create(user=tuser, market=eg, is_published=True)
-    TeacherSubject.objects.create(teacher=teacher, lesson_category=cat)
     student = User.objects.create_user(
         phone="+201000000501", role=User.Role.STUDENT, market=eg, is_verified=True, full_name="S"
     )
     booking = Booking.objects.create(
-        student=student, teacher=teacher, lesson_category=cat,
+        student=student, teacher=teacher, vertical=v, subject=subj,
         scheduled_start=timezone.now(), duration_min=60, price_minor=6000,
         teacher_wage_minor=3500, currency="EGP", status=Booking.Status.COMPLETED,
         completed_at=timezone.now(),

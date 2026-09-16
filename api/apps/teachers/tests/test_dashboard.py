@@ -36,7 +36,7 @@ def world():
 
 def _booking(world, status, start_delta_h=24, wage_settled=False, payout_item=None):
     return Booking.objects.create(
-        student=world["student"], teacher=world["teacher"], lesson_category=world["cat"],
+        student=world["student"], teacher=world["teacher"], vertical=world["cat"].vertical, subject=world["cat"].subject,
         scheduled_start=timezone.now() + timedelta(hours=start_delta_h), duration_min=60,
         price_minor=6000, teacher_wage_minor=3500, currency="EGP", status=status,
         wage_settled=wage_settled, payout_item=payout_item,

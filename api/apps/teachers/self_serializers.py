@@ -1,24 +1,11 @@
 """Serializers for the teacher self-serve API (`/api/teacher/`)."""
 from rest_framework import serializers
 
-from apps.catalog.models import LessonCategory, StagePricingRule, StageSubject, Vertical
-from apps.catalog.serializers import LessonCategorySerializer
+from apps.common.models import format_money
 
-from .models import (
-    AvailabilityRule,
-    TeacherProfile,
-    TeacherSpecialization,
-    TeacherStagePrice,
-    TeacherSubject,
-)
+from . import stage_setup
+from .models import TeacherProfile, TeacherStage
 
-
-def stage_minimum_minor(market_id, vertical) -> int:
-    """The moderator-set minimum lesson price for a stage in a market (0 if unset)."""
-    rule = StagePricingRule.objects.filter(
-        market_id=market_id, vertical=vertical, is_active=True
-    ).first()
-    return rule.min_price_minor if rule else 0
 
 # Résumé JSON sections: the string keys allowed on each record. Anything else is
 # dropped; every value is coerced to a trimmed string. Records with no content
@@ -69,7 +56,6 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             "education",
             "work_experience",
             "certifications",
-            "free_lessons_offered",
             "rating_avg",
             "rating_count",
             "lessons_count",
@@ -127,154 +113,76 @@ class TeacherPhotoSerializer(serializers.Serializer):
         return value
 
 
-class TeacherSubjectReadSerializer(serializers.ModelSerializer):
-    lesson_category = LessonCategorySerializer(read_only=True)
-    stage = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TeacherSubject
-        fields = ("id", "lesson_category", "stage")
-
-    def get_stage(self, obj) -> dict:
-        v = obj.lesson_category.vertical
-        return {"id": v.id, "name_en": v.name_en, "name_ar": v.name_ar}
+def _named(obj) -> dict | None:
+    if obj is None:
+        return None
+    return {"id": obj.id, "name_en": obj.name_en, "name_ar": obj.name_ar}
 
 
-class _MarketCategoryField(serializers.PrimaryKeyRelatedField):
-    """A lesson-category PK scoped to the authenticated teacher's market."""
+def stage_card_data(card: TeacherStage, currency: str, *, min_price_minor=None) -> dict:
+    """Read shape of a stage card, shared by the self API and public profile.
 
-    def get_queryset(self):
+    Expects ``vertical``, ``track``, ``subjects__subject`` and ``availability``
+    to be loaded (select/prefetch) by the caller to avoid per-card queries.
+    """
+    data = {
+        "id": card.id,
+        "stage": _named(card.vertical),
+        "track": _named(card.track),
+        "subjects": [_named(s.subject) for s in card.subjects.all()],
+        "price": {
+            "amount_minor": card.price_minor,
+            "currency": currency,
+            "display": format_money(card.price_minor, currency),
+        },
+        "free_lessons_offered": card.free_lessons_offered,
+        "availability": [
+            {
+                "weekday": rule.weekday,
+                "start_time": rule.start_time.strftime("%H:%M"),
+                "end_time": rule.end_time.strftime("%H:%M"),
+            }
+            for rule in card.availability.all()
+        ],
+    }
+    if min_price_minor is not None:
+        data["min_price_minor"] = min_price_minor
+    return data
+
+
+class TeacherStageSerializer(serializers.Serializer):
+    """Create/update one of the authenticated teacher's stage cards.
+
+    ``vertical``/``track`` are fixed once created; ``subjects`` and
+    ``availability`` replace the card's lists when sent.
+    """
+
+    def to_internal_value(self, data):
         teacher = self.context["teacher"]
-        return LessonCategory.objects.filter(market_id=teacher.market_id, is_active=True)
-
-
-class TeacherSubjectCreateSerializer(serializers.Serializer):
-    lesson_category = _MarketCategoryField()
-
-    def validate_lesson_category(self, category):
-        teacher = self.context["teacher"]
-        if TeacherSubject.objects.filter(teacher=teacher, lesson_category=category).exists():
-            raise serializers.ValidationError("You already teach this subject.")
-        return category
+        cleaned = stage_setup.validate_card(
+            teacher.market_id, data, instance=self.instance, partial=self.partial
+        )
+        if self.instance is None and stage_setup.card_exists(
+            teacher, cleaned["vertical"], cleaned["track"]
+        ):
+            raise serializers.ValidationError({"vertical": "You already have this stage."})
+        return cleaned
 
     def create(self, validated):
-        return TeacherSubject.objects.create(
-            teacher=self.context["teacher"], lesson_category=validated["lesson_category"]
-        )
+        return stage_setup.write_card(self.context["teacher"], validated)
 
+    def update(self, instance, validated):
+        return stage_setup.write_card(self.context["teacher"], validated, instance=instance)
 
-class AvailabilitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AvailabilityRule
-        fields = ("id", "weekday", "start_time", "end_time")
-        read_only_fields = ("id",)
-
-    def validate(self, attrs):
-        if attrs["end_time"] <= attrs["start_time"]:
-            raise serializers.ValidationError("end_time must be after start_time.")
-        return attrs
-
-    def create(self, validated):
-        return AvailabilityRule.objects.create(teacher=self.context["teacher"], **validated)
-
-
-class TeacherSpecializationSerializer(serializers.ModelSerializer):
-    stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
-    stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
-    track_name_en = serializers.CharField(source="track.name_en", read_only=True, default=None)
-    track_name_ar = serializers.CharField(source="track.name_ar", read_only=True, default=None)
-    subject_name_en = serializers.CharField(source="subject.name_en", read_only=True)
-    subject_name_ar = serializers.CharField(source="subject.name_ar", read_only=True)
-
-    class Meta:
-        model = TeacherSpecialization
-        fields = (
-            "id",
-            "vertical",
-            "track",
-            "subject",
-            "stage_name_en",
-            "stage_name_ar",
-            "track_name_en",
-            "track_name_ar",
-            "subject_name_en",
-            "subject_name_ar",
-        )
-        extra_kwargs = {"track": {"required": False, "allow_null": True}}
-
-    def validate(self, attrs):
+    def to_representation(self, card):
         teacher = self.context["teacher"]
-        vertical = attrs["vertical"]
-        track = attrs.get("track")
-        subject = attrs["subject"]
-
-        # Track must belong to the stage and be required when the stage groups.
-        if vertical.child_kind != Vertical.ChildKind.NONE and track is None:
-            raise serializers.ValidationError({"track": "This stage requires a branch/faculty."})
-        if track is not None and track.vertical_id != vertical.id:
-            raise serializers.ValidationError({"track": "Track belongs to a different stage."})
-        # The (stage, track, subject) triple must be an active catalog assignment.
-        if not StageSubject.objects.filter(
-            vertical=vertical, track=track, subject=subject, is_active=True
-        ).exists():
-            raise serializers.ValidationError("This subject is not offered under that stage/branch.")
-        if TeacherSpecialization.objects.filter(
-            teacher=teacher, vertical=vertical, track=track, subject=subject
-        ).exists():
-            raise serializers.ValidationError("You already added this specialization.")
-        return attrs
-
-    def create(self, validated):
-        return TeacherSpecialization.objects.create(teacher=self.context["teacher"], **validated)
-
-
-class TeacherStagePriceSerializer(serializers.ModelSerializer):
-    """The teacher's price for one stage. POST upserts (one price per stage);
-    the price must be at least the market's stage minimum."""
-
-    stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
-    stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
-    min_price_minor = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TeacherStagePrice
-        fields = (
-            "id",
-            "vertical",
-            "price_minor",
-            "stage_name_en",
-            "stage_name_ar",
-            "min_price_minor",
+        card = TeacherStage.objects.select_related("vertical", "track").prefetch_related(
+            "subjects__subject", "availability"
+        ).get(pk=card.pk)
+        data = stage_card_data(
+            card,
+            teacher.market.currency,
+            min_price_minor=stage_setup.min_card_price(teacher.market_id, card.vertical_id),
         )
-        read_only_fields = ("id", "stage_name_en", "stage_name_ar", "min_price_minor")
-
-    def get_min_price_minor(self, obj) -> int:
-        teacher = self.context["teacher"]
-        return stage_minimum_minor(teacher.market_id, obj.vertical)
-
-    def validate(self, attrs):
-        teacher = self.context["teacher"]
-        vertical = attrs.get("vertical") or getattr(self.instance, "vertical", None)
-        price = attrs.get("price_minor", getattr(self.instance, "price_minor", None))
-        # The teacher must actually teach a subject in this stage.
-        if not TeacherSubject.objects.filter(
-            teacher=teacher, lesson_category__vertical=vertical
-        ).exists():
-            raise serializers.ValidationError(
-                {"vertical": "You don't teach any subject in this stage."}
-            )
-        minimum = max(1, stage_minimum_minor(teacher.market_id, vertical))
-        if price is None or price < minimum:
-            raise serializers.ValidationError(
-                {"price_minor": f"Price must be at least the stage minimum ({minimum})."}
-            )
-        return attrs
-
-    def create(self, validated):
-        teacher = self.context["teacher"]
-        obj, _ = TeacherStagePrice.objects.update_or_create(
-            teacher=teacher,
-            vertical=validated["vertical"],
-            defaults={"price_minor": validated["price_minor"]},
-        )
-        return obj
+        data["incomplete"] = stage_setup.incomplete_reasons(card, teacher.market_id)
+        return data

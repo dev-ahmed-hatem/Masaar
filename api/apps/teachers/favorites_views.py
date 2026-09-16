@@ -7,7 +7,7 @@ from apps.accounts.permissions import IsStudent
 
 from .models import FavoriteTeacher, TeacherProfile
 from .serializers import TeacherListSerializer
-from .views import from_price_subquery
+from .views import from_price_subquery, stage_cards_prefetch
 
 
 class FavoriteCreateSerializer(serializers.Serializer):
@@ -34,7 +34,7 @@ class FavoriteListCreateView(ListCreateAPIView):
         return (
             TeacherProfile.objects.filter(id__in=fav_ids, is_published=True)
             .select_related("user", "market")
-            .prefetch_related("subjects__lesson_category__subject")
+            .prefetch_related(stage_cards_prefetch())
             .annotate(from_price_minor=from_price_subquery())
         )
 

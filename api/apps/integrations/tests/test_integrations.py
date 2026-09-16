@@ -11,16 +11,14 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.bookings.models import Booking
-from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
+from apps.catalog.models import Subject, Vertical
 from apps.integrations import google_calendar, oauth
 from apps.integrations.models import BookingCalendarEvent, GoogleCredential
 from apps.markets.models import Market
 from apps.payments import services as wallet
+from apps.teachers.tests.factories import make_stage_card
 from apps.teachers.models import (
-    AvailabilityRule,
     TeacherProfile,
-    TeacherStagePrice,
-    TeacherSubject,
 )
 
 pytestmark = pytest.mark.django_db
@@ -88,24 +86,17 @@ def enabled(settings):
 def world():
     eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
     primary = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي")
-    g4 = GradeLevel.objects.create(vertical=primary, name_en="Grade 4", name_ar="الصف 4")
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
-    eg_math = LessonCategory.objects.create(
-        market=eg, vertical=primary, grade_level=g4, subject=math,
-    )
     tuser = User.objects.create_user(
         phone="+201000000300", full_name="Teacher T", role=User.Role.TEACHER, market=eg, is_verified=True
     )
     teacher = TeacherProfile.objects.create(user=tuser, market=eg, is_published=True, bio_en="hi")
-    TeacherSubject.objects.create(teacher=teacher, lesson_category=eg_math)
-    TeacherStagePrice.objects.create(teacher=teacher, vertical=primary, price_minor=6000)
-    for wd in range(7):
-        AvailabilityRule.objects.create(teacher=teacher, weekday=wd, start_time="00:00", end_time="23:59")
+    card = make_stage_card(teacher, primary, [math], price_minor=6000)
     student = User.objects.create_user(
         phone="+201000000301", full_name="Student S", role=User.Role.STUDENT, market=eg, is_verified=True
     )
     wallet.credit(wallet.get_or_create_wallet(student), 100000)
-    return {"eg": eg, "teacher": teacher, "tuser": tuser, "student": student, "eg_math": eg_math}
+    return {"eg": eg, "teacher": teacher, "tuser": tuser, "student": student, "card": card, "math": math}
 
 
 def _slot(delta):
@@ -117,7 +108,7 @@ def _book(api, world, delta=timedelta(days=3)):
     api.force_authenticate(user=world["student"])
     res = api.post(
         BOOKINGS,
-        {"teacher": world["teacher"].id, "lesson_category": world["eg_math"].id,
+        {"teacher_stage": world["card"].id, "subject": world["math"].id,
          "scheduled_start": _slot(delta).isoformat(), "is_trial": False},
         format="json",
     )

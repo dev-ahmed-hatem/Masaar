@@ -1,15 +1,10 @@
 import pytest
 
 from apps.accounts.models import User
-from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
+from apps.catalog.models import GradeLevel, Subject, Track, Vertical
 from apps.markets.models import Market
-from apps.teachers.models import (
-    AvailabilityRule,
-    TeacherProfile,
-    TeacherSpecialization,
-    TeacherStagePrice,
-    TeacherSubject,
-)
+from apps.teachers.models import AvailabilityRule, TeacherProfile
+from apps.teachers.tests.factories import make_stage_card
 
 pytestmark = pytest.mark.django_db
 
@@ -30,15 +25,6 @@ def world():
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
     physics = Subject.objects.create(name_en="Physics", name_ar="فيزياء")
 
-    def category(market, subject):
-        return LessonCategory.objects.create(
-            market=market, vertical=primary, grade_level=g4, subject=subject,
-        )
-
-    eg_math = category(eg, math)
-    eg_physics = category(eg, physics)
-    sa_math = category(sa, math)
-
     def teacher(phone, market, name, rating, published=True):
         user = User.objects.create_user(
             phone=phone, password="x", full_name=name, role=User.Role.TEACHER, market=market
@@ -49,40 +35,28 @@ def world():
             is_published=published,
         )
 
-    # Mirror offerings into specialization tags (as the backfill migration does),
-    # since discovery's subject/stage filters run off specializations.
-    def specialize(t, subject):
-        TeacherSpecialization.objects.create(teacher=t, vertical=primary, track=None, subject=subject)
-
-    # Teachers price per stage; both teach Primary. T1 = 6000, T2 = 5000.
-    # T1: Math + Physics (both Primary) -> from 6000
+    # T1: Primary card with Math + Physics at 6000 -> from 6000
     t1 = teacher("+201000000001", eg, "Ahmed Ali", 4.5)
-    TeacherSubject.objects.create(teacher=t1, lesson_category=eg_math)
-    TeacherSubject.objects.create(teacher=t1, lesson_category=eg_physics)
-    TeacherStagePrice.objects.create(teacher=t1, vertical=primary, price_minor=6000)
-    specialize(t1, math)
-    specialize(t1, physics)
+    make_stage_card(t1, primary, [math, physics], price_minor=6000, windows=[])
 
-    # T2: cheaper Primary price -> from 5000
+    # T2: cheaper Primary card (Math) at 5000, one Monday window, 1 free trial
     t2 = teacher("+201000000002", eg, "Sara Nabil", 4.0)
-    TeacherSubject.objects.create(teacher=t2, lesson_category=eg_math)
-    specialize(t2, math)
-    TeacherStagePrice.objects.create(teacher=t2, vertical=primary, price_minor=5000)
-    AvailabilityRule.objects.create(
-        teacher=t2, weekday=AvailabilityRule.Weekday.MON, start_time="10:00", end_time="12:00"
+    make_stage_card(
+        t2, primary, [math], price_minor=5000, free_lessons_offered=1,
+        windows=[(AvailabilityRule.Weekday.MON, "10:00", "12:00")],
     )
 
     # T3: EG but unpublished -> excluded
     t3 = teacher("+201000000003", eg, "Hidden Teacher", 5.0, published=False)
-    TeacherSubject.objects.create(teacher=t3, lesson_category=eg_math)
+    make_stage_card(t3, primary, [math], windows=[])
 
     # T4: SA teacher -> outside the EG market scope
     t4 = teacher("+966500000004", sa, "Riyadh Teacher", 4.8)
-    TeacherSubject.objects.create(teacher=t4, lesson_category=sa_math)
+    make_stage_card(t4, primary, [math], windows=[])
 
     return {
         "eg": eg, "sa": sa, "math": math, "physics": physics, "g4": g4, "primary": primary,
-        "t1": t1, "t2": t2, "t3": t3, "t4": t4, "eg_math": eg_math,
+        "t1": t1, "t2": t2, "t3": t3, "t4": t4,
     }
 
 
@@ -125,10 +99,10 @@ def test_filter_by_subject(api, world):
     assert res.data["results"][0]["full_name"] == "Ahmed Ali"
 
 
-def test_from_price_reflects_override_and_ordering(api, world):
+def test_from_price_is_cheapest_card_and_ordering(api, world):
     res = api.get(TEACHERS, {"market": "EG", "ordering": "from_price_minor"})
     rows = res.data["results"]
-    # Cheapest first: T2's approved override (5000) beats T1's default (6000).
+    # Cheapest first: T2's card (5000) beats T1's (6000).
     assert rows[0]["full_name"] == "Sara Nabil"
     assert rows[0]["from_price"]["amount_minor"] == 5000
     assert rows[0]["from_price"]["display"] == "50.00 EGP"
@@ -141,19 +115,17 @@ def test_price_range_filter(api, world):
     assert res.data["results"][0]["full_name"] == "Sara Nabil"
 
 
-def test_detail_prices_offerings_by_stage(api, world):
+def test_detail_exposes_stage_cards(api, world):
     res = api.get(f"{TEACHERS}{world['t2'].id}/")
     assert res.status_code == 200
-    offering = next(o for o in res.data["offerings"] if o["subject"] == "Mathematics")
-    assert offering["price"]["amount_minor"] == 5000
+    card = res.data["stages"][0]
+    assert card["stage"]["name_en"] == "Primary" and card["track"] is None
+    assert [s["name_en"] for s in card["subjects"]] == ["Mathematics"]
+    assert card["price"]["amount_minor"] == 5000 and card["free_lessons_offered"] == 1
+    assert card["availability"] == [{"weekday": 0, "start_time": "10:00", "end_time": "12:00"}]
     assert res.data["reviews_summary"]["rating_count"] == 2
     assert len(res.data["availability"]) == 1
-
-
-def test_detail_offering_uses_teacher_stage_price(api, world):
-    res = api.get(f"{TEACHERS}{world['t1'].id}/")
-    math_offering = next(o for o in res.data["offerings"] if o["subject"] == "Mathematics")
-    assert math_offering["price"]["amount_minor"] == 6000
+    assert res.data["free_lessons_offered"] == 1
 
 
 def test_unpublished_teacher_detail_404(api, world):
@@ -185,12 +157,35 @@ def test_filter_by_stage(api, world):
     assert {r["full_name"] for r in res.data["results"]} == {"Ahmed Ali", "Sara Nabil"}
 
 
-def test_list_exposes_specializations(api, world):
+def test_list_exposes_stage_cards(api, world):
     res = api.get(TEACHERS, {"market": "EG", "subject": world["physics"].id})
     row = next(r for r in res.data["results"] if r["full_name"] == "Ahmed Ali")
-    subjects = {s["subject"]["name_en"] for s in row["specializations"]}
-    assert {"Mathematics", "Physics"} <= subjects
-    assert row["specializations"][0]["stage"]["name_en"] == "Primary"
+    assert {s["name_en"] for s in row["subjects"]} == {"Mathematics", "Physics"}
+    assert row["stages"][0]["stage"]["name_en"] == "Primary"
+
+
+def test_stage_and_subject_filters_match_within_one_card(api, world):
+    # T1 gets a Secondary·Science card teaching Chemistry only.
+    secondary = Vertical.objects.create(
+        code=Vertical.Code.SECONDARY, name_en="Secondary", name_ar="ثانوي",
+        child_kind=Vertical.ChildKind.BRANCH,
+    )
+    science = Track.objects.create(vertical=secondary, name_en="Science", name_ar="علمي")
+    chemistry = Subject.objects.create(name_en="Chemistry", name_ar="كيمياء")
+    make_stage_card(world["t1"], secondary, [chemistry], track=science, price_minor=9000, windows=[])
+
+    def names(params):
+        return {r["full_name"] for r in api.get(TEACHERS, {"market": "EG", **params}).data["results"]}
+
+    assert names({"stage": secondary.id}) == {"Ahmed Ali"}
+    assert names({"stage": secondary.id, "track": science.id, "subject": chemistry.id}) == {"Ahmed Ali"}
+    # Math is taught in Primary, not Secondary -> no cross-card match.
+    assert names({"stage": secondary.id, "subject": world["math"].id}) == set()
+    assert names({"stage": world["primary"].id, "subject": world["math"].id}) == {"Ahmed Ali", "Sara Nabil"}
+
+
+def test_filter_by_grade_matches_stage(api, world):
+    assert api.get(TEACHERS, {"market": "EG", "grade": world["g4"].id}).data["count"] == 2
 
 
 def test_slots_endpoint_public_for_anonymous(api, world):

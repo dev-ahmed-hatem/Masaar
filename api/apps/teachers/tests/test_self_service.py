@@ -1,45 +1,40 @@
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.catalog.models import (
-    GradeLevel,
-    LessonCategory,
-    StagePricingRule,
-    Subject,
-    Vertical,
-)
+from apps.bookings.models import Booking
+from apps.catalog.models import StagePricingRule, StageSubject, Subject, Track, Vertical
 from apps.markets.models import Market
-from apps.teachers.models import TeacherProfile, TeacherStagePrice, TeacherSubject
+from apps.teachers.models import AvailabilityRule, TeacherProfile, TeacherStage
+from apps.teachers.tests.factories import booking_lesson
 
 pytestmark = pytest.mark.django_db
 
 PROFILE = "/api/teacher/profile/"
 PUBLISH = "/api/teacher/profile/publish/"
 UNPUBLISH = "/api/teacher/profile/unpublish/"
-CATEGORIES = "/api/teacher/lesson-categories/"
-SUBJECTS = "/api/teacher/subjects/"
-AVAILABILITY = "/api/teacher/availability/"
-STAGE_PRICES = "/api/teacher/stage-prices/"
+STAGES = "/api/teacher/stages/"
 DISCOVERY = "/api/teachers/"
 
 
 @pytest.fixture
 def world():
     eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="Africa/Cairo")
-    sa = Market.objects.create(code="SA", name="Saudi Arabia", currency="SAR", timezone="Asia/Riyadh")
     primary = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي")
-    g4 = GradeLevel.objects.create(vertical=primary, name_en="Grade 4", name_ar="الصف 4")
+    secondary = Vertical.objects.create(
+        code=Vertical.Code.SECONDARY, name_en="Secondary", name_ar="ثانوي",
+        child_kind=Vertical.ChildKind.BRANCH,
+    )
+    science_track = Track.objects.create(vertical=secondary, name_en="Science", name_ar="علمي")
+    arts_track = Track.objects.create(vertical=secondary, name_en="Arts", name_ar="أدبي")
     math = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
+    science = Subject.objects.create(name_en="Science", name_ar="علوم")
     physics = Subject.objects.create(name_en="Physics", name_ar="فيزياء")
-
-    def category(market, subject):
-        return LessonCategory.objects.create(
-            market=market, vertical=primary, grade_level=g4, subject=subject,
-        )
-
-    eg_math = category(eg, math)
-    eg_physics = category(eg, physics)
-    sa_math = category(sa, math)
+    StageSubject.objects.create(vertical=primary, subject=math)
+    StageSubject.objects.create(vertical=primary, subject=science)
+    StageSubject.objects.create(vertical=secondary, track=science_track, subject=physics)
     StagePricingRule.objects.create(
         market=eg, vertical=primary, min_price_minor=1000, commission_pct=15
     )
@@ -50,8 +45,9 @@ def world():
     )
     profile = TeacherProfile.objects.create(user=user, market=eg, is_published=False)
     return {
-        "eg": eg, "sa": sa, "primary": primary, "user": user, "profile": profile,
-        "eg_math": eg_math, "eg_physics": eg_physics, "sa_math": sa_math,
+        "eg": eg, "primary": primary, "secondary": secondary, "science_track": science_track,
+        "user": user, "profile": profile, "math": math, "science": science, "physics": physics,
+        "arts": arts_track,
     }
 
 
@@ -114,111 +110,153 @@ def test_profile_requires_teacher_role(api, world):
     assert api.get(PROFILE).status_code == 403
 
 
-# --- Subjects --------------------------------------------------------------
+# --- Stage cards -----------------------------------------------------------
 
-def test_lesson_categories_scoped_to_market(teacher_api, world):
-    res = teacher_api.get(CATEGORIES)
-    assert res.status_code == 200
-    # EG has 2 categories; SA one is excluded.
-    assert {c["id"] for c in res.data} == {world["eg_math"].id, world["eg_physics"].id}
+def _card(world, **overrides):
+    body = {
+        "vertical": world["primary"].id,
+        "subjects": [world["math"].id],
+        "price_minor": 6000,
+        "free_lessons_offered": 1,
+        "availability": [{"weekday": 0, "start_time": "10:00", "end_time": "12:00"}],
+    }
+    body.update(overrides)
+    return body
 
 
-def test_add_list_and_delete_subject(teacher_api, world):
-    res = teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
+def test_create_and_list_stage_card(teacher_api, world):
+    res = teacher_api.post(STAGES, _card(world), format="json")
     assert res.status_code == 201
+    assert res.data["stage"]["name_en"] == "Primary" and res.data["track"] is None
+    assert [s["name_en"] for s in res.data["subjects"]] == ["Mathematics"]
+    assert res.data["price"]["amount_minor"] == 6000 and res.data["min_price_minor"] == 1000
+    assert res.data["free_lessons_offered"] == 1
+    assert res.data["availability"] == [{"weekday": 0, "start_time": "10:00", "end_time": "12:00"}]
+    assert res.data["incomplete"] == []
 
-    listed = teacher_api.get(SUBJECTS)
-    assert len(listed.data) == 1
-    subject_id = listed.data[0]["id"]
+    listed = teacher_api.get(STAGES)
+    assert [c["id"] for c in listed.data] == [res.data["id"]]
 
-    # Duplicate rejected.
-    dup = teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
+
+def test_duplicate_stage_rejected(teacher_api, world):
+    assert teacher_api.post(STAGES, _card(world), format="json").status_code == 201
+    dup = teacher_api.post(STAGES, _card(world), format="json")
     assert dup.status_code == 400
 
-    assert teacher_api.delete(f"{SUBJECTS}{subject_id}/").status_code == 204
-    assert teacher_api.get(SUBJECTS).data == []
 
-
-def test_cannot_add_subject_from_other_market(teacher_api, world):
-    res = teacher_api.post(SUBJECTS, {"lesson_category": world["sa_math"].id}, format="json")
-    assert res.status_code == 400
-
-
-# --- Availability ----------------------------------------------------------
-
-def test_availability_crud(teacher_api, world):
-    res = teacher_api.post(
-        AVAILABILITY, {"weekday": 0, "start_time": "10:00", "end_time": "12:00"}, format="json"
+def test_track_required_for_grouped_stage(teacher_api, world):
+    no_track = teacher_api.post(
+        STAGES, _card(world, vertical=world["secondary"].id, subjects=[world["physics"].id]), format="json"
     )
-    assert res.status_code == 201
-    rule_id = res.data["id"]
+    assert no_track.status_code == 400
 
-    bad = teacher_api.post(
-        AVAILABILITY, {"weekday": 1, "start_time": "12:00", "end_time": "11:00"}, format="json"
-    )
-    assert bad.status_code == 400
-
-    assert len(teacher_api.get(AVAILABILITY).data) == 1
-    assert teacher_api.delete(f"{AVAILABILITY}{rule_id}/").status_code == 204
-
-
-# --- Stage prices ----------------------------------------------------------
-
-def test_stage_price_enforces_minimum_and_upserts(teacher_api, world):
-    # Teacher must teach a subject in the stage first.
-    teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
-
-    # Below the stage minimum (1000) is rejected.
-    low = teacher_api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 500}, format="json"
-    )
-    assert low.status_code == 400
-
-    # At/above the minimum is accepted; a second POST upserts the same stage.
     ok = teacher_api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 6000}, format="json"
+        STAGES,
+        _card(world, vertical=world["secondary"].id, track=world["science_track"].id, subjects=[world["physics"].id]),
+        format="json",
     )
-    assert ok.status_code == 201
-    again = teacher_api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 7000}, format="json"
+    assert ok.status_code == 201 and ok.data["track"]["name_en"] == "Science"
+    # Same stage, other track is a separate card.
+    other = teacher_api.post(
+        STAGES,
+        _card(world, vertical=world["secondary"].id, track=world["arts"].id, subjects=[world["physics"].id]),
+        format="json",
     )
-    assert again.status_code == 201
-    sp = TeacherStagePrice.objects.get(teacher=world["profile"], vertical=world["primary"])
-    assert sp.price_minor == 7000
+    assert other.status_code == 400  # Physics isn't offered under Arts
 
 
-def test_stage_price_requires_teaching_the_stage(teacher_api, world):
-    # No subject in the stage yet -> rejected.
+def test_subject_must_be_offered_under_stage(teacher_api, world):
+    res = teacher_api.post(STAGES, _card(world, subjects=[world["physics"].id]), format="json")
+    assert res.status_code == 400
+
+
+def test_price_below_minimum_rejected(teacher_api, world):
+    res = teacher_api.post(STAGES, _card(world, price_minor=500), format="json")
+    assert res.status_code == 400
+
+
+def test_overlapping_windows_rejected(teacher_api, world):
     res = teacher_api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 6000}, format="json"
+        STAGES,
+        _card(world, availability=[
+            {"weekday": 0, "start_time": "10:00", "end_time": "12:00"},
+            {"weekday": 0, "start_time": "11:00", "end_time": "13:00"},
+        ]),
+        format="json",
     )
     assert res.status_code == 400
+
+
+def test_patch_replaces_subjects_and_availability(teacher_api, world):
+    card_id = teacher_api.post(STAGES, _card(world), format="json").data["id"]
+    res = teacher_api.patch(
+        f"{STAGES}{card_id}/",
+        {"subjects": [world["math"].id, world["science"].id], "price_minor": 7000,
+         "availability": [{"weekday": 3, "start_time": "16:00", "end_time": "18:00"}]},
+        format="json",
+    )
+    assert res.status_code == 200
+    assert {s["name_en"] for s in res.data["subjects"]} == {"Mathematics", "Science"}
+    assert res.data["price"]["amount_minor"] == 7000
+    assert res.data["availability"] == [{"weekday": 3, "start_time": "16:00", "end_time": "18:00"}]
+    assert AvailabilityRule.objects.filter(teacher=world["profile"]).count() == 1
+
+    # Stage can't be changed, other fields untouched by a partial update.
+    res = teacher_api.patch(f"{STAGES}{card_id}/", {"vertical": world["secondary"].id}, format="json")
+    assert res.status_code == 200 and res.data["stage"]["name_en"] == "Primary"
+
+
+def test_delete_card_blocked_by_active_booking(teacher_api, world):
+    card_id = teacher_api.post(STAGES, _card(world), format="json").data["id"]
+    card = TeacherStage.objects.get(id=card_id)
+    student = User.objects.create_user(phone="+201000000059", role=User.Role.STUDENT, market=world["eg"])
+    booking = Booking.objects.create(
+        student=student, teacher=world["profile"], **booking_lesson(card, world["math"]),
+        scheduled_start=timezone.now() + timedelta(days=2), price_minor=6000,
+        teacher_wage_minor=5100, currency="EGP", status=Booking.Status.CONFIRMED,
+    )
+    res = teacher_api.delete(f"{STAGES}{card_id}/")
+    assert res.status_code == 409 and res.data["error"]["code"] == "stage_in_use"
+
+    booking.status = Booking.Status.COMPLETED
+    booking.save()
+    assert teacher_api.delete(f"{STAGES}{card_id}/").status_code == 204
+    booking.refresh_from_db()
+    assert booking.teacher_stage_id is None and booking.subject_id == world["math"].id
+
+
+def test_other_teachers_cards_not_accessible(teacher_api, world):
+    other_user = User.objects.create_user(phone="+201000000058", role=User.Role.TEACHER, market=world["eg"])
+    other = TeacherProfile.objects.create(user=other_user, market=world["eg"])
+    card = TeacherStage.objects.create(teacher=other, vertical=world["primary"], price_minor=6000)
+    assert teacher_api.get(f"{STAGES}{card.id}/").status_code == 404
 
 
 # --- Publish flow ----------------------------------------------------------
 
-def test_publish_requires_subject_and_bio(teacher_api, world):
+def test_publish_requires_bio_and_stage(teacher_api, world):
     res = teacher_api.post(PUBLISH, format="json")
     assert res.status_code == 400
     assert res.data["error"]["code"] == "profile_incomplete"
-    assert set(res.data["error"]["detail"]["missing"]) == {"subject", "bio"}
+    assert set(res.data["error"]["detail"]["missing"]) == {"stage", "bio"}
 
 
-def test_publish_requires_stage_price(teacher_api, world):
-    # Subject + bio present, but no stage price yet -> incomplete.
-    teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
+def test_publish_requires_complete_cards(teacher_api, world):
     teacher_api.patch(PROFILE, {"bio_en": "Ready to teach."}, format="json")
+    card_id = teacher_api.post(STAGES, _card(world, availability=[]), format="json").data["id"]
+    # A moderator raises the minimum above the card's price afterwards.
+    StagePricingRule.objects.filter(market=world["eg"], vertical=world["primary"]).update(min_price_minor=8000)
+
     res = teacher_api.post(PUBLISH, format="json")
     assert res.status_code == 400
-    assert res.data["error"]["detail"]["missing"] == ["price"]
+    detail = res.data["error"]["detail"]
+    assert set(detail["missing"]) == {"price", "availability"}
+    assert detail["incomplete_stages"] == [card_id]
 
 
 def test_publish_then_visible_in_discovery(teacher_api, world):
-    teacher_api.post(SUBJECTS, {"lesson_category": world["eg_math"].id}, format="json")
     teacher_api.patch(PROFILE, {"bio_en": "Ready to teach."}, format="json")
-    teacher_api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 6000}, format="json"
-    )
+    assert teacher_api.post(STAGES, _card(world), format="json").status_code == 201
 
     res = teacher_api.post(PUBLISH, format="json")
     assert res.status_code == 200 and res.data["is_published"] is True
@@ -226,9 +264,11 @@ def test_publish_then_visible_in_discovery(teacher_api, world):
     world["profile"].refresh_from_db()
     assert world["profile"].is_published is True
 
-    # Now discoverable in the EG market.
+    # Now discoverable in the EG market, with the stage card.
     found = teacher_api.get(DISCOVERY, {"market": "EG"})
-    assert any(r["full_name"] == "Ali Teacher" for r in found.data["results"])
+    row = next(r for r in found.data["results"] if r["full_name"] == "Ali Teacher")
+    assert row["stages"][0]["price"]["amount_minor"] == 6000
+    assert row["free_lessons_offered"] == 1
 
     # Unpublish removes them again.
     assert teacher_api.post(UNPUBLISH, format="json").data["is_published"] is False

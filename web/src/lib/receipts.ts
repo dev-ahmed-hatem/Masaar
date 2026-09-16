@@ -1,5 +1,6 @@
 import { apiAuthed } from "./api";
 import type { Paginated } from "./teachers";
+import type { ReceiptAccount } from "./wallet";
 
 export type ReceiptStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -12,6 +13,7 @@ export interface Receipt {
   amount_display: string;
   currency: string;
   method: string;
+  payment_account: ReceiptAccount | null;
   reference: string;
   image: string | null;
   purpose: string;

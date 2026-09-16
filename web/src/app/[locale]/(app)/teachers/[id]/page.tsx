@@ -14,5 +14,5 @@ export default async function TeacherDetailPage({
   const teacherId = Number(id);
   if (!Number.isInteger(teacherId)) notFound();
   const d = await getDictionary(locale);
-  return <TeacherDetail id={teacherId} dict={d.browse} locale={locale} />;
+  return <TeacherDetail id={teacherId} dict={d.browse} cards={d.stageCards} locale={locale} />;
 }

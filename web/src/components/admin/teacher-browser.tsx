@@ -30,12 +30,23 @@ import {
   type TeacherListItem,
 } from "@/lib/teachers";
 
+import StageCardSummary from "@/components/teaching/stage-card-summary";
+
 type Dict = Dictionary["adminTeachers"];
+type CardsDict = Dictionary["stageCards"];
 
 const { Paragraph, Text } = Typography;
 const PAGE_SIZE = 20;
 
-export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: Locale }) {
+export default function TeacherBrowser({
+  dict,
+  cards,
+  locale,
+}: {
+  dict: Dict;
+  cards: CardsDict;
+  locale: Locale;
+}) {
   const ar = locale === "ar";
   const subjectName = useCallback(
     (s: SubjectSummary) => (ar ? s.name_ar : s.name_en),
@@ -236,7 +247,7 @@ export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: L
             <Spin />
           </div>
         ) : (
-          <TeacherDetailView dict={dict} locale={locale} teacher={selected} />
+          <TeacherDetailView dict={dict} cards={cards} locale={locale} teacher={selected} />
         )}
       </Drawer>
     </section>
@@ -245,29 +256,17 @@ export default function TeacherBrowser({ dict, locale }: { dict: Dict; locale: L
 
 function TeacherDetailView({
   dict,
+  cards,
   locale,
   teacher,
 }: {
   dict: Dict;
+  cards: CardsDict;
   locale: Locale;
   teacher: TeacherDetail;
 }) {
   const ar = locale === "ar";
   const bio = (ar ? teacher.bio_ar : teacher.bio_en) || teacher.bio_en || teacher.bio_ar;
-
-  const offerColumns: ColumnsType<TeacherDetail["offerings"][number]> = [
-    {
-      title: dict.colCategory,
-      key: "cat",
-      render: (_, o) =>
-        [o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · "),
-    },
-    {
-      title: dict.colPrice,
-      key: "price",
-      render: (_, o) => <span>{o.price?.display ?? "—"}</span>,
-    },
-  ];
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
@@ -299,31 +298,17 @@ function TeacherDetailView({
       )}
 
       <div>
-        <Text strong>{dict.offerings}</Text>
-        <Table
-          rowKey="lesson_category_id"
-          size="small"
-          columns={offerColumns}
-          dataSource={teacher.offerings}
-          pagination={false}
-          style={{ marginTop: 8 }}
-        />
-      </div>
-
-      {teacher.availability.length > 0 && (
-        <div>
-          <Text strong>{dict.availability}</Text>
-          <div style={{ marginTop: 8 }}>
-            <Space size={[4, 4]} wrap>
-              {teacher.availability.map((a, i) => (
-                <Tag key={i}>
-                  {dict.weekdays[a.weekday]} {a.start_time.slice(0, 5)}–{a.end_time.slice(0, 5)}
-                </Tag>
-              ))}
-            </Space>
-          </div>
+        <Text strong>{dict.stages}</Text>
+        <div className="mt-2 flex flex-col gap-2">
+          {teacher.stages.length === 0 ? (
+            <Text type="secondary">{cards.empty}</Text>
+          ) : (
+            teacher.stages.map((card) => (
+              <StageCardSummary key={card.id} card={card} dict={cards} locale={locale} />
+            ))
+          )}
         </div>
-      )}
+      </div>
 
       <div>
         <Text strong>

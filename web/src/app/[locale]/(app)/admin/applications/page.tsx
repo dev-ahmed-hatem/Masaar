@@ -16,7 +16,7 @@ export default async function AdminApplicationsPage({
 
   return (
     <RouteGuard locale={locale} allow={["MODERATOR", "SUPERADMIN"]}>
-      <ApplicationsQueue dict={d.adminApplications} locale={locale} />
+      <ApplicationsQueue dict={d.adminApplications} cards={d.stageCards} locale={locale} />
     </RouteGuard>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   App,
@@ -38,12 +38,15 @@ import { ApiError, apiAuthed } from "@/lib/api";
 import { createBooking } from "@/lib/bookings";
 import { chatApi } from "@/lib/chat";
 import { addFavorite, listFavorites, removeFavorite } from "@/lib/favorites";
-import type { Paginated, Specialization } from "@/lib/teachers";
-import { getTeacher, type Offering, type TeacherDetail as Teacher } from "@/lib/teachers";
+import { refName, stageCardTitle, type StageCard } from "@/lib/stage-cards";
+import type { Paginated } from "@/lib/teachers";
+import { getTeacher, type TeacherDetail as Teacher } from "@/lib/teachers";
 import { DetailRow } from "@/components/ui";
 import TeacherSchedule from "@/components/students/teacher-schedule";
+import StageCardSummary from "@/components/teaching/stage-card-summary";
 
 type Dict = Dictionary["browse"];
+type CardsDict = Dictionary["stageCards"];
 
 const { Paragraph, Text } = Typography;
 
@@ -71,39 +74,20 @@ function yearRange(start: string, end: string, present: string): string {
   return [start, end].filter(Boolean).join(" – ");
 }
 
-interface SpecGroup {
-  key: string;
-  label: string;
-  subjects: { id: number; name: string }[];
-}
-
-/** Group specialization tags by stage → (branch/faculty) for the profile. */
-function groupSpecializations(specs: Specialization[], ar: boolean): SpecGroup[] {
-  const groups = new Map<string, SpecGroup>();
-  for (const sp of specs) {
-    const key = `${sp.stage.id}:${sp.track?.id ?? 0}`;
-    const stageName = ar ? sp.stage.name_ar : sp.stage.name_en;
-    const trackName = sp.track ? (ar ? sp.track.name_ar : sp.track.name_en) : "";
-    const label = trackName ? `${stageName} · ${trackName}` : stageName;
-    let group = groups.get(key);
-    if (!group) {
-      group = { key, label, subjects: [] };
-      groups.set(key, group);
-    }
-    if (!group.subjects.some((s) => s.id === sp.subject.id)) {
-      group.subjects.push({ id: sp.subject.id, name: ar ? sp.subject.name_ar : sp.subject.name_en });
-    }
-  }
-  return [...groups.values()];
+/** A card students can book: it has subjects and weekly hours. */
+function isBookable(card: StageCard): boolean {
+  return card.subjects.length > 0 && card.availability.length > 0 && card.price.amount_minor > 0;
 }
 
 export default function TeacherDetail({
   id,
   dict,
+  cards: cardsDict,
   locale,
 }: {
   id: number;
   dict: Dict;
+  cards: CardsDict;
   locale: Locale;
 }) {
   const ar = locale === "ar";
@@ -117,6 +101,7 @@ export default function TeacherDetail({
   const [pickedStart, setPickedStart] = useState<string | null>(null);
   const [messaging, setMessaging] = useState(false);
   const [isFav, setIsFav] = useState(false);
+  const [pickedStageId, setPickedStageId] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -136,6 +121,11 @@ export default function TeacherDetail({
       .then((favs) => setIsFav(favs.some((f) => f.id === id)))
       .catch(() => {});
   }, [id, user?.role]);
+
+  const bookableStages = useMemo(() => (teacher?.stages ?? []).filter(isBookable), [teacher]);
+  // The stage whose hours the schedule shows: the one picked, else the first bookable.
+  const activeStage =
+    bookableStages.find((c) => c.id === pickedStageId) ?? bookableStages[0] ?? null;
 
   const isStudent = user?.role === "STUDENT";
   const canAct = !user || isStudent;
@@ -185,6 +175,12 @@ export default function TeacherDetail({
     if (!user) return void router.push(signInHref);
     if (!isStudent) return; // teachers/admins can browse but not book
     setPickedStart(iso);
+  }
+
+  function showStageTimes(stageId: number) {
+    setPickedStageId(stageId);
+    setPickedStart(null);
+    scrollToSchedule();
   }
 
   function scrollToSchedule() {
@@ -284,37 +280,24 @@ export default function TeacherDetail({
             </Section>
           )}
 
-          {/* Specializations (catalog): grouped stage → branch/faculty → subjects */}
-          {teacher.specializations.length > 0 && (
-            <Section icon={<GraduationCap size={18} />} title={dict.specializationsTitle}>
-              <div className="flex flex-col gap-4">
-                {groupSpecializations(teacher.specializations, ar).map((g) => (
-                  <div key={g.key} className="flex flex-col gap-2">
-                    <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{g.label}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {g.subjects.map((s) => (
-                        <Tag key={s.id} bordered={false} style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", margin: 0 }}>
-                          {s.name}
-                        </Tag>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Subjects & prices */}
-          {teacher.offerings.length > 0 && (
-            <Section icon={<GraduationCap size={18} />} title={dict.offerings}>
-              <div className="flex flex-col gap-2">
-                {teacher.offerings.map((o) => (
-                  <div key={o.lesson_category_id} className="flex items-center justify-between gap-3 rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
-                    <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>
-                      {[o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · ")}
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold" style={{ color: "var(--ink)" }}>{o.price?.display ?? "—"}</span>
-                  </div>
+          {/* Stages & prices: each stage card's subjects, price, trials and hours */}
+          {teacher.stages.length > 0 && (
+            <Section icon={<GraduationCap size={18} />} title={dict.stagesTitle}>
+              <div className="flex flex-col gap-3">
+                {teacher.stages.map((card) => (
+                  <StageCardSummary
+                    key={card.id}
+                    card={card}
+                    dict={cardsDict}
+                    locale={locale}
+                    actions={
+                      isBookable(card) ? (
+                        <Button size="small" icon={<CalendarDays size={14} />} onClick={() => showStageTimes(card.id)}>
+                          {dict.seeTimes}
+                        </Button>
+                      ) : undefined
+                    }
+                  />
                 ))}
               </div>
             </Section>
@@ -327,8 +310,27 @@ export default function TeacherDetail({
               {dict.scheduleTitle}
             </h2>
             <p className="mb-4 text-sm" style={{ color: "var(--ink-muted)" }}>{dict.scheduleIntro}</p>
+            {bookableStages.length > 1 && activeStage && (
+              <label className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.stageLabel}</span>
+                <Select
+                  value={activeStage.id}
+                  onChange={(v) => {
+                    setPickedStageId(v);
+                    setPickedStart(null);
+                  }}
+                  style={{ minWidth: 220 }}
+                  options={bookableStages.map((c) => ({
+                    value: c.id,
+                    label: `${stageCardTitle(c, locale)} · ${c.price.display}`,
+                  }))}
+                />
+              </label>
+            )}
             <TeacherSchedule
+              key={activeStage?.id ?? 0}
               teacherId={teacher.id}
+              stageId={activeStage?.id ?? null}
               locale={locale}
               dict={dict}
               onPick={onPickSlot}
@@ -437,9 +439,9 @@ export default function TeacherDetail({
         </aside>
       </div>
 
-      {pickedStart && (
+      {pickedStart && activeStage && (
         <BookingModal
-          teacher={teacher}
+          stage={activeStage}
           startIso={pickedStart}
           dict={dict}
           locale={locale}
@@ -544,13 +546,13 @@ function ReviewsSection({
 }
 
 function BookingModal({
-  teacher,
+  stage,
   startIso,
   dict,
   locale,
   onClose,
 }: {
-  teacher: Teacher;
+  stage: StageCard;
   startIso: string;
   dict: Dict;
   locale: Locale;
@@ -558,14 +560,10 @@ function BookingModal({
 }) {
   const router = useRouter();
   const { message } = App.useApp();
-  const offerings = teacher.offerings;
-  const [offeringId, setOfferingId] = useState<number | undefined>(offerings[0]?.lesson_category_id);
+  const [subjectId, setSubjectId] = useState<number | undefined>(stage.subjects[0]?.id);
   const [isTrial, setIsTrial] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lowFunds, setLowFunds] = useState(false);
-
-  const offering: Offering | undefined =
-    offerings.find((o) => o.lesson_category_id === offeringId) ?? offerings[0];
 
   const whenLabel = new Date(startIso).toLocaleString(locale, {
     weekday: "long",
@@ -576,13 +574,13 @@ function BookingModal({
   });
 
   async function submit() {
-    if (!offering) return;
+    if (!subjectId) return;
     setSubmitting(true);
     setLowFunds(false);
     try {
       await createBooking({
-        teacher: teacher.id,
-        lesson_category: offering.lesson_category_id,
+        teacher_stage: stage.id,
+        subject: subjectId,
         scheduled_start: startIso,
         is_trial: isTrial,
       });
@@ -603,7 +601,7 @@ function BookingModal({
     }
   }
 
-  const priceText = isTrial ? dict.free : offering?.price?.display ?? "";
+  const priceText = isTrial ? dict.free : stage.price.display;
 
   return (
     <Modal
@@ -611,28 +609,29 @@ function BookingModal({
       onCancel={onClose}
       title={dict.bookTitle}
       okText={dict.confirm}
-      okButtonProps={{ disabled: !offering, loading: submitting }}
+      okButtonProps={{ disabled: !subjectId, loading: submitting }}
       onOk={submit}
     >
       <div className="flex flex-col gap-4 py-2">
         <DetailRow label={dict.selectedTime} value={<strong dir="ltr">{whenLabel}</strong>} />
 
-        {offerings.length > 1 && (
+        <DetailRow label={dict.stageLabel} value={stageCardTitle(stage, locale)} />
+
+        {stage.subjects.length > 1 ? (
           <label className="flex flex-col gap-1">
             <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.chooseSubject}</span>
             <Select
-              value={offeringId}
-              onChange={setOfferingId}
+              value={subjectId}
+              onChange={setSubjectId}
               style={{ width: "100%" }}
-              options={offerings.map((o) => ({
-                value: o.lesson_category_id,
-                label: [o.vertical, o.grade_level, o.subject].filter(Boolean).join(" · "),
-              }))}
+              options={stage.subjects.map((s) => ({ value: s.id, label: refName(s, locale) }))}
             />
           </label>
+        ) : (
+          <DetailRow label={dict.subject} value={refName(stage.subjects[0], locale)} />
         )}
 
-        {teacher.free_lessons_offered > 0 && (
+        {stage.free_lessons_offered > 0 && (
           <label className="flex items-center gap-3">
             <Switch checked={isTrial} onChange={setIsTrial} />
             <span className="text-sm" style={{ color: "var(--ink)" }}>{dict.trialToggle}</span>

@@ -10,7 +10,7 @@ import {
   Input,
   InputNumber,
   Modal,
-  Select,
+  Radio,
   Spin,
   Tag,
   Typography,
@@ -28,6 +28,8 @@ import {
   listPaymentAccounts,
   listReceipts,
   purchasePackage,
+  RECEIPT_IMAGE_ACCEPT,
+  RECEIPT_IMAGE_MAX_BYTES,
   type LedgerEntry,
   type Package,
   type PaymentAccount,
@@ -51,6 +53,78 @@ function toArray<T>(res: { results: T[] } | T[]): T[] {
   return Array.isArray(res) ? res : res.results;
 }
 
+/** Client-side check mirroring the API: an image (JPG/PNG/WebP/HEIC) up to 10 MB. */
+function isReceiptImage(file: File): boolean {
+  return RECEIPT_IMAGE_ACCEPT.split(",").includes(file.type) && file.size <= RECEIPT_IMAGE_MAX_BYTES;
+}
+
+/** Pick the account the student paid into (required on every receipt). */
+function AccountChoices({
+  accounts,
+  dict,
+  value,
+  onChange,
+}: {
+  accounts: PaymentAccount[];
+  dict: Dict;
+  value?: number;
+  onChange?: (id: number) => void;
+}) {
+  return (
+    <Radio.Group value={value} onChange={(e) => onChange?.(e.target.value)} className="w-full">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {accounts.map((a) => (
+          <Radio
+            key={a.id}
+            value={a.id}
+            className="!m-0 rounded-xl p-3"
+            style={{ border: `1px solid ${value === a.id ? "var(--brand)" : "var(--border)"}` }}
+          >
+            <span className="flex flex-col">
+              <span className="font-medium" style={{ color: "var(--ink)" }}>
+                {a.display_name}{" "}
+                <Tag bordered={false} className="ms-1">
+                  {a.kind === "BANK" ? dict.bank : dict.walletMethod}
+                </Tag>
+              </span>
+              <span className="text-xs" dir="ltr" style={{ color: "var(--ink-muted)" }}>{a.details}</span>
+            </span>
+          </Radio>
+        ))}
+      </div>
+    </Radio.Group>
+  );
+}
+
+/** Single receipt image picker (form control) that rejects non-images up front. */
+function ReceiptUpload({
+  dict,
+  value: file = null,
+  onChange,
+}: {
+  dict: Dict;
+  value?: File | null;
+  onChange?: (file: File | null) => void;
+}) {
+  const { message } = App.useApp();
+  return (
+    <Upload
+      accept={RECEIPT_IMAGE_ACCEPT}
+      maxCount={1}
+      listType="picture"
+      fileList={file ? [{ uid: "receipt", name: file.name, status: "done", originFileObj: file as never }] : []}
+      beforeUpload={(f) => {
+        if (isReceiptImage(f)) onChange?.(f);
+        else message.error(dict.invalidImage);
+        return false;
+      }}
+      onRemove={() => onChange?.(null)}
+    >
+      <Button icon={<UploadCloud size={16} />}>{dict.upload}</Button>
+    </Upload>
+  );
+}
+
 export default function WalletView({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -62,7 +136,6 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
   const [error, setError] = useState<string | null>(null);
   const [buying, setBuying] = useState<Package | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [topUpFile, setTopUpFile] = useState<File | null>(null);
   const [form] = Form.useForm();
 
   const statusLabel = useCallback(
@@ -87,20 +160,24 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
 
   useEffect(() => reload(), [reload]);
 
-  async function submitTopUp(values: { amount: number; method: string; reference?: string }) {
+  async function submitTopUp(values: {
+    amount: number;
+    payment_account: number;
+    reference?: string;
+    image: File;
+  }) {
     if (!wallet) return;
     setSubmitting(true);
     try {
       const fd = new FormData();
       fd.append("amount_minor", String(Math.round(values.amount * 100)));
-      fd.append("method", values.method);
+      fd.append("payment_account", String(values.payment_account));
       fd.append("purpose", "TOPUP");
       if (values.reference) fd.append("reference", values.reference);
-      if (topUpFile) fd.append("image", topUpFile);
+      fd.append("image", values.image);
       await createReceipt(fd);
       message.success(dict.submitted);
       form.resetFields();
-      setTopUpFile(null);
       reload();
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : dict.genericError);
@@ -176,36 +253,40 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
         <h2 className="mb-4 text-lg font-semibold" style={{ color: "var(--ink)" }}>
           {dict.topUpTitle}
         </h2>
-        <Form form={form} layout="vertical" requiredMark={false} onFinish={submitTopUp} initialValues={{ method: "BANK" }}>
+        <Form
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={submitTopUp}
+          initialValues={{ payment_account: accounts.length === 1 ? accounts[0].id : undefined }}
+        >
+          <Form.Item
+            name="payment_account"
+            label={dict.payTo}
+            rules={[{ required: true, message: dict.requiredAccount }]}
+          >
+            <AccountChoices accounts={accounts} dict={dict} />
+          </Form.Item>
           <div className="grid gap-x-4 sm:grid-cols-2">
-            <Form.Item name="amount" label={`${dict.amount} (${cur})`} rules={[{ required: true }]}>
+            <Form.Item
+              name="amount"
+              label={`${dict.amount} (${cur})`}
+              rules={[{ required: true, message: dict.requiredAmount }]}
+            >
               <InputNumber min={1} style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="method" label={dict.method} rules={[{ required: true }]}>
-              <Select
-                options={[
-                  { value: "BANK", label: dict.bank },
-                  { value: "WALLET", label: dict.walletMethod },
-                ]}
-              />
+            <Form.Item name="reference" label={dict.reference}>
+              <Input />
             </Form.Item>
           </div>
-          <Form.Item name="reference" label={dict.reference}>
-            <Input />
+          <Form.Item
+            name="image"
+            label={dict.receiptImage}
+            rules={[{ required: true, message: dict.requiredImage }]}
+          >
+            <ReceiptUpload dict={dict} />
           </Form.Item>
-          <Form.Item label={dict.receiptImage}>
-            <Upload
-              maxCount={1}
-              beforeUpload={(f) => {
-                setTopUpFile(f);
-                return false;
-              }}
-              onRemove={() => setTopUpFile(null)}
-            >
-              <Button icon={<UploadCloud size={16} />}>{dict.upload}</Button>
-            </Upload>
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={submitting}>
+          <Button type="primary" htmlType="submit" loading={submitting} disabled={accounts.length === 0}>
             {dict.submit}
           </Button>
         </Form>
@@ -265,6 +346,7 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
       {buying && (
         <PurchaseModal
           pkg={buying}
+          accounts={accounts}
           dict={dict}
           onClose={() => setBuying(null)}
           onDone={() => {
@@ -279,28 +361,35 @@ export default function WalletView({ dict, locale }: { dict: Dict; locale: Local
 
 function PurchaseModal({
   pkg,
+  accounts,
   dict,
   onClose,
   onDone,
 }: {
   pkg: Package;
+  accounts: PaymentAccount[];
   dict: Dict;
   onClose: () => void;
   onDone: () => void;
 }) {
   const { message } = App.useApp();
-  const [method, setMethod] = useState("BANK");
+  const [accountId, setAccountId] = useState<number | undefined>(
+    accounts.length === 1 ? accounts[0].id : undefined,
+  );
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   async function submit() {
+    setTouched(true);
+    if (!accountId || !file) return;
     setSubmitting(true);
     try {
       const fd = new FormData();
-      fd.append("method", method);
+      fd.append("payment_account", String(accountId));
       if (reference) fd.append("reference", reference);
-      if (file) fd.append("image", file);
+      fd.append("image", file);
       await purchasePackage(pkg.id, fd);
       message.success(dict.purchased);
       onDone();
@@ -312,34 +401,35 @@ function PurchaseModal({
   }
 
   return (
-    <Modal open onCancel={onClose} onOk={submit} title={`${dict.buy} · ${pkg.name}`} okText={dict.submit} okButtonProps={{ loading: submitting }}>
+    <Modal
+      open
+      width={600}
+      onCancel={onClose}
+      onOk={submit}
+      title={`${dict.buy} · ${pkg.name}`}
+      okText={dict.submit}
+      okButtonProps={{ loading: submitting, disabled: accounts.length === 0 }}
+    >
       <div className="flex flex-col gap-4 py-2">
         <div className="text-lg font-bold" style={{ color: "var(--ink)" }}>{pkg.price_display}</div>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.method}</span>
-          <Select
-            value={method}
-            onChange={setMethod}
-            options={[
-              { value: "BANK", label: dict.bank },
-              { value: "WALLET", label: dict.walletMethod },
-            ]}
-          />
-        </label>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.payTo}</span>
+          {accounts.length === 0 ? (
+            <Text type="secondary">{dict.noAccounts}</Text>
+          ) : (
+            <AccountChoices accounts={accounts} dict={dict} value={accountId} onChange={setAccountId} />
+          )}
+          {touched && !accountId && <Text type="danger">{dict.requiredAccount}</Text>}
+        </div>
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.reference}</span>
           <Input value={reference} onChange={(e) => setReference(e.target.value)} />
         </label>
-        <Upload
-          maxCount={1}
-          beforeUpload={(f) => {
-            setFile(f);
-            return false;
-          }}
-          onRemove={() => setFile(null)}
-        >
-          <Button icon={<UploadCloud size={16} />}>{dict.upload}</Button>
-        </Upload>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.receiptImage}</span>
+          <ReceiptUpload dict={dict} value={file} onChange={setFile} />
+          {touched && !file && <Text type="danger">{dict.requiredImage}</Text>}
+        </div>
       </div>
     </Modal>
   );

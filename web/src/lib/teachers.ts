@@ -1,4 +1,5 @@
 import { apiAuthed } from "./api";
+import type { StageCard } from "./stage-cards";
 
 export interface Money {
   amount_minor: number;
@@ -10,13 +11,6 @@ export interface SubjectSummary {
   id: number;
   name_en: string;
   name_ar: string;
-}
-
-/** A stage → (branch/faculty) → subject discovery tag on a teacher. */
-export interface Specialization {
-  stage: SubjectSummary;
-  track: SubjectSummary | null;
-  subject: SubjectSummary;
 }
 
 export interface TeacherListItem {
@@ -32,19 +26,12 @@ export interface TeacherListItem {
   rating_avg: string | number;
   rating_count: number;
   lessons_count: number;
+  /** The most free trial lessons offered in any of the teacher's stages. */
   free_lessons_offered: number;
+  /** Distinct subjects across all stage cards. */
   subjects: SubjectSummary[];
-  specializations: Specialization[];
+  stages: StageCard[];
   from_price: Money | null;
-}
-
-export interface Offering {
-  lesson_category_id: number;
-  vertical: string;
-  grade_level: string | null;
-  subject: string;
-  // Priced by the teacher's stage price; null if they haven't set one yet.
-  price: Money | null;
 }
 
 export interface Availability {
@@ -90,7 +77,7 @@ export interface TeacherDetail extends TeacherListItem {
   education: Education[];
   work_experience: Experience[];
   certifications: Certification[];
-  offerings: Offering[];
+  /** Union of every stage card's weekly hours. */
   availability: Availability[];
   reviews_summary: { rating_avg: string | number; rating_count: number };
   recent_reviews: Review[];

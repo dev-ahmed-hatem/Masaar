@@ -1,14 +1,21 @@
 import pytest
 
 from apps.accounts.models import User
-from apps.catalog.models import GradeLevel, LessonCategory, StagePricingRule, Subject, Vertical
+from apps.catalog.models import (
+    GradeLevel,
+    LessonCategory,
+    StagePricingRule,
+    StageSubject,
+    Subject,
+    Vertical,
+)
 from apps.markets.models import Market
-from apps.teachers.models import TeacherProfile, TeacherStagePrice, TeacherSubject
+from apps.teachers.models import TeacherProfile, TeacherStage
 
 pytestmark = pytest.mark.django_db
 
 CATEGORIES = "/api/admin/lesson-categories/"
-STAGE_PRICES = "/api/teacher/stage-prices/"
+STAGES = "/api/teacher/stages/"
 
 
 @pytest.fixture
@@ -24,7 +31,7 @@ def world():
         phone="+201000000900", full_name="Price Teacher", role=User.Role.TEACHER, market=eg, is_verified=True
     )
     teacher = TeacherProfile.objects.create(user=tuser, market=eg, is_published=True)
-    TeacherSubject.objects.create(teacher=teacher, lesson_category=cat)
+    StageSubject.objects.create(vertical=primary, subject=math)
     staff = User.objects.create_user(phone="+201000000901", role=User.Role.MODERATOR, is_verified=True)
     return {
         "eg": eg, "primary": primary, "g4": g4, "math": math, "science": science,
@@ -34,23 +41,23 @@ def world():
 
 # --- Teacher stage price honors the moderator minimum ----------------------
 
+def _card(world, price):
+    return {"vertical": world["primary"].id, "subjects": [world["math"].id], "price_minor": price}
+
+
 def test_stage_price_below_minimum_rejected(api, world):
     api.force_authenticate(user=world["tuser"])
-    res = api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 4000}, format="json"
-    )
+    res = api.post(STAGES, _card(world, 4000), format="json")
     assert res.status_code == 400
-    assert not TeacherStagePrice.objects.filter(teacher=world["teacher"]).exists()
+    assert not TeacherStage.objects.filter(teacher=world["teacher"]).exists()
 
 
 def test_stage_price_at_minimum_accepted(api, world):
     api.force_authenticate(user=world["tuser"])
-    res = api.post(
-        STAGE_PRICES, {"vertical": world["primary"].id, "price_minor": 5000}, format="json"
-    )
+    res = api.post(STAGES, _card(world, 5000), format="json")
     assert res.status_code == 201
-    sp = TeacherStagePrice.objects.get(teacher=world["teacher"], vertical=world["primary"])
-    assert sp.price_minor == 5000
+    card = TeacherStage.objects.get(teacher=world["teacher"], vertical=world["primary"])
+    assert card.price_minor == 5000
     # The response echoes the stage minimum for the UI.
     assert res.data["min_price_minor"] == 5000
 

@@ -1,19 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import dayjs from "dayjs";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   App,
   Button,
   Form,
   Input,
-  InputNumber,
   Select,
   Space,
   Spin,
   Tag,
-  TimePicker,
   Typography,
 } from "antd";
 import type { ReactNode } from "react";
@@ -21,28 +18,16 @@ import type { ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import {
-  teacherSelf,
-  type AvailabilityRule,
-  type LessonCategoryOption,
-  type TeacherProfile,
-  type TeacherSpecialization,
-  type TeacherStagePrice,
-  type TeacherSubject,
-} from "@/lib/teacher-self";
-import {
-  catalog,
-  catalogName,
-  type Stage,
-  type StagePricing,
-  type StageSubject,
-  type Track as CatalogTrack,
-} from "@/lib/catalog";
+import { LANGUAGE_OPTIONS } from "@/lib/languages";
+import type { StageCard } from "@/lib/stage-cards";
+import { teacherSelf, type TeacherProfile } from "@/lib/teacher-self";
 
 import GoogleCalendarCard from "@/components/integrations/google-calendar-card";
+import StageCardsEditor from "@/components/teaching/stage-cards-editor";
 
 type Dict = Dictionary["teacherProfile"];
 type GcalDict = Dictionary["googleCalendar"];
+type CardsDict = Dictionary["stageCards"];
 
 const { Paragraph, Text } = Typography;
 
@@ -65,48 +50,29 @@ function Section({ title, children }: { title: ReactNode; children: ReactNode })
 
 export default function ProfileEditor({
   dict,
+  cards: cardsDict,
   gcal,
   locale,
 }: {
   dict: Dict;
+  cards: CardsDict;
   gcal: GcalDict;
   locale: Locale;
 }) {
   const { message } = App.useApp();
-  const ar = locale === "ar";
-  const label = useCallback(
-    (c: LessonCategoryOption) => (ar ? c.label_ar : c.label),
-    [ar],
-  );
 
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
-  const [categories, setCategories] = useState<LessonCategoryOption[]>([]);
-  const [subjects, setSubjects] = useState<TeacherSubject[]>([]);
-  const [availability, setAvailability] = useState<AvailabilityRule[]>([]);
-  const [stagePrices, setStagePrices] = useState<TeacherStagePrice[]>([]);
-  const [stageRules, setStageRules] = useState<StagePricing[]>([]);
-  const [specializations, setSpecializations] = useState<TeacherSpecialization[]>([]);
+  const [stages, setStages] = useState<StageCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
+  const [incompleteStages, setIncompleteStages] = useState<number[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      teacherSelf.getProfile(),
-      teacherSelf.listCategories(),
-      teacherSelf.listSubjects(),
-      teacherSelf.listAvailability(),
-      teacherSelf.listStagePrices(),
-      teacherSelf.listSpecializations(),
-    ])
-      .then(([p, c, s, a, sp, spec]) => {
+    Promise.all([teacherSelf.getProfile(), teacherSelf.listStages()])
+      .then(([p, cards]) => {
         setProfile(p);
-        setCategories(c);
-        setSubjects(s);
-        setAvailability(a);
-        setStagePrices(sp);
-        setSpecializations(spec);
-        catalog.listStagePricing(p.market).then(setStageRules).catch(() => setStageRules([]));
+        setStages(cards);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : dict.loadError))
       .finally(() => setLoading(false));
@@ -128,9 +94,6 @@ export default function ProfileEditor({
     return <Alert type="error" message={error ?? dict.loadError} showIcon />;
   }
 
-  const usedCategoryIds = new Set(subjects.map((s) => s.lesson_category.id));
-  const addableCategories = categories.filter((c) => !usedCategoryIds.has(c.id));
-
   async function saveProfile(values: Record<string, unknown>) {
     try {
       const patch = {
@@ -150,6 +113,7 @@ export default function ProfileEditor({
   async function togglePublish() {
     try {
       setMissing([]);
+      setIncompleteStages([]);
       const updated = profile!.is_published
         ? await teacherSelf.unpublish()
         : await teacherSelf.publish();
@@ -157,8 +121,9 @@ export default function ProfileEditor({
       message.success(updated.is_published ? dict.publishSuccess : dict.unpublishSuccess);
     } catch (err) {
       if (err instanceof ApiError && err.code === "profile_incomplete") {
-        const detail = err.detail as { missing?: string[] } | undefined;
+        const detail = err.detail as { missing?: string[]; incomplete_stages?: number[] } | undefined;
         setMissing(detail?.missing ?? []);
+        setIncompleteStages(detail?.incomplete_stages ?? []);
       } else {
         fail(err);
       }
@@ -186,9 +151,11 @@ export default function ProfileEditor({
           message={dict.incomplete}
           description={
             <ul style={{ margin: 0, paddingInlineStart: 18 }}>
-              {missing.includes("subject") && <li>{dict.missingSubject}</li>}
               {missing.includes("bio") && <li>{dict.missingBio}</li>}
+              {missing.includes("stage") && <li>{dict.missingStage}</li>}
+              {missing.includes("subject") && <li>{dict.missingSubject}</li>}
               {missing.includes("price") && <li>{dict.missingPrice}</li>}
+              {missing.includes("availability") && <li>{dict.missingAvailability}</li>}
             </ul>
           }
         />
@@ -206,90 +173,43 @@ export default function ProfileEditor({
         <ProfileForm dict={dict} profile={profile} onSave={saveProfile} />
       </Section>
 
-      <SubjectsCard
-        dict={dict}
-        label={label}
-        subjects={subjects}
-        addable={addableCategories}
-        onAdd={async (catId) => {
-          try {
-            const created = await teacherSelf.addSubject(catId);
-            setSubjects((prev) => [...prev, created]);
-          } catch (err) {
-            fail(err);
-          }
-        }}
-        onRemove={async (id) => {
-          try {
-            await teacherSelf.removeSubject(id);
-            setSubjects((prev) => prev.filter((s) => s.id !== id));
-          } catch (err) {
-            fail(err);
-          }
-        }}
-      />
-
-      <SpecializationsCard
-        dict={dict}
-        locale={locale}
-        specializations={specializations}
-        onAdd={async (body) => {
-          try {
-            const created = await teacherSelf.addSpecialization(body);
-            setSpecializations((prev) => [...prev, created]);
-          } catch (err) {
-            fail(err);
-          }
-        }}
-        onRemove={async (id) => {
-          try {
-            await teacherSelf.removeSpecialization(id);
-            setSpecializations((prev) => prev.filter((s) => s.id !== id));
-          } catch (err) {
-            fail(err);
-          }
-        }}
-      />
-
-      <AvailabilityCard
-        dict={dict}
-        availability={availability}
-        onAdd={async (body) => {
-          try {
-            const created = await teacherSelf.addAvailability(body);
-            setAvailability((prev) => [...prev, created]);
-          } catch (err) {
-            fail(err);
-          }
-        }}
-        onRemove={async (id) => {
-          try {
-            await teacherSelf.removeAvailability(id);
-            setAvailability((prev) => prev.filter((a) => a.id !== id));
-          } catch (err) {
-            fail(err);
-          }
-        }}
-      />
+      <Section title={dict.stagesSection}>
+        <Paragraph type="secondary">{dict.stagesHint}</Paragraph>
+        <StageCardsEditor
+          dict={cardsDict}
+          locale={locale}
+          market={profile.market}
+          cards={stages}
+          highlightIds={incompleteStages}
+          onSave={async (input, _preview, existing) => {
+            try {
+              const saved = existing
+                ? await teacherSelf.updateStage(existing.id, input)
+                : await teacherSelf.createStage(input);
+              setStages((prev) =>
+                existing ? prev.map((c) => (c.id === saved.id ? saved : c)) : [...prev, saved],
+              );
+              setIncompleteStages((ids) => ids.filter((id) => id !== saved.id));
+              message.success(dict.stageSaved);
+            } catch (err) {
+              fail(err);
+              throw err; // keep the dialog open
+            }
+          }}
+          onRemove={async (card) => {
+            try {
+              await teacherSelf.deleteStage(card.id);
+              setStages((prev) => prev.filter((c) => c.id !== card.id));
+              message.success(dict.stageRemoved);
+            } catch (err) {
+              if (err instanceof ApiError && err.code === "stage_in_use") message.error(cardsDict.stageInUse);
+              else fail(err);
+            }
+          }}
+        />
+      </Section>
 
       <GoogleCalendarCard dict={gcal} locale={locale} />
-
-      <StagePricesCard
-        dict={dict}
-        locale={locale}
-        subjects={subjects}
-        stagePrices={stagePrices}
-        stageRules={stageRules}
-        onSave={async (vertical, price_minor) => {
-          try {
-            const saved = await teacherSelf.setStagePrice(vertical, price_minor);
-            setStagePrices((prev) => [...prev.filter((p) => p.vertical !== vertical), saved]);
-            message.success(dict.saved);
-          } catch (err) {
-            fail(err);
-          }
-        }}
-      />
 
       {/* Sticky publish bar — clears above the mobile tab bar. */}
       <div
@@ -408,7 +328,6 @@ function ProfileForm({
     bio_en: profile.bio_en,
     bio_ar: profile.bio_ar,
     intro_video_url: profile.intro_video_url,
-    free_lessons_offered: profile.free_lessons_offered,
     specialties: profile.specialties ?? [],
     education: profile.education ?? [],
     work_experience: profile.work_experience ?? [],
@@ -443,16 +362,7 @@ function ProfileForm({
           />
         </Form.Item>
         <Form.Item name="languages" label={dict.languages}>
-          <Select
-            mode="multiple"
-            options={[
-              { value: "ar", label: "العربية" },
-              { value: "en", label: "English" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item name="free_lessons_offered" label={dict.freeLessons}>
-          <InputNumber min={0} max={10} style={{ width: "100%" }} />
+          <Select mode="multiple" options={LANGUAGE_OPTIONS.map(({ value, label }) => ({ value, label }))} />
         </Form.Item>
       </div>
       <Form.Item name="bio_en" label={dict.bioEn}>
@@ -575,369 +485,6 @@ function ResumeListField({
           </div>
         )}
       </Form.List>
-    </div>
-  );
-}
-
-function SpecializationsCard({
-  dict,
-  locale,
-  specializations,
-  onAdd,
-  onRemove,
-}: {
-  dict: Dict;
-  locale: Locale;
-  specializations: TeacherSpecialization[];
-  onAdd: (body: { vertical: number; track: number | null; subject: number }) => Promise<void>;
-  onRemove: (id: number) => Promise<void>;
-}) {
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [stageId, setStageId] = useState<number | undefined>();
-  const [trackId, setTrackId] = useState<number | null>(null);
-  const [tracks, setTracks] = useState<CatalogTrack[]>([]);
-  const [subs, setSubs] = useState<StageSubject[]>([]);
-  const [subjectId, setSubjectId] = useState<number | undefined>();
-
-  useEffect(() => {
-    catalog.listStages().then(setStages).catch(() => {});
-  }, []);
-
-  const stage = stages.find((s) => s.id === stageId);
-  const needsTrack = stage != null && stage.child_kind !== "NONE";
-
-  useEffect(() => {
-    setTrackId(null);
-    setTracks([]);
-    setSubs([]);
-    setSubjectId(undefined);
-    if (!stageId) return;
-    if (needsTrack) catalog.listTracks(stageId).then(setTracks).catch(() => {});
-    else catalog.listStageSubjects(stageId).then(setSubs).catch(() => {});
-  }, [stageId, needsTrack]);
-
-  useEffect(() => {
-    setSubjectId(undefined);
-    if (stageId && needsTrack && trackId) {
-      catalog.listStageSubjects(stageId, trackId).then(setSubs).catch(() => {});
-    }
-  }, [trackId, stageId, needsTrack]);
-
-  const existing = new Set(
-    specializations.map((s) => `${s.vertical}|${s.track ?? 0}|${s.subject}`),
-  );
-  const addableSubs = subs.filter(
-    (ss) => !existing.has(`${stageId}|${(needsTrack ? trackId : null) ?? 0}|${ss.subject}`),
-  );
-  const canAdd = Boolean(stageId && (!needsTrack || trackId) && subjectId);
-
-  const specLabel = (s: TeacherSpecialization) => {
-    const ar = locale === "ar";
-    return [
-      ar ? s.stage_name_ar : s.stage_name_en,
-      s.track_name_en ? (ar ? s.track_name_ar : s.track_name_en) : null,
-      ar ? s.subject_name_ar : s.subject_name_en,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-  };
-
-  return (
-    <Section title={dict.specializationsSection}>
-      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        <Text type="secondary">{dict.specializationsHint}</Text>
-
-        {specializations.length === 0 ? (
-          <Text type="secondary">{dict.noSpecializations}</Text>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {specializations.map((s) => (
-              <Tag key={s.id} closable onClose={() => onRemove(s.id)} style={{ marginInlineEnd: 0 }}>
-                {specLabel(s)}
-              </Tag>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            style={{ minWidth: 170 }}
-            placeholder={dict.chooseStage}
-            value={stageId}
-            onChange={setStageId}
-            options={stages.map((st) => ({ value: st.id, label: catalogName(st, locale) }))}
-          />
-          {needsTrack && (
-            <Select
-              style={{ minWidth: 170 }}
-              placeholder={stage?.child_kind === "FACULTY" ? dict.chooseFaculty : dict.chooseBranch}
-              value={trackId ?? undefined}
-              onChange={(v) => setTrackId(v)}
-              options={tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))}
-            />
-          )}
-          <Select
-            style={{ minWidth: 190 }}
-            showSearch
-            optionFilterProp="label"
-            placeholder={dict.chooseSubject}
-            value={subjectId}
-            onChange={setSubjectId}
-            disabled={needsTrack && !trackId}
-            options={addableSubs.map((ss) => ({
-              value: ss.subject,
-              label: locale === "ar" ? ss.subject_name_ar : ss.subject_name_en,
-            }))}
-          />
-          <Button
-            type="primary"
-            disabled={!canAdd}
-            onClick={async () => {
-              if (!stageId || !subjectId) return;
-              await onAdd({ vertical: stageId, track: needsTrack ? trackId : null, subject: subjectId });
-              setSubjectId(undefined);
-            }}
-          >
-            {dict.addSpecialization}
-          </Button>
-        </div>
-      </Space>
-    </Section>
-  );
-}
-
-function SubjectsCard({
-  dict,
-  label,
-  subjects,
-  addable,
-  onAdd,
-  onRemove,
-}: {
-  dict: Dict;
-  label: (c: LessonCategoryOption) => string;
-  subjects: TeacherSubject[];
-  addable: LessonCategoryOption[];
-  onAdd: (categoryId: number) => Promise<void>;
-  onRemove: (id: number) => Promise<void>;
-}) {
-  const [selected, setSelected] = useState<number | undefined>();
-
-  return (
-    <Section title={dict.subjectsSection}>
-      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        {subjects.length === 0 ? (
-          <Text type="secondary">{dict.noSubjects}</Text>
-        ) : (
-          <Space direction="vertical" style={{ width: "100%" }}>
-            {subjects.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3">
-                <span>{label(s.lesson_category)}</span>
-                <Button size="small" danger onClick={() => onRemove(s.id)}>
-                  {dict.remove}
-                </Button>
-              </div>
-            ))}
-          </Space>
-        )}
-        <Space.Compact style={{ width: "100%", maxWidth: 480 }}>
-          <Select
-            style={{ width: "100%" }}
-            placeholder={dict.subjectPlaceholder}
-            value={selected}
-            onChange={setSelected}
-            options={addable.map((c) => ({ value: c.id, label: label(c) }))}
-          />
-          <Button
-            type="primary"
-            disabled={!selected}
-            onClick={async () => {
-              if (selected) {
-                await onAdd(selected);
-                setSelected(undefined);
-              }
-            }}
-          >
-            {dict.addSubject}
-          </Button>
-        </Space.Compact>
-      </Space>
-    </Section>
-  );
-}
-
-function AvailabilityCard({
-  dict,
-  availability,
-  onAdd,
-  onRemove,
-}: {
-  dict: Dict;
-  availability: AvailabilityRule[];
-  onAdd: (body: Omit<AvailabilityRule, "id">) => Promise<void>;
-  onRemove: (id: number) => Promise<void>;
-}) {
-  const [weekday, setWeekday] = useState(0);
-  const [start, setStart] = useState<dayjs.Dayjs | null>(null);
-  const [end, setEnd] = useState<dayjs.Dayjs | null>(null);
-
-  return (
-    <Section title={dict.availabilitySection}>
-      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        {availability.length === 0 ? (
-          <Text type="secondary">{dict.noAvailability}</Text>
-        ) : (
-          <Space size={[8, 8]} wrap>
-            {availability.map((a) => (
-              <Tag key={a.id} closable onClose={() => onRemove(a.id)}>
-                {dict.weekdays[a.weekday]} {a.start_time.slice(0, 5)}–{a.end_time.slice(0, 5)}
-              </Tag>
-            ))}
-          </Space>
-        )}
-        <Space wrap>
-          <Select
-            value={weekday}
-            onChange={setWeekday}
-            style={{ width: 130 }}
-            options={dict.weekdays.map((d, i) => ({ value: i, label: d }))}
-          />
-          <TimePicker value={start} onChange={setStart} format="HH:mm" minuteStep={15} placeholder={dict.startTime} />
-          <TimePicker value={end} onChange={setEnd} format="HH:mm" minuteStep={15} placeholder={dict.endTime} />
-          <Button
-            type="primary"
-            disabled={!start || !end}
-            onClick={async () => {
-              if (start && end) {
-                await onAdd({
-                  weekday,
-                  start_time: start.format("HH:mm"),
-                  end_time: end.format("HH:mm"),
-                });
-                setStart(null);
-                setEnd(null);
-              }
-            }}
-          >
-            {dict.addAvailability}
-          </Button>
-        </Space>
-      </Space>
-    </Section>
-  );
-}
-
-function StagePricesCard({
-  dict,
-  locale,
-  subjects,
-  stagePrices,
-  stageRules,
-  onSave,
-}: {
-  dict: Dict;
-  locale: Locale;
-  subjects: TeacherSubject[];
-  stagePrices: TeacherStagePrice[];
-  stageRules: StagePricing[];
-  onSave: (vertical: number, priceMinor: number) => Promise<void>;
-}) {
-  const ar = locale === "ar";
-  // The distinct stages the teacher teaches (each needs a price to publish).
-  const stages = useMemo(() => {
-    const seen = new Map<number, TeacherSubject["stage"]>();
-    for (const s of subjects) if (!seen.has(s.stage.id)) seen.set(s.stage.id, s.stage);
-    return [...seen.values()];
-  }, [subjects]);
-
-  const priceByStage = new Map(stagePrices.map((p) => [p.vertical, p]));
-  const ruleByStage = new Map(stageRules.map((r) => [r.vertical, r]));
-
-  return (
-    <Section title={dict.stagePricesSection}>
-      <Paragraph type="secondary">{dict.stagePricesHint}</Paragraph>
-      {stages.length === 0 ? (
-        <Text type="secondary">{dict.stagePricesEmpty}</Text>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {stages.map((st) => {
-            const rule = ruleByStage.get(st.id);
-            const existing = priceByStage.get(st.id);
-            const min = rule?.min_price_minor ?? existing?.min_price_minor ?? 0;
-            return (
-              <StageRow
-                key={st.id}
-                dict={dict}
-                name={ar ? st.name_ar : st.name_en}
-                min={min}
-                currency={rule?.currency ?? ""}
-                current={existing?.price_minor ?? null}
-                onSave={(minor) => onSave(st.id, minor)}
-              />
-            );
-          })}
-        </div>
-      )}
-    </Section>
-  );
-}
-
-function StageRow({
-  dict,
-  name,
-  min,
-  currency,
-  current,
-  onSave,
-}: {
-  dict: Dict;
-  name: string;
-  min: number;
-  currency: string;
-  current: number | null;
-  onSave: (priceMinor: number) => Promise<void>;
-}) {
-  const [value, setValue] = useState<number | null>(current != null ? current / 100 : null);
-  const [saving, setSaving] = useState(false);
-
-  return (
-    <div
-      className="flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"
-      style={{ border: "1px solid var(--border)" }}
-    >
-      <div className="min-w-0">
-        <div className="font-medium" style={{ color: "var(--ink)" }}>{name}</div>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dict.minPriceLabel}: {(min / 100).toFixed(2)} {currency}
-        </Text>
-      </div>
-      <Space>
-        <InputNumber
-          min={min / 100}
-          step={0.5}
-          value={value}
-          onChange={setValue}
-          addonAfter={currency}
-          placeholder={dict.yourPrice}
-          style={{ width: 160 }}
-        />
-        <Button
-          type="primary"
-          loading={saving}
-          disabled={value == null}
-          onClick={async () => {
-            if (value == null) return;
-            setSaving(true);
-            try {
-              await onSave(Math.round(value * 100));
-            } finally {
-              setSaving(false);
-            }
-          }}
-        >
-          {dict.save}
-        </Button>
-      </Space>
     </div>
   );
 }

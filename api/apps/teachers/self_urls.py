@@ -1,20 +1,13 @@
 from django.urls import path
 
 from .self_views import (
-    AvailabilityDeleteView,
-    AvailabilityListCreateView,
-    LessonCategoryListView,
     TeacherDashboardView,
     TeacherPhotoView,
-    TeacherStagePriceDeleteView,
-    TeacherStagePriceListCreateView,
     TeacherProfilePublishView,
     TeacherProfileUnpublishView,
     TeacherProfileView,
-    TeacherSpecializationDeleteView,
-    TeacherSpecializationListCreateView,
-    TeacherSubjectDeleteView,
-    TeacherSubjectListCreateView,
+    TeacherStageDetailView,
+    TeacherStageListCreateView,
 )
 
 app_name = "teacher_self"
@@ -25,13 +18,6 @@ urlpatterns = [
     path("profile/photo/", TeacherPhotoView.as_view(), name="profile-photo"),
     path("profile/publish/", TeacherProfilePublishView.as_view(), name="profile-publish"),
     path("profile/unpublish/", TeacherProfileUnpublishView.as_view(), name="profile-unpublish"),
-    path("lesson-categories/", LessonCategoryListView.as_view(), name="lesson-categories"),
-    path("subjects/", TeacherSubjectListCreateView.as_view(), name="subjects"),
-    path("subjects/<int:pk>/", TeacherSubjectDeleteView.as_view(), name="subject-delete"),
-    path("availability/", AvailabilityListCreateView.as_view(), name="availability"),
-    path("availability/<int:pk>/", AvailabilityDeleteView.as_view(), name="availability-delete"),
-    path("specializations/", TeacherSpecializationListCreateView.as_view(), name="specializations"),
-    path("specializations/<int:pk>/", TeacherSpecializationDeleteView.as_view(), name="specialization-delete"),
-    path("stage-prices/", TeacherStagePriceListCreateView.as_view(), name="stage-prices"),
-    path("stage-prices/<int:pk>/", TeacherStagePriceDeleteView.as_view(), name="stage-price-delete"),
+    path("stages/", TeacherStageListCreateView.as_view(), name="stages"),
+    path("stages/<int:pk>/", TeacherStageDetailView.as_view(), name="stage-detail"),
 ]

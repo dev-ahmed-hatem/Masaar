@@ -1,14 +1,10 @@
 import pytest
 
 from apps.accounts.models import User
-from apps.catalog.models import GradeLevel, LessonCategory, Subject, Vertical
+from apps.catalog.models import Subject, Vertical
 from apps.markets.models import Market
-from apps.teachers.models import (
-    FavoriteTeacher,
-    TeacherProfile,
-    TeacherStagePrice,
-    TeacherSubject,
-)
+from apps.teachers.models import FavoriteTeacher, TeacherProfile
+from apps.teachers.tests.factories import make_stage_card
 
 pytestmark = pytest.mark.django_db
 FAV = "/api/favorites/"
@@ -18,17 +14,12 @@ FAV = "/api/favorites/"
 def setup():
     eg = Market.objects.create(code="EG", name="Egypt", currency="EGP", timezone="UTC")
     v = Vertical.objects.create(code=Vertical.Code.PRIMARY, name_en="Primary", name_ar="ابتدائي")
-    g = GradeLevel.objects.create(vertical=v, name_en="Grade 4", name_ar="الصف 4")
     subj = Subject.objects.create(name_en="Mathematics", name_ar="رياضيات")
-    cat = LessonCategory.objects.create(
-        market=eg, vertical=v, grade_level=g, subject=subj,
-    )
     tuser = User.objects.create_user(
         phone="+201000000300", role=User.Role.TEACHER, market=eg, is_verified=True, full_name="T"
     )
     teacher = TeacherProfile.objects.create(user=tuser, market=eg, is_published=True)
-    TeacherSubject.objects.create(teacher=teacher, lesson_category=cat)
-    TeacherStagePrice.objects.create(teacher=teacher, vertical=v, price_minor=6000)
+    make_stage_card(teacher, v, [subj], price_minor=6000)
     student = User.objects.create_user(
         phone="+201000000301", role=User.Role.STUDENT, market=eg, is_verified=True, full_name="S"
     )

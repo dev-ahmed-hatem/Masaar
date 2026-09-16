@@ -397,14 +397,8 @@ function TeacherCard({
   const bio = (ar ? t.bio_ar : t.bio_en) || t.bio_en || t.bio_ar || "";
   const langs = t.languages.filter(Boolean);
 
-  // Brief chips: unique specialization subjects, falling back to plain subjects.
-  const specById = new Map<number, string>();
-  for (const sp of t.specializations ?? []) {
-    specById.set(sp.subject.id, ar ? sp.subject.name_ar : sp.subject.name_en);
-  }
-  const specChips = specById.size
-    ? [...specById].map(([id, label]) => ({ id, label }))
-    : t.subjects.map((s) => ({ id: s.id, label: subjectName(s) }));
+  // Brief chips: the distinct subjects taught across the teacher's stages.
+  const specChips = t.subjects.map((s) => ({ id: s.id, label: subjectName(s) }));
 
   return (
     <Link
@@ -469,7 +463,7 @@ function TeacherCard({
           </span>
         </div>
 
-        {/* Specialization chips (brief): unique subjects, falling back to subjects */}
+        {/* Subject chips (brief) */}
         {specChips.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {specChips.slice(0, 4).map((c) => (

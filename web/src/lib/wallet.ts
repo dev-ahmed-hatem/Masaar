@@ -37,6 +37,18 @@ export interface PaymentAccount {
 
 export type ReceiptStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+/** The platform account a receipt was paid into. */
+export interface ReceiptAccount {
+  id: number;
+  kind: "BANK" | "WALLET";
+  display_name: string;
+  details: string;
+}
+
+/** Image types accepted for payment receipts (validated server-side too). */
+export const RECEIPT_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+export const RECEIPT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
 export interface Receipt {
   id: number;
   user_name: string;
@@ -46,6 +58,7 @@ export interface Receipt {
   amount_display: string;
   currency: string;
   method: "BANK" | "WALLET";
+  payment_account: ReceiptAccount | null;
   reference: string;
   image: string | null;
   purpose: "TOPUP" | "BOOKING" | "PACKAGE";
@@ -85,7 +98,7 @@ export function listReceipts(): Promise<Paginated<Receipt> | Receipt[]> {
   return apiAuthed(`/api/receipts/`);
 }
 
-/** Upload a manual-payment receipt (multipart, optional image). */
+/** Upload a manual-payment receipt (multipart: payment_account + image required). */
 export function createReceipt(form: FormData): Promise<Receipt> {
   return apiAuthedForm<Receipt>(`/api/receipts/`, form);
 }

@@ -2,19 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import dayjs from "dayjs";
 import {
+  Alert,
   App,
   Button,
   Card,
   Form,
   Input,
-  InputNumber,
   Result,
   Select,
   Space,
-  Tag,
-  TimePicker,
   Typography,
 } from "antd";
 
@@ -22,152 +19,67 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { submitApplication } from "@/lib/applications";
 import { useOtpChannel } from "@/lib/auth-config";
-import {
-  catalog,
-  catalogName,
-  type LessonCategoryOption,
-  type Stage,
-  type StagePricing,
-  type StageSubject,
-  type Track as CatalogTrack,
-} from "@/lib/catalog";
+import { LANGUAGE_OPTIONS } from "@/lib/languages";
+import { toStageCardInput, type StageCard } from "@/lib/stage-cards";
+import StageCardsEditor from "@/components/teaching/stage-cards-editor";
 
 const { Title, Paragraph, Text } = Typography;
 
 export type ApplyDict = Dictionary["apply"];
-
-interface PickedSubject {
-  id: number;
-  label: string;
-}
-interface PickedSpecialization {
-  vertical: number;
-  track: number | null;
-  subject: number;
-  label: string;
-}
-interface PickedAvailability {
-  weekday: number;
-  start_time: string;
-  end_time: string;
-}
+type CardsDict = Dictionary["stageCards"];
 
 export default function BecomeTeacherForm({
   dict,
+  cards: cardsDict,
   locale,
 }: {
   dict: ApplyDict;
+  cards: CardsDict;
   locale: string;
 }) {
   const { message } = App.useApp();
-  const ar = locale === "ar";
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const emailOtp = useOtpChannel() === "email";
 
   const [market, setMarket] = useState("EG");
-  const [categories, setCategories] = useState<LessonCategoryOption[]>([]);
   const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [subjects, setSubjects] = useState<PickedSubject[]>([]);
-  const [specializations, setSpecializations] = useState<PickedSpecialization[]>([]);
-  const [availability, setAvailability] = useState<PickedAvailability[]>([]);
-  const [stageRules, setStageRules] = useState<StagePricing[]>([]);
-  const [stagePriceByStage, setStagePriceByStage] = useState<Record<number, number>>({});
+  // Draft stage cards (validated again server-side on submit).
+  const [stages, setStages] = useState<StageCard[]>([]);
+  const [stagesError, setStagesError] = useState(false);
 
-  // (Re)load the market's lesson categories + stage pricing; a market switch
-  // invalidates the subject picks and prices (scoped to one market).
-  useEffect(() => {
-    let alive = true;
-    catalog
-      .listLessonCategories(market)
-      .then((rows) => {
-        if (alive) setCategories(rows);
-      })
-      .catch(() => {
-        if (alive) setCategories([]);
-      });
-    catalog
-      .listStagePricing(market)
-      .then((rows) => {
-        if (alive) setStageRules(rows);
-      })
-      .catch(() => {
-        if (alive) setStageRules([]);
-      });
-    setSubjects([]);
-    setStagePriceByStage({});
-    return () => {
-      alive = false;
-    };
-  }, [market]);
-
-  useEffect(() => {
-    if (!photo) {
-      setPhotoPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(photo);
-    setPhotoPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
-
-  const catLabel = useMemo(
-    () => (c: LessonCategoryOption) => (ar ? c.label_ar : c.label),
-    [ar],
+  const photoPreview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(
+    () => () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+    },
+    [photoPreview],
   );
 
-  // Stages the applicant must price = the distinct stages of their specializations.
-  const pricedStages = useMemo(() => {
-    const seen = new Map<number, { id: number; name: string; min: number; currency: string }>();
-    for (const sp of specializations) {
-      if (seen.has(sp.vertical)) continue;
-      const rule = stageRules.find((r) => r.vertical === sp.vertical);
-      seen.set(sp.vertical, {
-        id: sp.vertical,
-        name: rule ? (ar ? rule.stage_name_ar : rule.stage_name_en) : sp.label.split(" · ")[0],
-        min: rule?.min_price_minor ?? 0,
-        currency: rule?.currency ?? "",
-      });
-    }
-    return [...seen.values()];
-  }, [specializations, stageRules, ar]);
-
   async function onFinish(values: Record<string, unknown>) {
+    if (stages.length === 0) {
+      setStagesError(true);
+      message.error(dict.requiredStages);
+      return;
+    }
     setSubmitting(true);
     try {
       await submitApplication({
         full_name: values.full_name as string,
         phone: values.phone as string,
-        email: (values.email as string) || undefined,
+        email: values.email as string,
         market: values.market as string,
-        gender: (values.gender as "MALE" | "FEMALE" | undefined) || "",
-        languages: Array.isArray(values.languages)
-          ? (values.languages as string[]).join(",")
-          : "",
+        gender: values.gender as "MALE" | "FEMALE",
+        languages: (values.languages as string[]).join(","),
         bio: values.bio as string,
         bio_ar: (values.bio_ar as string) || undefined,
-        intro_video_url: (values.intro_video_url as string) || undefined,
-        free_lessons_offered: (values.free_lessons_offered as number) ?? 0,
+        intro_video_url: values.intro_video_url as string,
         specialties: (values.specialties as string[]) ?? [],
         education: ((values.education as never[]) ?? []).filter(Boolean),
         work_experience: ((values.work_experience as never[]) ?? []).filter(Boolean),
         certifications: ((values.certifications as never[]) ?? []).filter(Boolean),
-        subjects: subjects.map((s) => s.id),
-        specializations: specializations.map((s) => ({
-          vertical: s.vertical,
-          track: s.track,
-          subject: s.subject,
-        })),
-        availability: availability.map((a) => ({
-          weekday: a.weekday,
-          start_time: a.start_time,
-          end_time: a.end_time,
-        })),
-        stage_prices: pricedStages
-          .filter((st) => stagePriceByStage[st.id] != null)
-          .map((st) => ({ vertical: st.id, price_minor: stagePriceByStage[st.id] })),
+        stages: stages.map(toStageCardInput),
         photo,
       });
       setDone(true);
@@ -237,9 +149,13 @@ export default function BecomeTeacherForm({
         layout="vertical"
         onFinish={onFinish}
         requiredMark={false}
-        initialValues={{ market: "EG", free_lessons_offered: 0 }}
+        initialValues={{ market: "EG" }}
         onValuesChange={(changed: { market?: string }) => {
-          if (changed.market) setMarket(changed.market);
+          // Prices and minimums are per market: a country switch clears the stages.
+          if (changed.market) {
+            setMarket(changed.market);
+            setStages([]);
+          }
         }}
       >
         <div className="flex flex-col gap-6">
@@ -270,29 +186,29 @@ export default function BecomeTeacherForm({
               </Form.Item>
               <Form.Item
                 name="email"
-                label={emailOtp ? dict.emailRequiredLabel : dict.email}
+                label={dict.email}
                 extra={emailOtp ? dict.emailHintEmail : undefined}
-                rules={[{ type: "email" }, { required: emailOtp, message: dict.requiredEmail }]}
+                rules={[
+                  { required: true, message: dict.requiredEmail },
+                  { type: "email", message: dict.requiredEmail },
+                ]}
               >
-                <Input inputMode="email" autoComplete="email" />
+                <Input inputMode="email" autoComplete="email" dir="ltr" />
               </Form.Item>
-              <Form.Item name="gender" label={dict.gender}>
+              <Form.Item name="gender" label={dict.gender} rules={[{ required: true, message: dict.requiredGender }]}>
                 <Select
-                  allowClear
                   options={[
                     { value: "MALE", label: dict.male },
                     { value: "FEMALE", label: dict.female },
                   ]}
                 />
               </Form.Item>
-              <Form.Item name="languages" label={dict.languages}>
-                <Select
-                  mode="multiple"
-                  options={[
-                    { value: "ar", label: "العربية" },
-                    { value: "en", label: "English" },
-                  ]}
-                />
+              <Form.Item
+                name="languages"
+                label={dict.languages}
+                rules={[{ required: true, type: "array", min: 1, message: dict.requiredLanguages }]}
+              >
+                <Select mode="multiple" options={LANGUAGE_OPTIONS.map(({ value, label }) => ({ value, label }))} />
               </Form.Item>
             </div>
 
@@ -320,12 +236,12 @@ export default function BecomeTeacherForm({
               name="intro_video_url"
               label={dict.video}
               extra={dict.videoHint}
-              rules={[{ type: "url", message: dict.invalidUrl }]}
+              rules={[
+                { required: true, message: dict.requiredVideo },
+                { type: "url", message: dict.invalidUrl },
+              ]}
             >
-              <Input placeholder="https://youtube.com/watch?v=…" />
-            </Form.Item>
-            <Form.Item name="free_lessons_offered" label={dict.freeLessons} extra={dict.freeLessonsHint}>
-              <InputNumber min={0} max={10} style={{ width: "100%" }} />
+              <Input placeholder="https://youtube.com/watch?v=…" dir="ltr" />
             </Form.Item>
             <Form.Item name="specialties" label={dict.specialties} help={dict.specialtiesHint}>
               <Select mode="tags" tokenSeparators={[","]} open={false} suffixIcon={null} />
@@ -373,32 +289,21 @@ export default function BecomeTeacherForm({
 
           <Card title={dict.teachingSection}>
             <Paragraph type="secondary">{dict.teachingHint}</Paragraph>
-            <SubjectsField
-              dict={dict}
-              label={catLabel}
-              categories={categories}
-              picked={subjects}
-              onChange={setSubjects}
+            {stagesError && stages.length === 0 && (
+              <Alert type="error" showIcon message={dict.requiredStages} className="mb-3" />
+            )}
+            <StageCardsEditor
+              dict={cardsDict}
+              locale={locale}
+              market={market}
+              cards={stages}
+              onSave={async (_input, preview, existing) => {
+                setStages((prev) =>
+                  existing ? prev.map((c) => (c.id === existing.id ? { ...preview, id: existing.id } : c)) : [...prev, preview],
+                );
+              }}
+              onRemove={async (card) => setStages((prev) => prev.filter((c) => c.id !== card.id))}
             />
-            <div className="mt-6">
-              <SpecializationsField
-                dict={dict}
-                locale={locale}
-                picked={specializations}
-                onChange={setSpecializations}
-              />
-            </div>
-            <div className="mt-6">
-              <AvailabilityField dict={dict} picked={availability} onChange={setAvailability} />
-            </div>
-            <div className="mt-6">
-              <StagePricesField
-                dict={dict}
-                stages={pricedStages}
-                value={stagePriceByStage}
-                onChange={setStagePriceByStage}
-              />
-            </div>
           </Card>
 
           <Button type="primary" htmlType="submit" block size="large" loading={submitting}>
@@ -514,316 +419,6 @@ function ResumeListField({
           </div>
         )}
       </Form.List>
-    </div>
-  );
-}
-
-function SubjectsField({
-  dict,
-  label,
-  categories,
-  picked,
-  onChange,
-}: {
-  dict: ApplyDict;
-  label: (c: LessonCategoryOption) => string;
-  categories: LessonCategoryOption[];
-  picked: PickedSubject[];
-  onChange: (next: PickedSubject[]) => void;
-}) {
-  const [selected, setSelected] = useState<number | undefined>();
-  const pickedIds = new Set(picked.map((p) => p.id));
-  const addable = categories.filter((c) => !pickedIds.has(c.id));
-
-  return (
-    <div>
-      <Text strong style={{ color: "var(--ink)" }}>
-        {dict.subjectsSection}
-      </Text>
-      <div className="mt-2 flex flex-col gap-3">
-        {picked.length === 0 ? (
-          <Text type="secondary">{dict.noSubjects}</Text>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {picked.map((s) => (
-              <Tag
-                key={s.id}
-                closable
-                onClose={() => onChange(picked.filter((p) => p.id !== s.id))}
-                style={{ marginInlineEnd: 0 }}
-              >
-                {s.label}
-              </Tag>
-            ))}
-          </div>
-        )}
-        <Space.Compact style={{ width: "100%", maxWidth: 480 }}>
-          <Select
-            style={{ width: "100%" }}
-            showSearch
-            optionFilterProp="label"
-            placeholder={dict.subjectPlaceholder}
-            value={selected}
-            onChange={setSelected}
-            options={addable.map((c) => ({ value: c.id, label: label(c) }))}
-          />
-          <Button
-            type="primary"
-            disabled={!selected}
-            onClick={() => {
-              const cat = categories.find((c) => c.id === selected);
-              if (cat) {
-                onChange([...picked, { id: cat.id, label: label(cat) }]);
-                setSelected(undefined);
-              }
-            }}
-          >
-            {dict.addSubject}
-          </Button>
-        </Space.Compact>
-      </div>
-    </div>
-  );
-}
-
-function SpecializationsField({
-  dict,
-  locale,
-  picked,
-  onChange,
-}: {
-  dict: ApplyDict;
-  locale: string;
-  picked: PickedSpecialization[];
-  onChange: (next: PickedSpecialization[]) => void;
-}) {
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [stageId, setStageId] = useState<number | undefined>();
-  const [trackId, setTrackId] = useState<number | null>(null);
-  const [tracks, setTracks] = useState<CatalogTrack[]>([]);
-  const [subs, setSubs] = useState<StageSubject[]>([]);
-  const [subjectId, setSubjectId] = useState<number | undefined>();
-
-  useEffect(() => {
-    catalog.listStages().then(setStages).catch(() => {});
-  }, []);
-
-  const stage = stages.find((s) => s.id === stageId);
-  const needsTrack = stage != null && stage.child_kind !== "NONE";
-
-  useEffect(() => {
-    setTrackId(null);
-    setTracks([]);
-    setSubs([]);
-    setSubjectId(undefined);
-    if (!stageId) return;
-    if (needsTrack) catalog.listTracks(stageId).then(setTracks).catch(() => {});
-    else catalog.listStageSubjects(stageId).then(setSubs).catch(() => {});
-  }, [stageId, needsTrack]);
-
-  useEffect(() => {
-    setSubjectId(undefined);
-    if (stageId && needsTrack && trackId) {
-      catalog.listStageSubjects(stageId, trackId).then(setSubs).catch(() => {});
-    }
-  }, [trackId, stageId, needsTrack]);
-
-  const existing = new Set(picked.map((s) => `${s.vertical}|${s.track ?? 0}|${s.subject}`));
-  const track = needsTrack ? trackId : null;
-  const addableSubs = subs.filter(
-    (ss) => !existing.has(`${stageId}|${track ?? 0}|${ss.subject}`),
-  );
-  const canAdd = Boolean(stageId && (!needsTrack || trackId) && subjectId);
-
-  function add() {
-    if (!stageId || !subjectId || !stage) return;
-    const ss = subs.find((s) => s.subject === subjectId);
-    const trackRow = tracks.find((t) => t.id === trackId);
-    const parts = [
-      catalogName(stage, locale),
-      trackRow ? catalogName(trackRow, locale) : null,
-      ss ? (locale === "ar" ? ss.subject_name_ar : ss.subject_name_en) : null,
-    ].filter(Boolean);
-    onChange([
-      ...picked,
-      { vertical: stageId, track, subject: subjectId, label: parts.join(" · ") },
-    ]);
-    setSubjectId(undefined);
-  }
-
-  return (
-    <div>
-      <Text strong style={{ color: "var(--ink)" }}>
-        {dict.specializationsSection}
-      </Text>
-      <div className="mt-2 flex flex-col gap-3">
-        <Text type="secondary">{dict.specializationsHint}</Text>
-        {picked.length === 0 ? (
-          <Text type="secondary">{dict.noSpecializations}</Text>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {picked.map((s, i) => (
-              <Tag
-                key={`${s.vertical}|${s.track ?? 0}|${s.subject}`}
-                closable
-                onClose={() => onChange(picked.filter((_, idx) => idx !== i))}
-                style={{ marginInlineEnd: 0 }}
-              >
-                {s.label}
-              </Tag>
-            ))}
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            style={{ minWidth: 170 }}
-            placeholder={dict.chooseStage}
-            value={stageId}
-            onChange={setStageId}
-            options={stages.map((st) => ({ value: st.id, label: catalogName(st, locale) }))}
-          />
-          {needsTrack && (
-            <Select
-              style={{ minWidth: 170 }}
-              placeholder={stage?.child_kind === "FACULTY" ? dict.chooseFaculty : dict.chooseBranch}
-              value={trackId ?? undefined}
-              onChange={(v) => setTrackId(v)}
-              options={tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))}
-            />
-          )}
-          <Select
-            style={{ minWidth: 190 }}
-            showSearch
-            optionFilterProp="label"
-            placeholder={dict.chooseSubject}
-            value={subjectId}
-            onChange={setSubjectId}
-            disabled={needsTrack && !trackId}
-            options={addableSubs.map((ss) => ({
-              value: ss.subject,
-              label: locale === "ar" ? ss.subject_name_ar : ss.subject_name_en,
-            }))}
-          />
-          <Button type="primary" disabled={!canAdd} onClick={add}>
-            {dict.addSpecialization}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StagePricesField({
-  dict,
-  stages,
-  value,
-  onChange,
-}: {
-  dict: ApplyDict;
-  stages: { id: number; name: string; min: number; currency: string }[];
-  value: Record<number, number>;
-  onChange: (next: Record<number, number>) => void;
-}) {
-  return (
-    <div>
-      <Text strong style={{ color: "var(--ink)" }}>
-        {dict.stagePricesSection}
-      </Text>
-      <div className="mt-2 flex flex-col gap-3">
-        <Text type="secondary">{dict.stagePricesHint}</Text>
-        {stages.length === 0 ? (
-          <Text type="secondary">{dict.stagePricesEmpty}</Text>
-        ) : (
-          stages.map((st) => (
-            <div
-              key={st.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"
-              style={{ border: "1px solid var(--border)" }}
-            >
-              <div className="min-w-0">
-                <div className="font-medium" style={{ color: "var(--ink)" }}>{st.name}</div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {dict.minPriceLabel}: {(st.min / 100).toFixed(2)} {st.currency}
-                </Text>
-              </div>
-              <InputNumber
-                min={st.min / 100}
-                step={0.5}
-                value={value[st.id] != null ? value[st.id] / 100 : null}
-                onChange={(v) =>
-                  onChange({ ...value, [st.id]: Math.round((v ?? 0) * 100) })
-                }
-                addonAfter={st.currency}
-                placeholder={dict.yourPrice}
-                style={{ width: 170 }}
-              />
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AvailabilityField({
-  dict,
-  picked,
-  onChange,
-}: {
-  dict: ApplyDict;
-  picked: PickedAvailability[];
-  onChange: (next: PickedAvailability[]) => void;
-}) {
-  const weekdays = dict.weekdays ?? [];
-  const [weekday, setWeekday] = useState(0);
-  const [start, setStart] = useState<dayjs.Dayjs | null>(null);
-  const [end, setEnd] = useState<dayjs.Dayjs | null>(null);
-
-  return (
-    <div>
-      <Text strong style={{ color: "var(--ink)" }}>
-        {dict.availabilitySection}
-      </Text>
-      <div className="mt-2 flex flex-col gap-3">
-        <Text type="secondary">{dict.availabilityHint}</Text>
-        {picked.length === 0 ? (
-          <Text type="secondary">{dict.noAvailability}</Text>
-        ) : (
-          <Space size={[8, 8]} wrap>
-            {picked.map((a, i) => (
-              <Tag key={i} closable onClose={() => onChange(picked.filter((_, idx) => idx !== i))}>
-                {weekdays[a.weekday]} {a.start_time}–{a.end_time}
-              </Tag>
-            ))}
-          </Space>
-        )}
-        <Space wrap>
-          <Select
-            value={weekday}
-            onChange={setWeekday}
-            style={{ width: 130 }}
-            options={weekdays.map((d, i) => ({ value: i, label: d }))}
-          />
-          <TimePicker value={start} onChange={setStart} format="HH:mm" minuteStep={15} placeholder={dict.startTime} />
-          <TimePicker value={end} onChange={setEnd} format="HH:mm" minuteStep={15} placeholder={dict.endTime} />
-          <Button
-            type="primary"
-            disabled={!start || !end}
-            onClick={() => {
-              if (start && end) {
-                onChange([
-                  ...picked,
-                  { weekday, start_time: start.format("HH:mm"), end_time: end.format("HH:mm") },
-                ]);
-                setStart(null);
-                setEnd(null);
-              }
-            }}
-          >
-            {dict.addAvailability}
-          </Button>
-        </Space>
-      </div>
     </div>
   );
 }

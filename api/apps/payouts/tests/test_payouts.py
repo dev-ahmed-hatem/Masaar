@@ -39,7 +39,7 @@ def world():
 
 def _settled(world, teacher, wage, *, settled=True):
     return Booking.objects.create(
-        student=world["student"], teacher=teacher, lesson_category=world["cat"],
+        student=world["student"], teacher=teacher, vertical=world["cat"].vertical, subject=world["cat"].subject,
         scheduled_start=timezone.now() - timedelta(days=2), duration_min=60,
         price_minor=6000, teacher_wage_minor=wage, currency="EGP",
         status=Booking.Status.COMPLETED, wage_settled=settled,

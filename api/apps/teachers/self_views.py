@@ -1,12 +1,12 @@
-"""Teacher self-serve API (`/api/teacher/`): manage own profile, subjects,
-availability and custom-price requests, and publish/unpublish the profile."""
+"""Teacher self-serve API (`/api/teacher/`): manage own profile and stage cards
+(subjects, price, free trials and availability per stage), and publish/unpublish
+the profile."""
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.generics import (
-    DestroyAPIView,
-    ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateAPIView,
+    RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.exceptions import NotFound
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -14,25 +14,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsTeacher
-from apps.catalog.models import LessonCategory
-from apps.catalog.serializers import LessonCategorySerializer
 
-from . import errors
-from .models import (
-    AvailabilityRule,
-    TeacherProfile,
-    TeacherSpecialization,
-    TeacherStagePrice,
-    TeacherSubject,
-)
+from . import errors, stage_setup
+from .models import TeacherProfile, TeacherStage
 from .self_serializers import (
-    AvailabilitySerializer,
     TeacherPhotoSerializer,
     TeacherProfileSerializer,
-    TeacherSpecializationSerializer,
-    TeacherStagePriceSerializer,
-    TeacherSubjectCreateSerializer,
-    TeacherSubjectReadSerializer,
+    TeacherStageSerializer,
 )
 
 
@@ -64,21 +52,23 @@ class TeacherProfilePublishView(_TeacherScoped, APIView):
     def post(self, request):
         teacher = self.get_teacher()
         missing = []
-        if not teacher.subjects.exists():
-            missing.append("subject")
         if not (teacher.bio_en or teacher.bio_ar):
             missing.append("bio")
-        # Every stage the teacher has subjects in needs a price.
-        taught_stage_ids = set(
-            TeacherSubject.objects.filter(teacher=teacher).values_list(
-                "lesson_category__vertical_id", flat=True
-            )
+        cards = list(
+            teacher.stages.prefetch_related("subjects", "availability")
         )
-        priced_stage_ids = set(teacher.stage_prices.values_list("vertical_id", flat=True))
-        if taught_stage_ids - priced_stage_ids:
-            missing.append("price")
+        incomplete = {}
+        for card in cards:
+            reasons = stage_setup.incomplete_reasons(card, teacher.market_id)
+            if reasons:
+                incomplete[card.id] = reasons
+        if not cards:
+            missing.append("stage")
+        for reason in ("subject", "price", "availability"):
+            if any(reason in r for r in incomplete.values()):
+                missing.append(reason)
         if missing:
-            raise errors.ProfileIncomplete(missing)
+            raise errors.ProfileIncomplete(missing, incomplete_stages=list(incomplete))
         if not teacher.is_published:
             teacher.is_published = True
             teacher.save(update_fields=["is_published"])
@@ -94,73 +84,32 @@ class TeacherProfileUnpublishView(_TeacherScoped, APIView):
         return Response(TeacherProfileSerializer(teacher, context={"request": request}).data)
 
 
-class LessonCategoryListView(_TeacherScoped, ListAPIView):
-    """Pickable lesson categories in the teacher's market."""
+class TeacherStageListCreateView(_TeacherScoped, ListCreateAPIView):
+    """The teacher's stage cards; POST adds a stage."""
 
-    serializer_class = LessonCategorySerializer
+    serializer_class = TeacherStageSerializer
     pagination_class = None
 
     def get_queryset(self):
-        teacher = self.get_teacher()
-        return LessonCategory.objects.filter(
-            market_id=teacher.market_id, is_active=True
-        ).select_related("vertical", "grade_level", "subject")
+        return TeacherStage.objects.filter(teacher=self.get_teacher())
 
 
-class TeacherSubjectListCreateView(_TeacherScoped, ListCreateAPIView):
-    pagination_class = None
+class TeacherStageDetailView(_TeacherScoped, RetrieveUpdateDestroyAPIView):
+    """Edit one stage card (PATCH replaces subjects/availability when sent)."""
 
-    def get_serializer_class(self):
-        return (
-            TeacherSubjectCreateSerializer
-            if self.request.method == "POST"
-            else TeacherSubjectReadSerializer
-        )
+    serializer_class = TeacherStageSerializer
 
     def get_queryset(self):
-        return TeacherSubject.objects.filter(
-            teacher=self.get_teacher()
-        ).select_related("lesson_category__vertical", "lesson_category__grade_level", "lesson_category__subject")
+        return TeacherStage.objects.filter(teacher=self.get_teacher())
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        subject = serializer.save()
-        read = TeacherSubjectReadSerializer(subject, context=self.get_serializer_context())
-        return Response(read.data, status=201)
+    def perform_destroy(self, instance):
+        from apps.bookings.models import Booking
 
-
-class TeacherSubjectDeleteView(_TeacherScoped, DestroyAPIView):
-    def get_queryset(self):
-        return TeacherSubject.objects.filter(teacher=self.get_teacher())
-
-
-class AvailabilityListCreateView(_TeacherScoped, ListCreateAPIView):
-    serializer_class = AvailabilitySerializer
-    pagination_class = None
-
-    def get_queryset(self):
-        return AvailabilityRule.objects.filter(teacher=self.get_teacher())
-
-
-class AvailabilityDeleteView(_TeacherScoped, DestroyAPIView):
-    def get_queryset(self):
-        return AvailabilityRule.objects.filter(teacher=self.get_teacher())
-
-
-class TeacherSpecializationListCreateView(_TeacherScoped, ListCreateAPIView):
-    serializer_class = TeacherSpecializationSerializer
-    pagination_class = None
-
-    def get_queryset(self):
-        return TeacherSpecialization.objects.filter(
-            teacher=self.get_teacher()
-        ).select_related("vertical", "track", "subject")
-
-
-class TeacherSpecializationDeleteView(_TeacherScoped, DestroyAPIView):
-    def get_queryset(self):
-        return TeacherSpecialization.objects.filter(teacher=self.get_teacher())
+        if instance.bookings.filter(
+            status__in=[Booking.Status.REQUESTED, Booking.Status.CONFIRMED]
+        ).exists():
+            raise errors.StageInUse()
+        instance.delete()
 
 
 class TeacherPhotoView(_TeacherScoped, APIView):
@@ -203,10 +152,7 @@ class TeacherDashboardView(_TeacherScoped, APIView):
         upcoming = bookings.filter(status=Booking.Status.CONFIRMED, scheduled_start__gte=now)
         next_booking = (
             upcoming.order_by("scheduled_start")
-            .select_related(
-                "student", "teacher__user", "lesson_category__vertical",
-                "lesson_category__grade_level", "lesson_category__subject",
-            )
+            .select_related("student", "teacher__user", "vertical", "track", "subject")
             .first()
         )
         pending_minor = (
@@ -242,20 +188,3 @@ class TeacherDashboardView(_TeacherScoped, APIView):
                 "unread_messages": unread_total(request.user),
             }
         )
-
-
-class TeacherStagePriceListCreateView(_TeacherScoped, ListCreateAPIView):
-    """The teacher's per-stage prices. POST upserts one stage's price."""
-
-    serializer_class = TeacherStagePriceSerializer
-    pagination_class = None
-
-    def get_queryset(self):
-        return TeacherStagePrice.objects.filter(
-            teacher=self.get_teacher()
-        ).select_related("vertical")
-
-
-class TeacherStagePriceDeleteView(_TeacherScoped, DestroyAPIView):
-    def get_queryset(self):
-        return TeacherStagePrice.objects.filter(teacher=self.get_teacher())

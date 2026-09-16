@@ -7,15 +7,8 @@ from django.db import transaction
 from apps.accounts.models import User
 from apps.accounts.senders import get_account_sender, uses_email
 
-from . import errors
-from .models import (
-    AvailabilityRule,
-    TeacherApplication,
-    TeacherProfile,
-    TeacherSpecialization,
-    TeacherStagePrice,
-    TeacherSubject,
-)
+from . import errors, stage_setup
+from .models import TeacherApplication, TeacherProfile, TeacherStage
 
 _ALPHABET = string.ascii_letters + string.digits
 
@@ -25,35 +18,16 @@ def generate_temp_password(length: int = 10) -> str:
 
 
 def _materialize_teaching_setup(application: TeacherApplication, profile: TeacherProfile) -> None:
-    """Turn the application's catalog-linked JSON into real profile rows.
+    """Turn the application's stage cards into real rows on the new profile.
 
-    The references were validated against the catalog at submit time; get/create
-    keeps approval idempotent if it's retried.
+    Cards were validated at submit time; an already-present stage/track is
+    skipped so a retried approval stays idempotent.
     """
-    for lesson_category_id in application.subjects or []:
-        TeacherSubject.objects.get_or_create(
-            teacher=profile, lesson_category_id=lesson_category_id
-        )
-    for spec in application.specializations or []:
-        TeacherSpecialization.objects.get_or_create(
-            teacher=profile,
-            vertical_id=spec.get("vertical"),
-            track_id=spec.get("track"),
-            subject_id=spec.get("subject"),
-        )
-    for rule in application.availability or []:
-        AvailabilityRule.objects.create(
-            teacher=profile,
-            weekday=rule["weekday"],
-            start_time=rule["start_time"],
-            end_time=rule["end_time"],
-        )
-    for sp in application.stage_prices or []:
-        TeacherStagePrice.objects.update_or_create(
-            teacher=profile,
-            vertical_id=sp.get("vertical"),
-            defaults={"price_minor": sp.get("price_minor", 0)},
-        )
+    for card in application.stages or []:
+        if not TeacherStage.objects.filter(
+            teacher=profile, vertical_id=card.get("vertical"), track_id=card.get("track")
+        ).exists():
+            stage_setup.write_card(profile, card)
 
 
 @transaction.atomic
@@ -89,7 +63,6 @@ def approve_application(application: TeacherApplication, reviewer: User) -> User
         bio_ar=application.bio_ar,
         intro_video_url=application.intro_video_url,
         photo=application.photo or None,
-        free_lessons_offered=application.free_lessons_offered,
         specialties=application.specialties or [],
         education=application.education or [],
         work_experience=application.work_experience or [],

@@ -8,11 +8,18 @@ import { Alert, Button, Spin, Tag } from "antd";
 import { STATUS_COLORS, statusLabel } from "@/components/bookings/shared";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { listBookings, type Booking } from "@/lib/bookings";
-import { teacherSelf, type AvailabilityRule } from "@/lib/teacher-self";
+import { stageCardTitle, type WeeklyWindow } from "@/lib/stage-cards";
+import { teacherSelf } from "@/lib/teacher-self";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 type Dict = Dictionary["teacherCalendar"];
 type BookingsDict = Dictionary["bookings"];
+
+/** A weekly window tagged with the stage card it belongs to. */
+interface CalendarRule extends WeeklyWindow {
+  key: string;
+  stage: string;
+}
 
 /** Weeks start on Saturday (common school-week start in EG/SA). */
 const WEEK_START_DOW = 6;
@@ -33,19 +40,29 @@ export default function CalendarView({
   locale: string;
 }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(dayjs()));
-  const [rules, setRules] = useState<AvailabilityRule[] | null>(null);
+  const [rules, setRules] = useState<CalendarRule[] | null>(null);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     teacherSelf
-      .listAvailability()
-      .then(setRules)
+      .listStages()
+      .then((cards) =>
+        setRules(
+          cards.flatMap((card) =>
+            card.availability.map((w, i) => ({
+              ...w,
+              key: `${card.id}-${i}`,
+              stage: stageCardTitle(card, locale),
+            })),
+          ),
+        ),
+      )
       .catch(() => {
         setRules([]);
         setError(bookingsDict.loadError);
       });
-  }, [bookingsDict.loadError]);
+  }, [bookingsDict.loadError, locale]);
 
   const loadBookings = useCallback(
     (showSpinner: boolean) => {
@@ -80,7 +97,9 @@ export default function CalendarView({
   const loading = rules == null || bookings == null;
 
   const rulesFor = (day: dayjs.Dayjs) =>
-    (rules ?? []).filter((r) => r.weekday === ((day.day() + 6) % 7));
+    (rules ?? [])
+      .filter((r) => r.weekday === ((day.day() + 6) % 7))
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
   const bookingsFor = (day: dayjs.Dayjs) =>
     (bookings ?? [])
       // Cancelled/declined lessons free their slot, so don't render them as busy.
@@ -144,7 +163,7 @@ export default function CalendarView({
                       {dRules.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {dRules.map((r) => (
-                            <AvailChip key={r.id} rule={r} />
+                            <AvailChip key={r.key} rule={r} />
                           ))}
                         </div>
                       )}
@@ -181,7 +200,7 @@ export default function CalendarView({
                       </div>
                     </div>
                     {rulesFor(day).map((r) => (
-                      <AvailChip key={r.id} rule={r} />
+                      <AvailChip key={r.key} rule={r} />
                     ))}
                     {bookingsFor(day).map((b) => (
                       <BookingItem key={b.id} booking={b} locale={locale} bookingsDict={bookingsDict} />
@@ -210,13 +229,15 @@ export default function CalendarView({
   );
 }
 
-function AvailChip({ rule }: { rule: AvailabilityRule }) {
+function AvailChip({ rule }: { rule: CalendarRule }) {
   return (
     <div
       className="rounded-md px-2 py-1 text-center text-[11px] font-medium"
       style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", border: "1px dashed var(--brand)" }}
+      title={rule.stage}
     >
-      {rule.start_time.slice(0, 5)}–{rule.end_time.slice(0, 5)}
+      <div>{rule.start_time.slice(0, 5)}–{rule.end_time.slice(0, 5)}</div>
+      <div className="truncate opacity-80">{rule.stage}</div>
     </div>
   );
 }

@@ -46,6 +46,15 @@ class Receipt(TimeStampedModel):
     amount_minor = models.IntegerField()
     currency = models.CharField(max_length=3)
     method = models.CharField(max_length=10, choices=Method.choices)
+    # The platform account the student paid into (chosen from the moderator-managed
+    # list). Nullable only for receipts created before accounts were selectable.
+    payment_account = models.ForeignKey(
+        "markets.PaymentAccount",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="receipts",
+    )
     reference = models.CharField(max_length=120, blank=True)
     image = models.FileField(upload_to="receipts/", null=True, blank=True)
     purpose = models.CharField(max_length=10, choices=Purpose.choices)

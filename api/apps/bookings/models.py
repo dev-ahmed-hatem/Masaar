@@ -38,8 +38,23 @@ class Booking(TimeStampedModel):
     teacher = models.ForeignKey(
         "teachers.TeacherProfile", on_delete=models.PROTECT, related_name="bookings"
     )
-    lesson_category = models.ForeignKey(
-        "catalog.LessonCategory", on_delete=models.PROTECT, related_name="bookings"
+    # What was booked: the teacher's stage card (kept loosely — the card may be
+    # deleted later) plus a snapshot of its stage/track and the chosen subject.
+    teacher_stage = models.ForeignKey(
+        "teachers.TeacherStage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="bookings",
+    )
+    vertical = models.ForeignKey(
+        "catalog.Vertical", on_delete=models.PROTECT, related_name="bookings"
+    )
+    track = models.ForeignKey(
+        "catalog.Track", null=True, blank=True, on_delete=models.PROTECT, related_name="bookings"
+    )
+    subject = models.ForeignKey(
+        "catalog.Subject", on_delete=models.PROTECT, related_name="bookings"
     )
 
     scheduled_start = models.DateTimeField(help_text="Stored in UTC")

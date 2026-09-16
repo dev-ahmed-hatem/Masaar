@@ -69,7 +69,7 @@ class ReceiptListCreateView(ListCreateAPIView):
         return ReceiptCreateSerializer if self.request.method == "POST" else ReceiptSerializer
 
     def get_queryset(self):
-        qs = Receipt.objects.select_related("user", "market", "reviewed_by")
+        qs = Receipt.objects.select_related("user", "market", "reviewed_by", "payment_account")
         if not self._is_staff():
             qs = qs.filter(user=self.request.user)
         status_param = self.request.query_params.get("status")
@@ -116,7 +116,7 @@ class PackagePurchaseView(APIView):
         package = get_object_or_404(Package, pk=pk, is_active=True)
         if package.market_id != request.user.market_id:
             raise ValidationError({"package": "This package is not available in your market."})
-        serializer = PackagePurchaseCreateSerializer(data=request.data)
+        serializer = PackagePurchaseCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         receipt = Receipt.objects.create(
@@ -124,7 +124,8 @@ class PackagePurchaseView(APIView):
             market=package.market,
             amount_minor=package.price_minor,
             currency=package.currency,
-            method=data["method"],
+            method=data["payment_account"].kind,
+            payment_account=data["payment_account"],
             reference=data.get("reference", ""),
             image=data.get("image"),
             purpose=Receipt.Purpose.PACKAGE,
@@ -139,7 +140,9 @@ class ReceiptDetailView(APIView):
     permission_classes = [IsStaff]
 
     def get(self, request, pk):
-        receipt = get_object_or_404(Receipt.objects.select_related("user", "market", "reviewed_by"), pk=pk)
+        receipt = get_object_or_404(
+            Receipt.objects.select_related("user", "market", "reviewed_by", "payment_account"), pk=pk
+        )
         return Response(ReceiptSerializer(receipt, context={"request": request}).data)
 
 

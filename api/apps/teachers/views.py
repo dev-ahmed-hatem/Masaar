@@ -14,13 +14,7 @@ from apps.markets.models import Market
 from apps.reviews.models import Review
 
 from . import services
-from .models import (
-    AvailabilityRule,
-    TeacherApplication,
-    TeacherProfile,
-    TeacherStagePrice,
-    TeacherSubject,
-)
+from .models import AvailabilityRule, TeacherApplication, TeacherProfile, TeacherStage
 from .serializers import (
     ApplicationRejectSerializer,
     TeacherApplicationCreateSerializer,
@@ -43,33 +37,34 @@ class UnknownMarket(APIException):
 
 
 def from_price_subquery() -> Subquery:
-    """A teacher's cheapest stage price (their "from" price for discovery cards)."""
+    """A teacher's cheapest stage-card price (their "from" price for discovery cards)."""
     cheapest = (
-        TeacherStagePrice.objects.filter(teacher=OuterRef("pk"))
+        TeacherStage.objects.filter(teacher=OuterRef("pk"))
         .order_by("price_minor")
         .values("price_minor")[:1]
     )
     return Subquery(cheapest, output_field=IntegerField())
 
 
+def stage_cards_prefetch() -> Prefetch:
+    """Stage cards with everything the list/detail serializers read."""
+    return Prefetch(
+        "stages",
+        queryset=TeacherStage.objects.select_related("vertical", "track").prefetch_related(
+            "subjects__subject",
+            Prefetch("availability", queryset=AvailabilityRule.objects.all()),
+        ),
+    )
+
+
 class TeacherFilter(filters.FilterSet):
-    # Discovery filters run off the teacher's specialization tags (stage → track
-    # → subject), which are seeded from offerings and refined by the teacher.
-    subject = filters.NumberFilter(
-        field_name="specializations__subject_id", distinct=True
-    )
-    stage = filters.NumberFilter(
-        field_name="specializations__vertical_id", distinct=True
-    )
-    track = filters.NumberFilter(
-        field_name="specializations__track_id", distinct=True
-    )
-    grade = filters.NumberFilter(
-        field_name="subjects__lesson_category__grade_level_id", distinct=True
-    )
-    vertical = filters.CharFilter(
-        field_name="subjects__lesson_category__vertical__code", distinct=True
-    )
+    # stage / track / subject match within ONE stage card together (so "Math" in
+    # one card and "Secondary" in another doesn't match) — see filter_stage_card.
+    subject = filters.NumberFilter(method="filter_stage_card")
+    stage = filters.NumberFilter(method="filter_stage_card")
+    track = filters.NumberFilter(method="filter_stage_card")
+    grade = filters.NumberFilter(field_name="stages__vertical__grade_levels", distinct=True)
+    vertical = filters.CharFilter(field_name="stages__vertical__code", distinct=True)
     language = filters.CharFilter(field_name="languages", lookup_expr="icontains")
     name = filters.CharFilter(field_name="user__full_name", lookup_expr="icontains")
     min_rating = filters.NumberFilter(field_name="rating_avg", lookup_expr="gte")
@@ -80,6 +75,21 @@ class TeacherFilter(filters.FilterSet):
     class Meta:
         model = TeacherProfile
         fields = ["gender"]
+
+    def filter_stage_card(self, queryset, name, value):
+        # Called once per param present; apply the combined card filter only once.
+        if getattr(self, "_stage_card_filtered", False):
+            return queryset
+        self._stage_card_filtered = True
+        data = self.form.cleaned_data
+        cards = TeacherStage.objects.all()
+        if data.get("stage") is not None:
+            cards = cards.filter(vertical_id=data["stage"])
+        if data.get("track") is not None:
+            cards = cards.filter(track_id=data["track"])
+        if data.get("subject") is not None:
+            cards = cards.filter(subjects__subject_id=data["subject"])
+        return queryset.filter(id__in=cards.values("teacher_id"))
 
 
 class _MarketScopedMixin:
@@ -102,11 +112,11 @@ class _MarketScopedMixin:
 @extend_schema(
     parameters=[
         OpenApiParameter("market", str, description="Market code (EG/SA). Falls back to the signed-in user's market."),
-        OpenApiParameter("subject", int, description="Subject id (from specialization tags)"),
-        OpenApiParameter("stage", int, description="Stage id (from specialization tags)"),
-        OpenApiParameter("track", int, description="Branch/faculty id (from specialization tags)"),
-        OpenApiParameter("grade", int, description="Grade level id"),
-        OpenApiParameter("vertical", str, description="Vertical code (from offerings)"),
+        OpenApiParameter("subject", int, description="Subject id (taught in a stage card)"),
+        OpenApiParameter("stage", int, description="Stage id (combined with subject/track per card)"),
+        OpenApiParameter("track", int, description="Branch/faculty id (combined with stage/subject per card)"),
+        OpenApiParameter("grade", int, description="Grade level id (teachers of the grade's stage)"),
+        OpenApiParameter("vertical", str, description="Stage code"),
         OpenApiParameter("gender", str, description="MALE / FEMALE"),
         OpenApiParameter("language", str, description="Language code substring, e.g. 'en'"),
         OpenApiParameter("name", str, description="Teacher name substring (case-insensitive)"),
@@ -131,17 +141,7 @@ class TeacherListView(_MarketScopedMixin, ListAPIView):
         return (
             TeacherProfile.objects.filter(is_published=True, market=market)
             .select_related("user", "market")
-            .prefetch_related(
-                Prefetch(
-                    "subjects",
-                    queryset=TeacherSubject.objects.select_related(
-                        "lesson_category__subject"
-                    ),
-                ),
-                "specializations__vertical",
-                "specializations__track",
-                "specializations__subject",
-            )
+            .prefetch_related(stage_cards_prefetch())
             .annotate(from_price_minor=from_price_subquery())
         )
 
@@ -157,28 +157,14 @@ class TeacherDetailView(RetrieveAPIView):
             TeacherProfile.objects.filter(is_published=True)
             .select_related("user", "market")
             .prefetch_related(
-                Prefetch(
-                    "subjects",
-                    queryset=TeacherSubject.objects.select_related(
-                        "lesson_category__subject",
-                        "lesson_category__vertical",
-                        "lesson_category__grade_level",
-                    ),
-                ),
-                "stage_prices__vertical",
-                Prefetch(
-                    "availability",
-                    queryset=AvailabilityRule.objects.all(),
-                ),
+                stage_cards_prefetch(),
+                Prefetch("availability", queryset=AvailabilityRule.objects.all()),
                 Prefetch(
                     "reviews",
                     queryset=Review.objects.filter(is_published=True).select_related(
                         "student"
                     ),
                 ),
-                "specializations__vertical",
-                "specializations__track",
-                "specializations__subject",
             )
             .annotate(from_price_minor=from_price_subquery())
         )
@@ -214,7 +200,8 @@ class ApplicationListCreateView(ListCreateAPIView):
         application = serializer.save()
         # Echo back the created application using the read serializer.
         return Response(
-            TeacherApplicationSerializer(application).data, status=201
+            TeacherApplicationSerializer(application, context={"request": request}).data,
+            status=201,
         )
 
 
@@ -235,7 +222,9 @@ class ApplicationApproveView(APIView):
         return Response(
             {
                 "message": "Application approved; temporary password sent to the teacher.",
-                "application": TeacherApplicationSerializer(application).data,
+                "application": TeacherApplicationSerializer(
+                    application, context={"request": request}
+                ).data,
             }
         )
 
@@ -252,4 +241,4 @@ class ApplicationRejectView(APIView):
         services.reject_application(
             application, request.user, serializer.validated_data["notes"]
         )
-        return Response(TeacherApplicationSerializer(application).data)
+        return Response(TeacherApplicationSerializer(application, context={"request": request}).data)

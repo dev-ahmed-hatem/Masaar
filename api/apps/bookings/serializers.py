@@ -1,9 +1,8 @@
 from rest_framework import serializers
 
-from apps.catalog.models import LessonCategory
-from apps.catalog.serializers import LessonCategorySerializer
+from apps.catalog.models import Subject
 from apps.common.models import format_money
-from apps.teachers.models import TeacherProfile
+from apps.teachers.models import TeacherStage
 
 from .models import Booking
 
@@ -13,7 +12,7 @@ class BookingSerializer(serializers.ModelSerializer):
     student_market = serializers.SerializerMethodField()
     teacher_id = serializers.IntegerField(source="teacher.id", read_only=True)
     teacher_name = serializers.CharField(source="teacher.user.full_name", read_only=True)
-    lesson_category = LessonCategorySerializer(read_only=True)
+    lesson = serializers.SerializerMethodField()
     price_display = serializers.SerializerMethodField()
 
     class Meta:
@@ -24,7 +23,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "student_market",
             "teacher_id",
             "teacher_name",
-            "lesson_category",
+            "teacher_stage",
+            "lesson",
             "scheduled_start",
             "duration_min",
             "status",
@@ -38,6 +38,18 @@ class BookingSerializer(serializers.ModelSerializer):
             "completed_at",
             "created_at",
         )
+
+    def get_lesson(self, obj) -> dict:
+        """What was booked: stage, optional branch/faculty and subject (+ labels)."""
+        named = lambda o: {"id": o.id, "name_en": o.name_en, "name_ar": o.name_ar} if o else None  # noqa: E731
+        parts = [p for p in (obj.vertical, obj.track, obj.subject) if p]
+        return {
+            "stage": named(obj.vertical),
+            "track": named(obj.track),
+            "subject": named(obj.subject),
+            "label": " · ".join(p.name_en for p in parts),
+            "label_ar": " · ".join(p.name_ar for p in parts),
+        }
 
     def get_price_display(self, obj) -> str:
         return format_money(obj.price_minor, obj.currency)
@@ -53,10 +65,12 @@ class RescheduleSerializer(serializers.Serializer):
 
 
 class BookingCreateSerializer(serializers.Serializer):
-    teacher = serializers.PrimaryKeyRelatedField(
-        queryset=TeacherProfile.objects.filter(is_published=True)
+    teacher_stage = serializers.PrimaryKeyRelatedField(
+        queryset=TeacherStage.objects.filter(teacher__is_published=True).select_related(
+            "teacher__market"
+        )
     )
-    lesson_category = serializers.PrimaryKeyRelatedField(queryset=LessonCategory.objects.all())
+    subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all())
     scheduled_start = serializers.DateTimeField()
     duration_min = serializers.IntegerField(required=False, min_value=15, max_value=240)
     is_trial = serializers.BooleanField(default=False)

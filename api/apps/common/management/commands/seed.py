@@ -36,10 +36,9 @@ from apps.reviews.models import Review
 from apps.teachers.models import (
     AvailabilityRule,
     TeacherApplication,
-    TeacherStagePrice,
     TeacherProfile,
-    TeacherSpecialization,
-    TeacherSubject,
+    TeacherStage,
+    TeacherStageSubject,
 )
 
 W = AvailabilityRule.Weekday
@@ -167,70 +166,56 @@ class Command(BaseCommand):
                     defaults={"min_price_minor": minp, "commission_pct": pct},
                 )
 
-        def cat(market, vkey, sname):
-            v, g = vmap[vkey]
-            return LessonCategory.objects.get(market=market, vertical=v, grade_level=g, subject=subjects[sname])
-
         # --- Teacher roster ------------------------------------------------
         roster = [
             {"m": eg, "phone": "+201111111101", "name": "Ahmed Fathy", "g": "MALE", "rating": 4.7, "count": 128, "lessons": 128, "free": 1, "video": YT,
              "bio_en": "Maths & science tutor with 8 years helping primary and prep students build strong fundamentals.",
              "bio_ar": "مدرّس رياضيات وعلوم بخبرة 8 سنوات في تأسيس طلاب المرحلة الابتدائية والإعدادية.",
-             "offer": [("primary", "Mathematics"), ("primary", "Science"), ("secondary", "Physics")],
              "spec": [("primary", None, "Mathematics"), ("primary", None, "Science"), ("secondary", "science", "Physics")],
              "avail": [(W.MON, "16:00", "20:00"), (W.WED, "16:00", "20:00")]},
             {"m": eg, "phone": "+201111111102", "name": "Sara Nabil", "g": "FEMALE", "rating": 4.9, "count": 312, "lessons": 312, "free": 2, "video": YT,
              "bio_en": "Patient primary maths and English teacher who makes every lesson feel approachable.",
              "bio_ar": "معلّمة رياضيات ولغة إنجليزية للمرحلة الابتدائية، أسلوبها بسيط ومحبّب.",
-             "offer": [("primary", "Mathematics"), ("primary", "English")],
              "spec": [("primary", None, "Mathematics"), ("primary", None, "English")],
              "avail": [(W.SUN, "16:00", "20:00"), (W.TUE, "16:00", "20:00")]},
             {"m": eg, "phone": "+201111111103", "name": "Mona Adel", "g": "FEMALE", "rating": 4.8, "count": 96, "lessons": 96, "free": 0,
              "bio_en": "Secondary physics and chemistry specialist focused on Thanaweya Amma exam technique.",
              "bio_ar": "متخصصة في فيزياء وكيمياء الثانوية العامة مع تركيز على مهارات الامتحان.",
-             "offer": [("secondary", "Physics"), ("secondary", "Chemistry")],
              "spec": [("secondary", "science", "Physics"), ("secondary", "science", "Chemistry")],
              "avail": [(W.SAT, "17:00", "21:00"), (W.MON, "17:00", "21:00")]},
             {"m": eg, "phone": "+201111111104", "name": "Khaled Omar", "g": "MALE", "rating": 4.6, "count": 210, "lessons": 210, "free": 1, "video": YT,
              "bio_en": "English language and IELTS coach — conversation, writing and exam prep for all levels.",
              "bio_ar": "مدرّب لغة إنجليزية وآيلتس: محادثة وكتابة وتحضير للامتحانات لكل المستويات.",
-             "offer": [("primary", "English"), ("secondary", "English"), ("college", "English")],
              "spec": [("primary", None, "English"), ("secondary", "literature", "English"), ("college", "biz", "English")],
              "avail": [(W.SUN, "18:00", "22:00"), (W.WED, "18:00", "22:00"), (W.THU, "18:00", "22:00")]},
             {"m": eg, "phone": "+201111111105", "name": "Layla Mansour", "g": "FEMALE", "rating": 5.0, "count": 54, "lessons": 54, "free": 1,
              "bio_en": "Arabic language teacher passionate about grammar, literature and expressive writing.",
              "bio_ar": "معلّمة لغة عربية شغوفة بالنحو والأدب والتعبير الكتابي.",
-             "offer": [("primary", "Arabic"), ("secondary", "English")],
              "spec": [("primary", None, "Arabic"), ("secondary", "literature", "Arabic"), ("secondary", "literature", "English")],
              "avail": [(W.FRI, "10:00", "14:00"), (W.SAT, "10:00", "14:00")]},
             {"m": eg, "phone": "+201111111106", "name": "Youssef Hany", "g": "MALE", "rating": 4.5, "count": 74, "lessons": 74, "free": 0,
              "bio_en": "Engineering-track tutor for university calculus and physics fundamentals.",
              "bio_ar": "مدرّس لطلاب كليات الهندسة في التفاضل والتكامل وأساسيات الفيزياء.",
-             "offer": [("college", "Mathematics"), ("college", "Physics")],
              "spec": [("college", "eng", "Mathematics"), ("college", "eng", "Physics")],
              "avail": [(W.MON, "19:00", "22:00"), (W.WED, "19:00", "22:00")]},
             {"m": eg, "phone": "+201111111107", "name": "Dina Samir", "g": "FEMALE", "rating": 4.9, "count": 188, "lessons": 188, "free": 2, "video": YT,
              "bio_en": "Biology tutor for secondary science and pre-med students — clear diagrams, real examples.",
              "bio_ar": "مدرّسة أحياء لطلاب الثانوي العلمي وكليات الطب، شرح مبسّط بالرسومات والأمثلة.",
-             "offer": [("secondary", "Biology"), ("college", "Biology")],
              "spec": [("secondary", "science", "Biology"), ("college", "med", "Biology")],
              "avail": [(W.SUN, "16:00", "20:00"), (W.TUE, "16:00", "20:00"), (W.THU, "16:00", "20:00")]},
             {"m": eg, "phone": "+201111111108", "name": "Tarek Zaki", "g": "MALE", "rating": 4.4, "count": 41, "lessons": 41, "free": 0,
              "bio_en": "Chemistry tutor covering secondary and first-year medical chemistry.",
              "bio_ar": "مدرّس كيمياء للمرحلة الثانوية وكيمياء السنة الأولى بكليات الطب.",
-             "offer": [("secondary", "Chemistry"), ("college", "Chemistry")],
              "spec": [("secondary", "science", "Chemistry"), ("college", "med", "Chemistry")],
              "avail": [(W.SAT, "18:00", "21:00"), (W.MON, "18:00", "21:00")]},
             {"m": sa, "phone": "+966511111109", "name": "Faisal Al-Harbi", "g": "MALE", "rating": 4.8, "count": 133, "lessons": 133, "free": 1, "video": YT,
              "bio_en": "Physics and maths tutor for Saudi secondary students, exam-focused and encouraging.",
              "bio_ar": "مدرّس فيزياء ورياضيات لطلاب الثانوية في السعودية، يركّز على الاختبارات ويحفّز الطلاب.",
-             "offer": [("primary", "Mathematics"), ("secondary", "Physics")],
              "spec": [("primary", None, "Mathematics"), ("secondary", "science", "Physics")],
              "avail": [(W.SUN, "17:00", "21:00"), (W.TUE, "17:00", "21:00")]},
             {"m": sa, "phone": "+966511111110", "name": "Huda Al-Qahtani", "g": "FEMALE", "rating": 4.7, "count": 90, "lessons": 90, "free": 1,
              "bio_en": "English teacher for Saudi learners — friendly, structured, results-driven.",
              "bio_ar": "معلّمة لغة إنجليزية للطلاب في السعودية، أسلوب ودود ومنظّم يركّز على النتائج.",
-             "offer": [("secondary", "English")],
              "spec": [("secondary", "literature", "English")],
              "avail": [(W.MON, "18:00", "22:00"), (W.WED, "18:00", "22:00")]},
         ]
@@ -239,26 +224,22 @@ class Command(BaseCommand):
         for r in roster:
             profile = self._teacher(
                 r["m"], r["phone"], r["name"], gender=getattr(TeacherProfile.Gender, r["g"]),
-                rating=r["rating"], count=r["count"], lessons=r["lessons"], free=r["free"],
+                rating=r["rating"], count=r["count"], lessons=r["lessons"],
                 bio_en=r["bio_en"], bio_ar=r.get("bio_ar", ""), video=r.get("video", ""),
             )
-            for vkey, sname in r["offer"]:
-                self._offer(profile, cat(r["m"], vkey, sname))
+            # One stage card per (stage, track): its subjects, a price above the
+            # stage minimum, the teacher's trial offer, and a share of their hours.
+            cards: dict[tuple, list] = {}
             for vkey, tkey, sname in r["spec"]:
-                TeacherSpecialization.objects.get_or_create(
-                    teacher=profile, vertical=vmap[vkey][0],
-                    track=tracks[tkey] if tkey else None, subject=subjects[sname],
-                )
-            self._availability(profile, r["avail"])
-            # The teacher's own price for each stage they teach (>= stage min).
-            for vkey in {vk for vk, _ in r["offer"]}:
-                rule = StagePricingRule.objects.filter(
-                    market=r["m"], vertical=vmap[vkey][0]
-                ).first()
+                cards.setdefault((vkey, tkey), []).append(sname)
+            for idx, ((vkey, tkey), names) in enumerate(cards.items()):
+                vertical = vmap[vkey][0]
+                rule = StagePricingRule.objects.filter(market=r["m"], vertical=vertical).first()
                 minimum = rule.min_price_minor if rule else 5000
-                TeacherStagePrice.objects.get_or_create(
-                    teacher=profile, vertical=vmap[vkey][0],
-                    defaults={"price_minor": int(minimum * 1.2)},
+                windows = [w for i, w in enumerate(r["avail"]) if i % len(cards) == idx] or r["avail"]
+                self._stage_card(
+                    profile, vertical, tracks[tkey] if tkey else None,
+                    [subjects[n] for n in names], int(minimum * 1.2), r["free"], windows,
                 )
             T[r["name"]] = profile
 
@@ -272,14 +253,6 @@ class Command(BaseCommand):
             ("+966533333305", "Sultan Al-Otaibi", sa, 200000),
         ]:
             S[name] = self._student(phone, name, market, credit)
-
-        # A pending top-up receipt so the verification queue has content.
-        if not Receipt.objects.filter(reference="SEED-TXN-001").exists():
-            Receipt.objects.create(
-                user=S["Omar Student"], market=eg, amount_minor=10000, currency="EGP",
-                method=Receipt.Method.BANK, reference="SEED-TXN-001",
-                purpose=Receipt.Purpose.TOPUP, status=Receipt.Status.PENDING,
-            )
 
         # A teacher who must reset their password on first sign-in.
         nour, created = User.objects.get_or_create(
@@ -304,14 +277,31 @@ class Command(BaseCommand):
         )
 
         # --- Pending teacher applications ---------------------------------
-        for full_name, phone, bio in [
-            ("Mona Adel", "+201222222201", "Physics & chemistry, 5 years of prep-school tutoring."),
-            ("Khaled Omar", "+201222222202", "English language and IELTS coach."),
-            ("Rana Saleh", "+201222222203", "Primary maths and science, playful and structured."),
+        def app_card(vertical, track_obj, names, price, free, windows):
+            return {
+                "vertical": vertical.id, "track": track_obj.id if track_obj else None,
+                "subjects": [subjects[n].id for n in names], "price_minor": price,
+                "free_lessons_offered": free,
+                "availability": [{"weekday": int(d), "start_time": a, "end_time": b} for d, a, b in windows],
+            }
+
+        for full_name, phone, email, gender, bio, stages in [
+            ("Mona Adel", "+201222222201", "mona.adel@example.com", "FEMALE",
+             "Physics & chemistry, 5 years of prep-school tutoring.",
+             [app_card(secondary, science, ["Physics", "Chemistry"], 9500, 1, [(W.SAT, "17:00", "21:00")])]),
+            ("Khaled Omar", "+201222222202", "khaled.omar@example.com", "MALE",
+             "English language and IELTS coach.",
+             [app_card(secondary, literature, ["English"], 9000, 0, [(W.SUN, "18:00", "22:00")]),
+              app_card(college, biz_fac, ["English"], 12000, 1, [(W.WED, "18:00", "22:00")])]),
+            ("Rana Saleh", "+201222222203", "rana.saleh@example.com", "FEMALE",
+             "Primary maths and science, playful and structured.",
+             [app_card(primary, None, ["Mathematics", "Science"], 6000, 2,
+                       [(W.MON, "16:00", "19:00"), (W.TUE, "16:00", "19:00")])]),
         ]:
             TeacherApplication.objects.get_or_create(
                 phone=phone, status=TeacherApplication.Status.PENDING,
-                defaults={"full_name": full_name, "market": eg, "bio": bio, "intro_video_url": YT},
+                defaults={"full_name": full_name, "market": eg, "email": email, "gender": gender,
+                          "languages": "ar,en", "bio": bio, "intro_video_url": YT, "stages": stages},
             )
 
         # --- Payment accounts ---------------------------------------------
@@ -331,9 +321,18 @@ class Command(BaseCommand):
                       "instructions": "Transfer the exact amount and upload the receipt.", "sort_order": 0},
         )
 
+        # A pending top-up receipt so the verification queue has content.
+        if not Receipt.objects.filter(reference="SEED-TXN-001").exists():
+            Receipt.objects.create(
+                user=S["Omar Student"], market=eg, amount_minor=10000, currency="EGP",
+                method=Receipt.Method.BANK, reference="SEED-TXN-001",
+                payment_account=PaymentAccount.objects.get(market=eg, display_name="Wisal — Bank (EG)"),
+                purpose=Receipt.Purpose.TOPUP, status=Receipt.Status.PENDING,
+            )
+
         # --- Rich demo activity (fresh DB only) ---------------------------
         if not Booking.objects.exists():
-            self._seed_activity(admin, eg, sa, S, T, cat, subjects, tracks, vmap)
+            self._seed_activity(admin, eg, sa, S, T, subjects, tracks, vmap)
 
         self.stdout.write(self.style.SUCCESS("Seed complete."))
         self.stdout.write(
@@ -346,7 +345,7 @@ class Command(BaseCommand):
         )
 
     # ------------------------------------------------------------------ demo activity
-    def _seed_activity(self, admin, eg, sa, S, T, cat, subjects, tracks, vmap):
+    def _seed_activity(self, admin, eg, sa, S, T, subjects, tracks, vmap):
         """Generate large, varied demo activity with bulk inserts. Deterministic
         (seeded RNG) and only ever runs on a fresh DB (guarded by the caller)."""
         random.seed(1234)
@@ -424,7 +423,7 @@ class Command(BaseCommand):
                 user=u, market=market, gender=gender, languages="ar,en",
                 bio_en=random.choice(BIOS), intro_video_url=(YT if random.random() < 0.3 else ""),
                 rating_avg=round(random.uniform(3.8, 5.0), 1), rating_count=0, lessons_count=0,
-                free_lessons_offered=random.choice([0, 0, 1, 2]), is_published=True))
+                is_published=True))
             pmeta.append(chosen)
         TeacherProfile.objects.bulk_create(profiles, batch_size=500)
 
@@ -432,41 +431,40 @@ class Command(BaseCommand):
             (r.market_id, r.vertical_id): r.min_price_minor
             for r in StagePricingRule.objects.all()
         }
-        offerings, specs, avails, tsprices, teacher_cats = [], [], [], [], {}
+        # Stage cards: group each teacher's chosen subjects by (stage, track).
+        card_rows, card_meta = [], []
         for prof, chosen in zip(profiles, pmeta):
-            seen_cat, seen_spec, cats = set(), set(), []
+            grouped: dict[tuple, list] = {}
             for vk, sn in chosen:
-                c = cat(prof.market, vk, sn)
-                if c.id not in seen_cat:
-                    offerings.append(TeacherSubject(teacher=prof, lesson_category=c))
-                    seen_cat.add(c.id)
-                    cats.append(c)
-                tkey = track_for(vk, sn)
-                skey = (vmap[vk][0].id, tkey, sn)
-                if skey not in seen_spec:
-                    specs.append(TeacherSpecialization(
-                        teacher=prof, vertical=vmap[vk][0],
-                        track=tracks[tkey] if tkey else None, subject=subjects[sn]))
-                    seen_spec.add(skey)
-            teacher_cats[prof.id] = cats
-            # A stage price (>= the stage minimum) for every stage the teacher offers.
-            for vk in {vk for vk, _ in chosen}:
+                names = grouped.setdefault((vk, track_for(vk, sn)), [])
+                if sn not in names:
+                    names.append(sn)
+            for (vk, tkey), names in grouped.items():
                 vertical = vmap[vk][0]
                 minimum = rule_min.get((prof.market_id, vertical.id), 5000)
-                tsprices.append(TeacherStagePrice(
-                    teacher=prof, vertical=vertical, price_minor=int(minimum * 1.2)))
-            slots = {(random.choice(WEEKDAYS), random.choice(WINDOWS)) for _ in range(random.randint(2, 4))}
-            for wd, (st, en) in slots:
-                avails.append(AvailabilityRule(teacher=prof, weekday=wd, start_time=st, end_time=en))
-        TeacherSubject.objects.bulk_create(offerings, batch_size=1000)
-        TeacherSpecialization.objects.bulk_create(specs, batch_size=1000)
-        TeacherStagePrice.objects.bulk_create(tsprices, batch_size=1000)
+                card_rows.append(TeacherStage(
+                    teacher=prof, vertical=vertical, track=tracks[tkey] if tkey else None,
+                    price_minor=int(minimum * random.choice([1.0, 1.2, 1.5])),
+                    free_lessons_offered=random.choice([0, 0, 1, 2])))
+                card_meta.append(names)
+        TeacherStage.objects.bulk_create(card_rows, batch_size=1000)
+        card_subjects, avails = [], []
+        for card, names in zip(card_rows, card_meta):
+            card_subjects.extend(TeacherStageSubject(teacher_stage=card, subject=subjects[n]) for n in names)
+            slots = {(random.choice(WEEKDAYS), random.choice(WINDOWS)) for _ in range(random.randint(1, 3))}
+            # Keep one window per weekday so a card's windows never overlap.
+            for wd, (st, en) in {wd: (st, en) for wd, (st, en) in slots}.items():
+                avails.append(AvailabilityRule(teacher=card.teacher, teacher_stage=card,
+                                               weekday=wd, start_time=st, end_time=en))
+        TeacherStageSubject.objects.bulk_create(card_subjects, batch_size=1000)
         AvailabilityRule.objects.bulk_create(avails, batch_size=1000)
 
-        # Include the hand-crafted roster teachers in the activity pools.
-        for prof in T.values():
-            teacher_cats[prof.id] = [ts.lesson_category for ts in prof.subjects.all()]
+        # Bookable (card, subject) pairs per teacher, incl. the hand-crafted roster.
         all_teachers = list(profiles) + list(T.values())
+        teacher_lessons: dict[int, list] = {}
+        for card in TeacherStage.objects.filter(teacher__in=all_teachers).prefetch_related("subjects__subject"):
+            for cs in card.subjects.all():
+                teacher_lessons.setdefault(card.teacher_id, []).append((card, cs.subject))
 
         # --- Generated students (bulk) + wallets --------------------------
         student_users = []
@@ -492,36 +490,34 @@ class Command(BaseCommand):
             students_by_market[u.market_id].append(u)
 
         # --- Bookings (bulk) across every status --------------------------
-        # Freeze price/wage from each teacher's stage price + the stage commission.
-        stage_price_map = {
-            (sp.teacher_id, sp.vertical_id): sp.price_minor
-            for sp in TeacherStagePrice.objects.all()
-        }
+        # Freeze price/wage from the stage card's price + the stage commission.
         rule_pct = {
             (r.market_id, r.vertical_id): float(r.commission_pct)
             for r in StagePricingRule.objects.all()
         }
 
-        def price_wage(teacher, category):
-            price = stage_price_map.get((teacher.id, category.vertical_id))
-            if price is None:
-                return None, None
-            pct = rule_pct.get((teacher.market_id, category.vertical_id), 0)
+        def price_wage(teacher, card):
+            price = card.price_minor
+            pct = rule_pct.get((teacher.market_id, card.vertical_id), 0)
             return price, price - int(round(price * pct / 100))
+
+        def lesson(card, subject):
+            return {"teacher_stage": card, "vertical_id": card.vertical_id,
+                    "track_id": card.track_id, "subject": subject}
 
         rating_choices, rating_weights = [5, 4, 3], [0.6, 0.3, 0.1]
         bookings, review_for = [], []
         for teacher in all_teachers:
-            cats = teacher_cats.get(teacher.id) or []
+            cats = teacher_lessons.get(teacher.id) or []
             studs = students_by_market.get(teacher.market_id) or []
             if not cats or not studs:
                 continue
             curr = teacher.market.currency
             for _ in range(random.randint(30, 120)):  # completed history
-                c, stu = random.choice(cats), random.choice(studs)
-                pm, wm = price_wage(teacher, c)
+                (card, subj), stu = random.choice(cats), random.choice(studs)
+                pm, wm = price_wage(teacher, card)
                 d = random.randint(1, 150)
-                b = Booking(student=stu, teacher=teacher, lesson_category=c,
+                b = Booking(student=stu, teacher=teacher, **lesson(card, subj),
                             scheduled_start=now - td(days=d), duration_min=60,
                             completed_at=now - td(days=d) + td(hours=1),
                             price_minor=pm, teacher_wage_minor=wm,
@@ -532,10 +528,10 @@ class Command(BaseCommand):
                     review_for.append((b, random.choices(rating_choices, rating_weights)[0], random.choice(REVIEWS)))
             for _ in range(random.randint(0, 4)):  # upcoming active
                 confirmed = random.random() < 0.5
-                c, stu = random.choice(cats), random.choice(studs)
-                pm, wm = price_wage(teacher, c)
+                (card, subj), stu = random.choice(cats), random.choice(studs)
+                pm, wm = price_wage(teacher, card)
                 bookings.append(Booking(
-                    student=stu, teacher=teacher, lesson_category=c,
+                    student=stu, teacher=teacher, **lesson(card, subj),
                     scheduled_start=now + td(days=random.randint(1, 20), hours=random.randint(0, 8)),
                     duration_min=60, price_minor=pm, teacher_wage_minor=wm,
                     currency=curr, status=Status.CONFIRMED if confirmed else Status.REQUESTED,
@@ -543,8 +539,8 @@ class Command(BaseCommand):
                     meeting_link="https://zoom.us/j/000000000" if confirmed else ""))
             for _ in range(random.randint(0, 5)):  # unhappy paths
                 st = random.choice([Status.CANCELLED, Status.DECLINED, Status.NO_SHOW])
-                c, stu = random.choice(cats), random.choice(studs)
-                pm, wm = price_wage(teacher, c)
+                (card, subj), stu = random.choice(cats), random.choice(studs)
+                pm, wm = price_wage(teacher, card)
                 extra = {}
                 start = now - td(days=random.randint(1, 120))
                 if st == Status.NO_SHOW:
@@ -553,7 +549,7 @@ class Command(BaseCommand):
                     extra["cancel_reason"] = "Schedule conflict"
                 else:  # DECLINED
                     start = now + td(days=random.randint(1, 10))
-                bookings.append(Booking(student=stu, teacher=teacher, lesson_category=c,
+                bookings.append(Booking(student=stu, teacher=teacher, **lesson(card, subj),
                                         scheduled_start=start, duration_min=60,
                                         price_minor=pm, teacher_wage_minor=wm,
                                         currency=curr, status=st, **extra))
@@ -647,7 +643,7 @@ class Command(BaseCommand):
             market=market, vertical=vertical, grade_level=grade, subject=subject,
         )
 
-    def _teacher(self, market, phone, full_name, *, gender, rating, count, lessons, free, bio_en, bio_ar="", video=""):
+    def _teacher(self, market, phone, full_name, *, gender, rating, count, lessons, bio_en, bio_ar="", video=""):
         user, created = User.objects.get_or_create(
             phone=phone,
             defaults={"full_name": full_name, "role": User.Role.TEACHER, "market": market, "is_verified": True},
@@ -661,19 +657,24 @@ class Command(BaseCommand):
                 "market": market, "gender": gender, "languages": "ar,en",
                 "bio_en": bio_en, "bio_ar": bio_ar, "intro_video_url": video,
                 "rating_avg": rating, "rating_count": count, "lessons_count": lessons,
-                "free_lessons_offered": free, "is_published": True,
+                "is_published": True,
             },
         )
         return profile
 
-    def _offer(self, teacher, lesson_category):
-        TeacherSubject.objects.get_or_create(teacher=teacher, lesson_category=lesson_category)
-
-    def _availability(self, teacher, specs):
-        for weekday, start, end in specs:
-            AvailabilityRule.objects.get_or_create(
-                teacher=teacher, weekday=weekday, start_time=start, end_time=end
-            )
+    def _stage_card(self, teacher, vertical, track_obj, subject_objs, price, free, windows):
+        card, created = TeacherStage.objects.get_or_create(
+            teacher=teacher, vertical=vertical, track=track_obj,
+            defaults={"price_minor": price, "free_lessons_offered": free},
+        )
+        if created:
+            for subject in subject_objs:
+                TeacherStageSubject.objects.create(teacher_stage=card, subject=subject)
+            for weekday, start, end in windows:
+                AvailabilityRule.objects.create(
+                    teacher=teacher, teacher_stage=card, weekday=weekday, start_time=start, end_time=end
+                )
+        return card
 
     def _student(self, phone, name, market, credit):
         user, created = User.objects.get_or_create(

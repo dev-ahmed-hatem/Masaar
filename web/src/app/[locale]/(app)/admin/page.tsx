@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowRight,
   CalendarCheck,
+  CreditCard,
   DollarSign,
   FileCheck,
   Layers,
@@ -49,6 +50,12 @@ export default async function AdminPage({
       desc: d.adminReceipts.intro,
       href: `/${locale}/admin/receipts`,
       icon: <FileCheck size={22} strokeWidth={2.2} />,
+    },
+    {
+      label: d.admin.paymentAccounts,
+      desc: d.adminPaymentAccounts.intro,
+      href: `/${locale}/admin/payment-accounts`,
+      icon: <CreditCard size={22} strokeWidth={2.2} />,
     },
     {
       label: d.adminReviews.title,

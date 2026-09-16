@@ -1,7 +1,8 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.accounts.models import User
-from apps.markets.models import Market
+from apps.markets.models import Market, PaymentAccount
 from apps.payments.models import (
     LedgerEntry,
     Package,
@@ -15,6 +16,11 @@ pytestmark = pytest.mark.django_db
 PACKAGES = "/api/packages/"
 PURCHASES = "/api/package-purchases/"
 RECEIPTS = "/api/receipts/"
+
+
+@pytest.fixture(autouse=True)
+def _media(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
 
 
 @pytest.fixture
@@ -31,7 +37,22 @@ def world():
         phone="+201000000400", full_name="Buyer B", role=User.Role.STUDENT, market=eg, is_verified=True
     )
     staff = User.objects.create_user(phone="+201000000401", role=User.Role.MODERATOR, is_verified=True)
-    return {"eg": eg, "sa": sa, "eg_pkg": eg_pkg, "sa_pkg": sa_pkg, "student": student, "staff": staff}
+    account = PaymentAccount.objects.create(
+        market=eg, kind=PaymentAccount.Kind.WALLET, display_name="Vodafone Cash", details="010..."
+    )
+    return {
+        "eg": eg, "sa": sa, "eg_pkg": eg_pkg, "sa_pkg": sa_pkg, "student": student,
+        "staff": staff, "account": account,
+    }
+
+
+def _pay(world, **extra):
+    """Multipart body for a payment: chosen account + receipt image."""
+    return {
+        "payment_account": world["account"].id,
+        "image": SimpleUploadedFile("r.png", b"img", content_type="image/png"),
+        **extra,
+    }
 
 
 def test_packages_market_scoped(api, world):
@@ -44,24 +65,38 @@ def test_packages_market_scoped(api, world):
 
 def test_purchase_creates_pending_purchase_and_receipt(api, world):
     api.force_authenticate(user=world["student"])
-    res = api.post(f"{PACKAGES}{world['eg_pkg'].id}/purchase/", {"method": "BANK", "reference": "P1"}, format="multipart")
+    res = api.post(f"{PACKAGES}{world['eg_pkg'].id}/purchase/", _pay(world, reference="P1"), format="multipart")
     assert res.status_code == 201 and res.data["status"] == "PENDING"
 
     purchase = PackagePurchase.objects.get(id=res.data["id"])
     assert purchase.receipt.purpose == Receipt.Purpose.PACKAGE
+    assert purchase.receipt.payment_account == world["account"]
+    assert purchase.receipt.method == "WALLET" and bool(purchase.receipt.image)
     assert purchase.receipt.amount_minor == 60000 and purchase.receipt.status == Receipt.Status.PENDING
 
 
 def test_cannot_purchase_other_market_package(api, world):
     api.force_authenticate(user=world["student"])
-    res = api.post(f"{PACKAGES}{world['sa_pkg'].id}/purchase/", {"method": "BANK"}, format="multipart")
+    res = api.post(f"{PACKAGES}{world['sa_pkg'].id}/purchase/", _pay(world), format="multipart")
     assert res.status_code == 400
+
+
+def test_purchase_requires_receipt_image_and_account(api, world):
+    api.force_authenticate(user=world["student"])
+    url = f"{PACKAGES}{world['eg_pkg'].id}/purchase/"
+    no_image = _pay(world)
+    del no_image["image"]
+    assert api.post(url, no_image, format="multipart").status_code == 400
+    no_account = _pay(world)
+    del no_account["payment_account"]
+    assert api.post(url, no_account, format="multipart").status_code == 400
+    assert not PackagePurchase.objects.exists() and not Receipt.objects.exists()
 
 
 def test_approve_package_grants_wallet_and_marks_granted(api, world):
     api.force_authenticate(user=world["student"])
     purchase_id = api.post(
-        f"{PACKAGES}{world['eg_pkg'].id}/purchase/", {"method": "BANK"}, format="multipart"
+        f"{PACKAGES}{world['eg_pkg'].id}/purchase/", _pay(world), format="multipart"
     ).data["id"]
     receipt = PackagePurchase.objects.get(id=purchase_id).receipt
 
@@ -80,7 +115,7 @@ def test_approve_package_grants_wallet_and_marks_granted(api, world):
 def test_reject_package_marks_purchase_rejected(api, world):
     api.force_authenticate(user=world["student"])
     purchase_id = api.post(
-        f"{PACKAGES}{world['eg_pkg'].id}/purchase/", {"method": "BANK"}, format="multipart"
+        f"{PACKAGES}{world['eg_pkg'].id}/purchase/", _pay(world), format="multipart"
     ).data["id"]
     receipt = PackagePurchase.objects.get(id=purchase_id).receipt
 
@@ -94,7 +129,7 @@ def test_reject_package_marks_purchase_rejected(api, world):
 def test_pay_per_booking_receipt_credits_wallet(api, world):
     api.force_authenticate(user=world["student"])
     receipt_id = api.post(
-        RECEIPTS, {"amount_minor": 6000, "method": "BANK", "purpose": "BOOKING"}, format="multipart"
+        RECEIPTS, _pay(world, amount_minor=6000, purpose="BOOKING"), format="multipart"
     ).data["id"]
 
     api.force_authenticate(user=world["staff"])

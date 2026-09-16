@@ -19,7 +19,7 @@ from apps.catalog.models import StagePricingRule
 from apps.integrations import calendar_sync
 from apps.notifications.services import notify
 from apps.payments import services as wallet
-from apps.teachers.models import TeacherStagePrice, TeacherSubject
+from apps.teachers.models import AvailabilityRule, TeacherStage
 
 from . import errors
 from .models import Booking
@@ -29,15 +29,6 @@ ACTIVE = [Booking.Status.REQUESTED, Booking.Status.CONFIRMED]
 
 
 # --- Pricing ---------------------------------------------------------------
-
-def stage_price_minor(teacher, vertical_id) -> int | None:
-    """The teacher's lesson price for a stage, or None if they haven't set one."""
-    return (
-        TeacherStagePrice.objects.filter(teacher=teacher, vertical_id=vertical_id)
-        .values_list("price_minor", flat=True)
-        .first()
-    )
-
 
 def _commission_pct(market, vertical_id) -> Decimal:
     """Platform commission % for a stage in a market (0 if no active rule)."""
@@ -78,13 +69,24 @@ def _overlaps(start, end, intervals) -> bool:
     return any(start < b_end and b_start < end for b_start, b_end in intervals)
 
 
-def generate_slots(teacher, *, days=None, duration_min=None):
-    """Concrete bookable slots from the teacher's recurring weekly availability."""
+def _availability_rules(teacher, stage=None):
+    """Weekly windows for one stage card, or for all of the teacher's bookable
+    cards (those with at least one subject)."""
+    if stage is not None:
+        return AvailabilityRule.objects.filter(teacher_stage=stage)
+    return AvailabilityRule.objects.filter(
+        teacher=teacher, teacher_stage__subjects__isnull=False
+    ).distinct()
+
+
+def generate_slots(teacher, *, stage=None, days=None, duration_min=None):
+    """Concrete bookable slots from recurring weekly availability — of one stage
+    card, or the union of all cards. Busy time is always teacher-wide."""
     days = days or settings.BOOKING_SLOT_HORIZON_DAYS
     duration = duration_min or settings.BOOKING_DEFAULT_DURATION_MIN
     tz = ZoneInfo(teacher.market.timezone)
     now = timezone.now()
-    rules = list(teacher.availability.all())
+    rules = list(_availability_rules(teacher, stage))
     busy = _busy_intervals(teacher)
 
     slots = []
@@ -102,18 +104,37 @@ def generate_slots(teacher, *, days=None, duration_min=None):
                 if start_utc > now and not _overlaps(start_utc, end_utc, busy):
                     slots.append({"start": start_utc, "end": end_utc, "duration_min": duration})
                 cursor += timedelta(minutes=duration)
-    slots.sort(key=lambda s: s["start"])
-    return slots
+    # Windows of different cards may overlap; keep one slot per start time.
+    unique = {slot["start"]: slot for slot in slots}
+    return sorted(unique.values(), key=lambda s: s["start"])
 
 
-def _within_availability(teacher, start_utc, duration) -> bool:
+def _within_availability(teacher, stage, start_utc, duration) -> bool:
     tz = ZoneInfo(teacher.market.timezone)
     local = start_utc.astimezone(tz)
     end_t = (local + timedelta(minutes=duration)).time()
     start_t = local.time()
     return any(
         rule.start_time <= start_t and end_t <= rule.end_time
-        for rule in teacher.availability.filter(weekday=local.weekday())
+        for rule in _availability_rules(teacher, stage).filter(weekday=local.weekday())
+    )
+
+
+def trials_used(student, stage: TeacherStage) -> int:
+    """Free trial lessons this student has taken (or has pending) in a stage card.
+
+    Counted by the card's stage/track rather than the card id, so removing and
+    re-adding a stage doesn't reset the allowance."""
+    return (
+        Booking.objects.filter(
+            student=student,
+            teacher_id=stage.teacher_id,
+            vertical_id=stage.vertical_id,
+            track_id=stage.track_id,
+            is_trial=True,
+        )
+        .exclude(status__in=[Booking.Status.DECLINED, Booking.Status.CANCELLED])
+        .count()
     )
 
 
@@ -125,45 +146,46 @@ def _guard(booking, new_status):
 
 
 @transaction.atomic
-def request_booking(student, teacher, category, scheduled_start, *, duration_min=None, is_trial=False):
+def request_booking(student, stage, subject, scheduled_start, *, duration_min=None, is_trial=False):
+    """Book ``subject`` within a teacher's stage card; the card sets the price,
+    trial allowance and the availability the time must fall in."""
     duration = duration_min or settings.BOOKING_DEFAULT_DURATION_MIN
+    teacher = stage.teacher
 
     if not teacher.is_published:
         raise errors.SlotUnavailable("This teacher is not accepting bookings.")
     if student.market_id != teacher.market_id:
         raise errors.MarketMismatch()
-    if not TeacherSubject.objects.filter(teacher=teacher, lesson_category=category).exists():
+    if not stage.subjects.filter(subject=subject).exists():
         raise errors.NotTeaching()
 
     end = scheduled_start + timedelta(minutes=duration)
     if scheduled_start <= timezone.now():
         raise errors.SlotUnavailable("Choose a future time.")
-    if not _within_availability(teacher, scheduled_start, duration):
+    if not _within_availability(teacher, stage, scheduled_start, duration):
         raise errors.SlotUnavailable()
     if _overlaps(scheduled_start, end, _busy_intervals(teacher)):
         raise errors.SlotUnavailable()
 
     if is_trial:
-        if teacher.free_lessons_offered <= 0:
-            raise errors.TrialUnavailable()
-        prior = Booking.objects.filter(student=student, teacher=teacher, is_trial=True).exclude(
-            status__in=[Booking.Status.DECLINED, Booking.Status.CANCELLED]
-        )
-        if prior.exists():
+        if trials_used(student, stage) >= stage.free_lessons_offered:
             raise errors.TrialUnavailable()
         price, wage = 0, 0
     else:
-        price = stage_price_minor(teacher, category.vertical_id)
-        if price is None:
+        price = stage.price_minor
+        if price <= 0:
             raise errors.SlotUnavailable("This teacher hasn't set a price for this stage.")
         wage, _commission = split_wage_commission(
-            price, _commission_pct(teacher.market, category.vertical_id)
+            price, _commission_pct(teacher.market, stage.vertical_id)
         )
 
     booking = Booking.objects.create(
         student=student,
         teacher=teacher,
-        lesson_category=category,
+        teacher_stage=stage,
+        vertical_id=stage.vertical_id,
+        track_id=stage.track_id,
+        subject=subject,
         scheduled_start=scheduled_start,
         duration_min=duration,
         price_minor=price,
@@ -180,16 +202,17 @@ def request_booking(student, teacher, category, scheduled_start, *, duration_min
 
 @transaction.atomic
 def reschedule_booking(booking, actor, new_start, *, duration_min=None):
-    """Move a REQUESTED/CONFIRMED lesson to a new time (same teacher, category,
-    and price — so the wallet reservation is untouched). Re-runs availability
-    and overlap checks, excluding this booking from the busy set."""
+    """Move a REQUESTED/CONFIRMED lesson to a new time (same teacher, stage card,
+    subject and price — so the wallet reservation is untouched). Re-runs the
+    card's availability and overlap checks, excluding this booking from the busy
+    set. If the card was since removed, any of the teacher's windows is accepted."""
     if booking.status not in ACTIVE:
         raise errors.SlotUnavailable("This lesson can no longer be rescheduled.")
     teacher = booking.teacher
     duration = duration_min or booking.duration_min
     if new_start <= timezone.now():
         raise errors.SlotUnavailable("Choose a future time.")
-    if not _within_availability(teacher, new_start, duration):
+    if not _within_availability(teacher, booking.teacher_stage, new_start, duration):
         raise errors.SlotUnavailable()
     end = new_start + timedelta(minutes=duration)
     if _overlaps(new_start, end, _busy_intervals(teacher, exclude_id=booking.id)):
