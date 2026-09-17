@@ -16,7 +16,8 @@ from typing import Protocol
 
 from django.conf import settings
 from django.core.mail import send_mail
-from django.utils.html import escape
+from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.module_loading import import_string
 
 logger = logging.getLogger("wisal.otp")
@@ -69,19 +70,54 @@ class WhatsAppCloudSender:
         )
 
 
+_BRAND = {"en": "Wisal", "ar": "وصال"}
+
 _OTP_COPY = {
     "en": {
-        "VERIFY": ("Your Wisal verification code", "Use this code to verify your Wisal account:"),
-        "RESET": ("Your Wisal password reset code", "Use this code to reset your Wisal password:"),
-        "expires": "The code expires in {minutes} minutes.",
-        "ignore": "If you didn't request this, you can safely ignore this email.",
+        "VERIFY": {
+            "subject": "Your Wisal verification code",
+            "heading": "Verify your account",
+            "intro": "Enter this code in Wisal to confirm your account:",
+        },
+        "RESET": {
+            "subject": "Your Wisal password reset code",
+            "heading": "Reset your password",
+            "intro": "Enter this code in Wisal to choose a new password:",
+        },
+        "greeting": "Hi {name},",
+        "greeting_anon": "Hi,",
+        "preheader": "{code} is your Wisal code. It expires in {minutes} minutes.",
+        "expires": "This code expires in {minutes} minutes and can only be used once.",
+        "never_share_title": "Keep it private.",
+        "never_share": "Wisal will never ask you for this code by phone, chat, or email.",
+        "ignore": "Didn't request this? You can safely ignore this email — your account stays secure.",
+        "footer": "You're receiving this because a code was requested for your Wisal account.",
     },
     "ar": {
-        "VERIFY": ("رمز التحقق من وصال", "استخدم هذا الرمز لتأكيد حسابك على وصال:"),
-        "RESET": ("رمز إعادة تعيين كلمة المرور في وصال", "استخدم هذا الرمز لإعادة تعيين كلمة مرورك على وصال:"),
-        "expires": "تنتهي صلاحية الرمز خلال {minutes} دقائق.",
-        "ignore": "إذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.",
+        "VERIFY": {
+            "subject": "رمز التحقق من حسابك على وصال",
+            "heading": "تأكيد حسابك",
+            "intro": "أدخل هذا الرمز في وصال لتأكيد حسابك:",
+        },
+        "RESET": {
+            "subject": "رمز إعادة تعيين كلمة المرور على وصال",
+            "heading": "إعادة تعيين كلمة المرور",
+            "intro": "أدخل هذا الرمز في وصال لاختيار كلمة مرور جديدة:",
+        },
+        "greeting": "مرحبًا {name}،",
+        "greeting_anon": "مرحبًا،",
+        "preheader": "رمزك على وصال هو {code}، وتنتهي صلاحيته خلال {minutes} دقائق.",
+        "expires": "تنتهي صلاحية هذا الرمز خلال {minutes} دقائق، ويُستخدم مرة واحدة فقط.",
+        "never_share_title": "لا تشاركه مع أحد.",
+        "never_share": "لن يطلب منك فريق وصال هذا الرمز أبدًا عبر الهاتف أو المحادثة أو البريد.",
+        "ignore": "لم تطلب هذا الرمز؟ يمكنك تجاهل هذه الرسالة بأمان، فحسابك ما زال محميًا.",
+        "footer": "وصلتك هذه الرسالة لأنه تم طلب رمز لحسابك على وصال.",
     },
+}
+
+_FONTS = {
+    "en": "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+    "ar": "Tahoma,'Segoe UI',Arial,sans-serif",
 }
 
 
@@ -91,33 +127,42 @@ class EmailOTPSender:
     def send(self, phone: str, code: str, purpose: str) -> None:
         from .models import User
 
-        user = User.objects.filter(phone=phone).only("email", "locale").first()
+        user = User.objects.filter(phone=phone).only("email", "locale", "full_name").first()
         if user is None or not user.email:
             raise ValueError(f"No email address on file for {phone}.")
 
         locale = user.locale if user.locale in _OTP_COPY else "ar"
         copy = _OTP_COPY[locale]
-        subject, intro = copy.get(purpose, copy["VERIFY"])
+        variant = copy.get(purpose, copy["VERIFY"])
         minutes = max(1, settings.OTP_TTL_SECONDS // 60)
-        expires = copy["expires"].format(minutes=minutes)
+        first_name = (user.full_name or "").split(" ")[0]
+        rtl = locale == "ar"
 
-        text = f"{intro}\n\n{code}\n\n{expires}\n{copy['ignore']}\n"
-        direction = "rtl" if locale == "ar" else "ltr"
-        html = (
-            f'<div dir="{direction}" style="font-family:Arial,sans-serif;font-size:15px;color:#1f2937">'
-            f"<p>{escape(intro)}</p>"
-            f'<p dir="ltr" style="font-size:30px;font-weight:bold;letter-spacing:6px;'
-            f'color:#0c7c6e;margin:20px 0">{code}</p>'
-            f"<p>{escape(expires)}</p>"
-            f'<p style="color:#6b7280;font-size:13px">{escape(copy["ignore"])}</p>'
-            "</div>"
-        )
+        context = {
+            "lang": locale,
+            "dir": "rtl" if rtl else "ltr",
+            "align": "right" if rtl else "left",
+            "font": _FONTS[locale],
+            "brand": _BRAND[locale],
+            "code": code,
+            "subject": variant["subject"],
+            "heading": variant["heading"],
+            "intro": variant["intro"],
+            "greeting": copy["greeting"].format(name=first_name) if first_name else copy["greeting_anon"],
+            "preheader": copy["preheader"].format(code=code, minutes=minutes),
+            "expires": copy["expires"].format(minutes=minutes),
+            "never_share_title": copy["never_share_title"],
+            "never_share": copy["never_share"],
+            "ignore": copy["ignore"],
+            "footer": copy["footer"],
+            "year": timezone.now().year,
+        }
         send_mail(
-            subject,
-            text,
+            variant["subject"],
+            render_to_string("accounts/email/otp.txt", context),
             settings.DEFAULT_FROM_EMAIL,
             [user.email],
-            html_message=html,
+            html_message=render_to_string("accounts/email/otp.html", context),
         )
 
 

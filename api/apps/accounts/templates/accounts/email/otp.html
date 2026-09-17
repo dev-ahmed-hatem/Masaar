@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f1;-webkit-text-size-adjust:100%;">
+{# Preheader: the inbox preview line. Padded so mail clients don't pull in body text after it. #}
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">{{ preheader }}&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f1;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+
+        {# Wordmark #}
+        <tr>
+          <td align="center" style="padding:0 0 20px;font-family:{{ font }};font-size:24px;font-weight:700;color:#4f46e5;letter-spacing:0.5px;">
+            {{ brand }}
+          </td>
+        </tr>
+
+        {# Card #}
+        <tr>
+          <td dir="{{ dir }}" style="background-color:#ffffff;border:1px solid #e7e6e1;border-radius:14px;overflow:hidden;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr><td style="height:4px;line-height:4px;font-size:4px;background-color:#4f46e5;">&nbsp;</td></tr>
+              <tr>
+                <td dir="{{ dir }}" align="{{ align }}" style="padding:36px 36px 12px;font-family:{{ font }};color:#14151a;">
+                  <h1 style="margin:0 0 16px;font-size:22px;line-height:1.4;font-weight:700;color:#14151a;">{{ heading }}</h1>
+                  <p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#14151a;">{{ greeting }}</p>
+                  <p style="margin:0;font-size:15px;line-height:1.7;color:#5a5d68;">{{ intro }}</p>
+                </td>
+              </tr>
+
+              {# The code #}
+              <tr>
+                <td align="center" style="padding:20px 36px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef0ff;border:1px solid #d9dcff;border-radius:12px;">
+                    <tr>
+                      <td dir="ltr" align="center" style="padding:18px 28px;font-family:'SF Mono',Menlo,Consolas,'Courier New',monospace;font-size:34px;line-height:1;font-weight:700;letter-spacing:10px;color:#4338ca;">{{ code }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr>
+                <td dir="{{ dir }}" align="{{ align }}" style="padding:4px 36px 32px;font-family:{{ font }};">
+                  <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#5a5d68;">{{ expires }}</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #eeede8;">
+                    <tr>
+                      <td dir="{{ dir }}" align="{{ align }}" style="padding-top:20px;font-family:{{ font }};font-size:13px;line-height:1.7;color:#5a5d68;">
+                        <strong style="color:#14151a;">{{ never_share_title }}</strong><br>
+                        {{ never_share }}<br><br>
+                        {{ ignore }}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {# Footer #}
+        <tr>
+          <td dir="{{ dir }}" align="center" style="padding:20px 16px 0;font-family:{{ font }};font-size:12px;line-height:1.7;color:#9a9ca6;">
+            {{ footer }}<br>
+            &copy; {{ year }} {{ brand }}
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

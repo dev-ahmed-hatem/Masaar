@@ -1,0 +1,17 @@
+{% autoescape off %}{{ brand }}
+
+{{ greeting }}
+
+{{ intro }}
+
+    {{ code }}
+
+{{ expires }}
+
+{{ never_share_title }} {{ never_share }}
+
+{{ ignore }}
+
+--
+{{ footer }}
+{% endautoescape %}
