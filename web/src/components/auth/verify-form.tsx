@@ -94,9 +94,11 @@ export default function VerifyForm({
           {left > 0 ? fmt(dict.resendIn, { s: left }) : dict.resend}
         </Button>
       </div>
-      <Text type="secondary" className="block text-center text-xs">
-        {dict.devHint}
-      </Text>
+      {process.env.NODE_ENV !== "production" && !emailOtp && (
+        <Text type="secondary" className="block text-center text-xs">
+          {dict.devHint}
+        </Text>
+      )}
     </Card>
   );
 }
