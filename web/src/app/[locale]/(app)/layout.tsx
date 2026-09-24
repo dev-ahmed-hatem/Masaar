@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import AppHeader from "@/components/app-header";
 import MobileTabBar from "@/components/mobile-tab-bar";
+import SiteFooter from "@/components/site-footer";
 import { isValidLocale, otherLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -16,6 +17,7 @@ export default async function AppLayout({
   if (!isValidLocale(locale)) notFound();
   const d = await getDictionary(locale);
   const other = otherLocale(locale);
+  const p = (path: string) => `/${locale}/${path}`;
 
   return (
     <>
@@ -29,16 +31,28 @@ export default async function AppLayout({
         bell={d.notifications}
       />
       <main className="relative mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6 sm:pt-8 lg:pb-12">
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]"
-          style={{
-            background:
-              "radial-gradient(60% 60% at 50% 0%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 70%)",
-          }}
-        />
         {children}
       </main>
+      <SiteFooter
+        locale={locale}
+        tagline={d.landing.footer.tagline}
+        rights={d.landing.footer.rights}
+        craftedBy={d.landing.footer.craftedBy}
+        columns={[
+          {
+            title: d.landing.footer.forStudents,
+            links: [
+              { label: d.nav.browse, href: p("teachers") },
+              { label: d.auth.signUp, href: p("sign-up") },
+              { label: d.auth.signIn, href: p("sign-in") },
+            ],
+          },
+          {
+            title: d.landing.footer.forTeachers,
+            links: [{ label: d.nav.apply, href: p("become-a-teacher") }],
+          },
+        ]}
+      />
       <MobileTabBar locale={locale} nav={d.nav} />
     </>
   );

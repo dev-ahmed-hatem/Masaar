@@ -5,14 +5,19 @@ import { Star } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
- * Read-only star rating. Renders a single accessible number for screen
- * readers rather than five decorative icons.
+ * Read-only rating.
+ *
+ * `compact` (the default) is one star plus the number — right for dense lists
+ * where the exact score matters more than the picture. `stars` draws all five,
+ * which reads better on a review card. Either way the accessible name is a
+ * single phrase, not five decorative icons.
  */
 export function Rating({
   value,
   count,
   size = "md",
   showValue = true,
+  display = "compact",
   className,
 }: {
   value: number;
@@ -20,9 +25,37 @@ export function Rating({
   count?: number | null;
   size?: "sm" | "md";
   showValue?: boolean;
+  display?: "compact" | "stars";
   className?: string;
 }) {
   const rounded = Math.round(value * 10) / 10;
+
+  if (display === "stars") {
+    return (
+      <span
+        className={cn("inline-flex items-center gap-0.5", className)}
+        role="img"
+        aria-label={`${rounded} / 5`}
+      >
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Star
+            key={n}
+            aria-hidden
+            className={cn(
+              size === "sm" ? "size-3.5" : "size-4",
+              n <= Math.round(value)
+                ? "fill-accent text-accent"
+                : "fill-transparent text-border-strong",
+            )}
+          />
+        ))}
+        {typeof count === "number" ? (
+          <span className="ms-1.5 t-caption font-normal text-ink-muted">({count})</span>
+        ) : null}
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(

@@ -78,7 +78,7 @@ for (const [label, p] of [
     ["brand link on surface", p.brand, p.surface, 4.5],
     ["on-brand text on brand (filled button)", p.onBrand, p.brand, 4.5],
     ["on-accent text on accent (amber CTA)", p.onAccent, p.accent, 4.5],
-    ["brand on brand-tint (chip/pill)", p.brand, brandTintBg, 4.5],
+    ["on-brand-tint text on brand tint (chip/tag/pill)", p.onBrandTint, brandTintBg, 4.5],
     ["accent-text on accent-tint (trial badge)", p.accentText, accentTintBg, 4.5],
     ["success on success-tint", p.success, successTintBg, 4.5],
     ["error on error-tint", p.error, errorTintBg, 4.5],

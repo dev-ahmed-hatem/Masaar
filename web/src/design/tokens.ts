@@ -42,6 +42,12 @@ export interface Palette {
   /* Foreground colours for filled brand/accent surfaces (buttons, badges). */
   onBrand: string;
   onAccent: string;
+  /**
+   * Text sitting ON the brand tint (chips, tags, active nav pills). Light uses
+   * the darker teal; dark has to use the LIGHTER one, because the tint there is
+   * a translucent teal over a dark surface and brand-dark only reaches 4.46:1.
+   */
+  onBrandTint: string;
 
   /**
    * Inverted full-width slab (the landing CTA band). Deliberately a DEEP teal
@@ -94,6 +100,7 @@ export const light: Palette = {
 
   onBrand: "#FFFFFF",
   onAccent: "#12201E",
+  onBrandTint: "#095F55",
 
   bandBg: "#0C7C6E",
   onBand: "#FFFFFF",
@@ -143,6 +150,7 @@ export const dark: Palette = {
 
   onBrand: "#0B1211",
   onAccent: "#0B1211",
+  onBrandTint: "#34B9A4",
 
   bandBg: "#0B5C52",
   onBand: "#FFFFFF",
@@ -210,6 +218,7 @@ export const cssVarNames: Partial<Record<keyof Palette, string>> = {
   borderInput: "--border-input",
   onBrand: "--on-brand",
   onAccent: "--on-accent",
+  onBrandTint: "--on-brand-tint",
   bandBg: "--band-bg",
   onBand: "--on-band",
   success: "--success",

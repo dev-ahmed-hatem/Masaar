@@ -95,7 +95,7 @@ function themeConfig(isDark: boolean) {
       Tag: {
         borderRadiusSM: radius.pill,
         defaultBg: p.brandTint,
-        defaultColor: p.brandDark,
+        defaultColor: p.onBrandTint,
       },
       Tabs: {
         titleFontSize: 15,

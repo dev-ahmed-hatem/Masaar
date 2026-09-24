@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Avatar, Drawer, Empty, Input, Pagination, Select, Spin, Tag } from "antd";
 import { ArrowRight, GraduationCap, Languages, Search, SlidersHorizontal, Star } from "lucide-react";
 
@@ -28,7 +28,18 @@ type Dict = Dictionary["browse"];
 
 const PAGE_SIZE = 12;
 
-export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Locale }) {
+export default function StudentBrowse({
+  dict,
+  locale,
+  initialStage,
+  initialSubject,
+}: {
+  dict: Dict;
+  locale: Locale;
+  /** Pre-applied filters, deep-linked from the landing hero search. */
+  initialStage?: number;
+  initialSubject?: number;
+}) {
   const ar = locale === "ar";
   const { user } = useAuth();
   const subjectName = useCallback(
@@ -42,9 +53,9 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   const [market, setMarket] = useState<string>(lockedMarket ?? "EG");
   const [name, setName] = useState("");
   const [nameQuery, setNameQuery] = useState(""); // debounced value sent to the API
-  const [stage, setStage] = useState<number | undefined>();
+  const [stage, setStage] = useState<number | undefined>(initialStage);
   const [track, setTrack] = useState<number | undefined>();
-  const [subject, setSubject] = useState<number | undefined>();
+  const [subject, setSubject] = useState<number | undefined>(initialSubject);
   const [gender, setGender] = useState<string | undefined>();
   const [language, setLanguage] = useState<string | undefined>();
   const [weekday, setWeekday] = useState<number | undefined>();
@@ -74,10 +85,20 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
     catalog.listStages().then(setStages).catch(() => setStages([]));
   }, []);
 
-  // Cascade: stage → tracks (if grouped) or scoped subjects; reset children.
+  // Clear the child filters only when the parent actually CHANGES, not on every
+  // run of these effects. Two reasons: a deep-linked ?subject= must survive the
+  // first run, and `needsTrack` flips once the stage list arrives, which would
+  // otherwise re-trigger a reset a moment after mount.
+  const prevStage = useRef(stage);
+  const prevTrack = useRef(track);
+
+  // Cascade: stage → tracks (if grouped) or scoped subjects.
   useEffect(() => {
-    setTrack(undefined);
-    setSubject(undefined);
+    if (prevStage.current !== stage) {
+      prevStage.current = stage;
+      setTrack(undefined);
+      setSubject(undefined);
+    }
     setTracks([]);
     setScopedSubjects([]);
     if (!stage) return;
@@ -86,7 +107,10 @@ export default function StudentBrowse({ dict, locale }: { dict: Dict; locale: Lo
   }, [stage, needsTrack]);
 
   useEffect(() => {
-    setSubject(undefined);
+    if (prevTrack.current !== track) {
+      prevTrack.current = track;
+      setSubject(undefined);
+    }
     if (stage && needsTrack && track) {
       catalog.listStageSubjects(stage, track).then(setScopedSubjects).catch(() => {});
     }

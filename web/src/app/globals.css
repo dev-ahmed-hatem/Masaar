@@ -141,6 +141,7 @@
 
   --color-on-brand: var(--on-brand);
   --color-on-accent: var(--on-accent);
+  --color-on-brand-tint: var(--on-brand-tint);
   --color-band: var(--band-bg);
   --color-on-band: var(--on-band);
 
@@ -438,6 +439,22 @@ h5.ant-typography {
   border-inline-start: none !important;
 }
 
+/* antd preset tag palettes (`<Tag color="green">`) are fixed hex ramps that
+   are not theme-aware and fail AA on our surfaces — the green is 3.37:1 on
+   its own background. Retune the two presets actually used to the status
+   tokens. These rules are unlayered, so they beat the `antd` layer.
+   Phase 2+ replaces these tags with <Badge> and this block can then go. */
+.ant-tag.ant-tag-green {
+  background: var(--success-tint);
+  border-color: color-mix(in srgb, var(--success) 25%, transparent);
+  color: var(--success);
+}
+.ant-tag.ant-tag-orange {
+  background: var(--accent-tint);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--accent-text);
+}
+
 /* ---------- Focus ----------
    One visible focus ring everywhere, keyboard-only. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
@@ -525,7 +542,7 @@ button:not(:disabled),
 }
 .nav-pill.is-active,
 .nav-pill.is-active:hover {
-  color: var(--brand-dark);
+  color: var(--on-brand-tint);
   background: var(--brand-tint);
 }
 

@@ -263,32 +263,51 @@
     "genericError": "Something went wrong. Please try again."
   },
   "landing": {
-    "subtitle": "Tutoring reservation marketplace",
-    "heroLead": "Learn faster with the right",
-    "heroAccent": "teacher.",
-    "heroSub": "Wisal connects students with vetted tutors across the Arab world. Browse profiles, book a time that fits, and learn live — all in one place.",
+    "subtitle": "Live 1-on-1 lessons across the Arab world",
+    "heroLead": "Learn with a teacher who",
+    "heroAccent": "fits you.",
+    "heroSub": "Wisal connects students with vetted teachers across the Arab world. Pick a subject, choose a time that suits you, and start with a free trial lesson.",
+    "search": {
+      "title": "What do you want to learn?",
+      "subject": "Subject",
+      "anySubject": "Any subject",
+      "stage": "Stage",
+      "anyStage": "Any stage",
+      "cta": "Find teachers"
+    },
     "trust": [
-      "Vetted teachers",
-      "Flexible scheduling",
-      "Secure payments"
+      "Every teacher is interviewed and approved",
+      "A free trial lesson with every teacher",
+      "Your payment is held until the lesson is done"
     ],
+    "stats": {
+      "teachers": "Teachers",
+      "countries": "Arab countries",
+      "subjects": "Subjects"
+    },
     "steps": {
       "title": "How Wisal works",
       "subtitle": "Three simple steps from sign-up to your first lesson.",
       "items": [
         {
           "title": "Browse teachers",
-          "desc": "Explore vetted tutors by subject, price, and availability, and read reviews from real students."
+          "desc": "Explore vetted teachers by subject, price and availability, and read reviews from real students."
         },
         {
           "title": "Book a lesson",
-          "desc": "Pick a time that fits your schedule and reserve your spot in seconds — no back-and-forth."
+          "desc": "Pick a time that fits your schedule and send a request. Your teacher confirms it, usually the same day."
         },
         {
           "title": "Learn live",
-          "desc": "Meet your teacher online, learn at your own pace, and track every lesson in your account."
+          "desc": "Meet your teacher on Zoom, Meet or Teams, and track every lesson in your account."
         }
       ]
+    },
+    "featured": {
+      "title": "Teachers students are booking now",
+      "subtitle": "Top-rated teachers available in your country.",
+      "viewAll": "See all teachers",
+      "empty": "We are adding teachers in your country soon."
     },
     "subjects": {
       "title": "Popular subjects",
@@ -311,7 +330,7 @@
           "caption": "Labs made simple"
         },
         {
-          "name": "Qur'an & Arabic",
+          "name": "Qur’an & Arabic",
           "caption": "Recitation & grammar"
         },
         {
@@ -320,21 +339,88 @@
         }
       ]
     },
-    "featuresTitle": "Everything you need to learn",
-    "features": [
-      {
-        "title": "Vetted teachers",
-        "desc": "Every teacher is reviewed and approved before they can take a single booking."
-      },
-      {
-        "title": "Book in seconds",
-        "desc": "Pick a subject, choose a time that works, and reserve your lesson instantly."
-      },
-      {
-        "title": "Secure payments",
-        "desc": "Pay safely and track every lesson, receipt, and payout in one place."
-      }
-    ],
+    "pricing": {
+      "title": "Clear pricing, no surprises",
+      "subtitle": "You always know what a lesson costs before you book it.",
+      "items": [
+        {
+          "title": "One price per stage",
+          "desc": "Wisal sets the lesson price for each stage and subject, so the cost does not change from one teacher to the next."
+        },
+        {
+          "title": "Start with a free lesson",
+          "desc": "Every teacher offers a number of free trial lessons, so you can find the right fit before you pay anything."
+        },
+        {
+          "title": "Pay from your wallet",
+          "desc": "Top up once, then each lesson is settled from your balance only after it has actually taken place."
+        }
+      ],
+      "note": "All prices are shown in your local currency."
+    },
+    "safety": {
+      "title": "Built to be safe to pay for",
+      "subtitle": "Sending money to someone you have not met should not feel risky.",
+      "items": [
+        {
+          "title": "Every teacher is vetted",
+          "desc": "We check qualifications and interview each applicant before their profile ever goes live."
+        },
+        {
+          "title": "Receipts checked by a person",
+          "desc": "Upload your transfer receipt and our team verifies it by hand, then credits your wallet."
+        },
+        {
+          "title": "Free cancellation",
+          "desc": "Plans change. Cancel or reschedule at no cost up to 24 hours before the lesson starts."
+        }
+      ]
+    },
+    "reviews": {
+      "title": "What students say",
+      "subtitle": "Every review comes from a lesson that actually happened.",
+      "empty": "Reviews will appear here after the first lessons."
+    },
+    "teach": {
+      "eyebrow": "Teach on Wisal",
+      "title": "Turn what you know into income",
+      "desc": "Set your own weekly hours, teach students across the Arab world, and get paid every month in your local currency.",
+      "button": "Apply to teach",
+      "points": [
+        "Choose the hours that suit you",
+        "Paid monthly, in your currency",
+        "Build a public profile and reviews"
+      ]
+    },
+    "faq": {
+      "title": "Questions students ask",
+      "items": [
+        {
+          "q": "How do I book a lesson?",
+          "a": "Find a teacher, pick an open time on their calendar and send a request. The teacher confirms it, and you will get the meeting link before the lesson starts."
+        },
+        {
+          "q": "How much does a lesson cost?",
+          "a": "Wisal sets a fixed price for each stage and subject, so the cost does not change from teacher to teacher. You always see the price before you book."
+        },
+        {
+          "q": "Is the first lesson really free?",
+          "a": "Yes. Each teacher offers a number of free trial lessons so you can make sure they are the right fit before paying for anything."
+        },
+        {
+          "q": "How do I pay?",
+          "a": "Transfer the amount to one of our local accounts and upload the receipt. Once our team verifies it, your wallet is credited and you can book straight away."
+        },
+        {
+          "q": "What if I need to cancel?",
+          "a": "You can cancel or reschedule free of charge up to 24 hours before the lesson. After that the lesson is charged in full."
+        },
+        {
+          "q": "Where do the lessons take place?",
+          "a": "On Zoom, Google Meet, Microsoft Teams, or any link your teacher prefers. There is nothing extra to install from us."
+        }
+      ]
+    },
     "cta": {
       "title": "Ready to start learning?",
       "desc": "Create your free account and book your first lesson today.",
@@ -343,7 +429,10 @@
     "footer": {
       "tagline": "Book lessons with vetted teachers across the Arab world.",
       "rights": "© 2026 Wisal. All rights reserved.",
-      "craftedBy": "Crafted by"
+      "craftedBy": "Crafted by",
+      "forStudents": "For students",
+      "forTeachers": "For teachers",
+      "company": "Wisal"
     }
   },
   "teacher": {
