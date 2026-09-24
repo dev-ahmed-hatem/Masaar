@@ -3,107 +3,67 @@
 import { App, ConfigProvider, theme as antdTheme } from "antd";
 import arEG from "antd/locale/ar_EG";
 import enUS from "antd/locale/en_US";
+import { DirectionProvider } from "@radix-ui/react-direction";
 
 import { AuthProvider } from "@/context/auth-context";
 import { ThemeProvider, useTheme } from "@/context/theme-context";
+import { light, dark, radius, type Palette } from "@/design/tokens";
 
-interface Palette {
-  brand: string;
-  brandHover: string;
-  ink: string;
-  inkMuted: string;
-  inkFaint: string;
-  border: string;
-  borderSubtle: string;
-  surface: string;
-  elevated: string;
-  layout: string;
-  tableHeader: string;
-  rowHover: string;
-  tagBg: string;
-  activeShadow: string;
-  boxShadow: string;
-  boxShadowSecondary: string;
-}
-
-const LIGHT: Palette = {
-  brand: "#4f46e5",
-  brandHover: "#4338ca",
-  ink: "#14151a",
-  inkMuted: "#5a5d68",
-  inkFaint: "#9a9ca6",
-  border: "#e8e5de",
-  borderSubtle: "#f0eee8",
-  surface: "#ffffff",
-  elevated: "#ffffff",
-  layout: "#fafaf7",
-  tableHeader: "#f5f4f0",
-  rowHover: "#f4f3fb",
-  tagBg: "#eef0ff",
-  activeShadow: "0 0 0 3px rgba(79,70,229,0.14)",
-  boxShadow: "0 1px 2px rgba(20,21,26,0.05), 0 6px 20px rgba(20,21,26,0.06)",
-  boxShadowSecondary: "0 6px 24px rgba(20,21,26,0.08), 0 2px 6px rgba(20,21,26,0.05)",
-};
-
-const DARK: Palette = {
-  brand: "#7e78ff",
-  brandHover: "#9a94ff",
-  ink: "#ececee",
-  inkMuted: "#a2a4ae",
-  inkFaint: "#6b6d77",
-  border: "#26272e",
-  borderSubtle: "#1f2026",
-  surface: "#16171b",
-  elevated: "#1b1c21",
-  layout: "#0e0f12",
-  tableHeader: "#1b1c21",
-  rowHover: "#202128",
-  tagBg: "#24242f",
-  activeShadow: "0 0 0 3px rgba(126,120,255,0.22)",
-  boxShadow: "0 1px 2px rgba(0,0,0,0.4), 0 6px 20px rgba(0,0,0,0.45)",
-  boxShadowSecondary: "0 8px 30px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4)",
-};
-
-function themeConfig(dark: boolean) {
-  const p = dark ? DARK : LIGHT;
+/**
+ * Ant Design theme, derived from the SAME token module that generates the CSS
+ * custom properties (see src/design/tokens.ts + scripts/build-tokens.mjs).
+ *
+ * This file used to carry its own hand-copied LIGHT/DARK hex objects, which
+ * meant every palette change had to be made twice and drifted silently when it
+ * wasn't. Nothing here may hardcode a colour.
+ *
+ * antd now only dresses /admin — student, teacher and marketing surfaces run on
+ * the Tailwind + Radix primitives in src/components/ui.
+ */
+function themeConfig(isDark: boolean) {
+  const p: Palette = isDark ? dark : light;
   return {
-    algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+    algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
       colorPrimary: p.brand,
       colorInfo: p.brand,
       colorLink: p.brand,
-      colorLinkHover: p.brandHover,
-      colorSuccess: "#16a34a",
-      colorWarning: "#f59e0b",
-      colorError: "#ef4444",
+      colorLinkHover: p.brandLight,
+      colorSuccess: p.success,
+      colorWarning: p.warning,
+      colorError: p.error,
       colorText: p.ink,
       colorTextSecondary: p.inkMuted,
       colorTextTertiary: p.inkFaint,
-      colorBorder: p.border,
+      // antd's default placeholder is rgba(0,0,0,.25) / rgba(255,255,255,.25),
+      // which fails AA on every surface. Pin it to the faint token, which is
+      // contrast-verified at body size.
+      colorTextPlaceholder: p.inkFaint,
+      colorBorder: p.borderStrong,
       colorBorderSecondary: p.borderSubtle,
-      colorBgLayout: p.layout,
+      colorBgLayout: p.bg,
       colorBgContainer: p.surface,
-      colorBgElevated: p.elevated,
-      borderRadius: 12,
-      borderRadiusLG: 16,
+      colorBgElevated: p.surface,
+      borderRadius: radius.control,
+      borderRadiusLG: radius.card,
       borderRadiusSM: 8,
       controlHeight: 40,
       fontSize: 14,
       fontFamily: "var(--font-sans)",
       lineWidth: 1,
       wireframe: false,
-      boxShadow: p.boxShadow,
-      boxShadowSecondary: p.boxShadowSecondary,
+      boxShadow: p.shadowSm,
+      boxShadowSecondary: p.shadowMd,
     },
     components: {
       Layout: {
         headerBg: p.surface,
         headerHeight: 64,
         headerPadding: "0 24px",
-        bodyBg: p.layout,
+        bodyBg: p.bg,
       },
       Card: {
-        borderRadiusLG: 16,
+        borderRadiusLG: radius.card,
         paddingLG: 24,
         colorBorderSecondary: p.border,
         headerFontSize: 16,
@@ -126,16 +86,25 @@ function themeConfig(dark: boolean) {
         primaryShadow: "none",
         defaultShadow: "none",
         dangerShadow: "none",
+        primaryColor: p.onBrand,
       },
-      Input: { controlHeight: 40, activeShadow: p.activeShadow },
+      Input: { controlHeight: 40, activeShadow: p.focusRing },
       InputNumber: { controlHeight: 40 },
       Select: { controlHeight: 40 },
       DatePicker: { controlHeight: 40 },
-      Tag: { borderRadiusSM: 999, defaultBg: p.tagBg, defaultColor: p.inkMuted },
-      Tabs: { titleFontSize: 15, horizontalItemGutter: 24, inkBarColor: p.brand },
+      Tag: {
+        borderRadiusSM: radius.pill,
+        defaultBg: p.brandTint,
+        defaultColor: p.brandDark,
+      },
+      Tabs: {
+        titleFontSize: 15,
+        horizontalItemGutter: 24,
+        inkBarColor: p.brand,
+      },
       Drawer: { paddingLG: 24 },
-      Modal: { borderRadiusLG: 16 },
-      Alert: { borderRadiusLG: 12 },
+      Modal: { borderRadiusLG: radius.card },
+      Alert: { borderRadiusLG: radius.control },
       Segmented: { borderRadius: 10, itemSelectedColor: p.brand },
       Menu: { itemBorderRadius: 10, itemHeight: 40 },
     },
@@ -175,10 +144,14 @@ export default function Providers({
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider>
-      <AntdProviders direction={direction} locale={locale}>
-        {children}
-      </AntdProviders>
-    </ThemeProvider>
+    /* Radix primitives read direction from this context, not from the DOM.
+       Without it, popovers/selects/tabs mis-align on /ar. */
+    <DirectionProvider dir={direction}>
+      <ThemeProvider>
+        <AntdProviders direction={direction} locale={locale}>
+          {children}
+        </AntdProviders>
+      </ThemeProvider>
+    </DirectionProvider>
   );
 }

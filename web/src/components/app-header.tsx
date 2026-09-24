@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { Avatar, Button, Popover } from "antd";
 import { GraduationCap, MoreVertical, UserRound } from "lucide-react";
 
+import { Logo } from "@/components/brand/logo";
+
 import { useAuth } from "@/context/auth-context";
 import type { Dictionary } from "@/i18n/dictionaries";
 import NotificationsBell, { type BellLabels } from "@/components/notifications-bell";
@@ -90,18 +92,8 @@ export default function AppHeader({
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-7">
-          <Link
-            href={`/${locale}`}
-            className="flex items-center gap-2.5 text-lg font-bold"
-            style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-          >
-            <span
-              className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-white"
-              style={{ background: "var(--grad-brand)", boxShadow: "var(--glow)" }}
-            >
-              <GraduationCap size={18} strokeWidth={2.4} />
-            </span>
-            {brand}
+          <Link href={`/${locale}`} aria-label={brand} className="shrink-0">
+            <Logo locale={locale} size="sm" />
           </Link>
           <nav className="hidden items-center gap-1 lg:flex">
             {links.map(({ href, label }) => {

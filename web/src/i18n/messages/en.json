@@ -68,7 +68,15 @@
     "noReviews": "No reviews yet.",
     "introVideo": "Watch intro video",
     "notFound": "Teacher not found.",
-    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "weekdays": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
     "book": "Book a lesson",
     "bookPanel": "Book a lesson",
     "message": "Message",
@@ -259,7 +267,11 @@
     "heroLead": "Learn faster with the right",
     "heroAccent": "teacher.",
     "heroSub": "Wisal connects students with vetted tutors across the Arab world. Browse profiles, book a time that fits, and learn live — all in one place.",
-    "trust": ["Vetted teachers", "Flexible scheduling", "Secure payments"],
+    "trust": [
+      "Vetted teachers",
+      "Flexible scheduling",
+      "Secure payments"
+    ],
     "steps": {
       "title": "How Wisal works",
       "subtitle": "Three simple steps from sign-up to your first lesson.",
@@ -282,12 +294,30 @@
       "title": "Popular subjects",
       "subtitle": "Find expert teachers across the subjects students book most.",
       "items": [
-        { "name": "Mathematics", "caption": "Algebra to calculus" },
-        { "name": "English", "caption": "Speaking & exam prep" },
-        { "name": "Physics", "caption": "Mechanics to modern" },
-        { "name": "Chemistry", "caption": "Labs made simple" },
-        { "name": "Qur'an & Arabic", "caption": "Recitation & grammar" },
-        { "name": "Programming", "caption": "Web, Python & more" }
+        {
+          "name": "Mathematics",
+          "caption": "Algebra to calculus"
+        },
+        {
+          "name": "English",
+          "caption": "Speaking & exam prep"
+        },
+        {
+          "name": "Physics",
+          "caption": "Mechanics to modern"
+        },
+        {
+          "name": "Chemistry",
+          "caption": "Labs made simple"
+        },
+        {
+          "name": "Qur'an & Arabic",
+          "caption": "Recitation & grammar"
+        },
+        {
+          "name": "Programming",
+          "caption": "Web, Python & more"
+        }
       ]
     },
     "featuresTitle": "Everything you need to learn",
@@ -312,7 +342,8 @@
     },
     "footer": {
       "tagline": "Book lessons with vetted teachers across the Arab world.",
-      "rights": "© 2026 Wisal. All rights reserved."
+      "rights": "© 2026 Wisal. All rights reserved.",
+      "craftedBy": "Crafted by"
     }
   },
   "teacher": {

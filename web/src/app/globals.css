@@ -1,8 +1,32 @@
+/* ---------- Cascade layer order (read before changing anything here) ----------
+   antd injects its CSS-in-JS UNLAYERED by default, and an unlayered rule beats
+   every layered rule regardless of specificity. That meant antd's reset
+   (`a:where(.css-hash) { background-color: transparent }`) silently defeated
+   Tailwind utilities such as `bg-white` on ANY element inside <App>.
+
+   We opt antd into an `antd` layer (`<AntdRegistry layer>` in layout.tsx) and
+   pin the order explicitly below. antd must sit AFTER `base` — Tailwind's
+   preflight resets button/input borders and backgrounds, and if antd loses to
+   it every antd control renders unstyled — and BEFORE `utilities`, so our own
+   utility classes still win.
+
+   Our hand-written classes further down this file are intentionally unlayered,
+   so they beat all of the above.
+
+   Must precede the tailwindcss import; @layer statements may sit above @import. */
+@layer theme, base, antd, components, utilities;
+
 @import "tailwindcss";
 
-/* ---------- Cairo (Arabic) — self-hosted from /public/fonts/cairo ----------
+/* Palette + radii. GENERATED from src/design/tokens.ts — `npm run tokens`.
+   Loaded after Tailwind so its :root wins for any shared variable name. */
+@import "./tokens.css";
+
+/* ---------- Cairo (Arabic + Latin body) — self-hosted from /public/fonts/cairo
    Served as static assets rather than via next/font, which was not reliably
-   loading the Arabic subset on prod. */
+   loading the Arabic subset on prod. Cairo ships latin and latin-ext subsets
+   too, so it carries body text in BOTH scripts — there is no separate
+   Latin-only body face to keep in sync any more. */
 @font-face {
   font-family: "Cairo";
   font-style: normal;
@@ -52,97 +76,100 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* ---------- Readex Pro (display, Arabic + Latin) ----------
+   One variable face (300–700) covering BOTH scripts, so headings in /ar and
+   /en read as the same brand. This is what replaced Plus Jakarta Sans, and
+   with it the next/font `fallback: []` trap that used to be required to stop
+   Latin fallbacks from intercepting Arabic glyphs. */
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/readex/arabic.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/readex/latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/readex/latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* Dark theme is driven by a `.dark` class on <html> (set by ThemeProvider +
    a no-FOUC inline script). This wires Tailwind's `dark:` variant to it too. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  color-scheme: light;
-
-  /* Brand — a single, confident deep indigo (Editorial Calm). */
-  --brand: #4f46e5;
-  --brand-dark: #4338ca;
-  --brand-light: #6366f1;
-  --brand-tint: #eef0ff;
-  --accent: #4f46e5;
-  --accent-dark: #4338ca;
-  --fuchsia: #4f46e5;
-
-  /* Gradients — subtle same-hue only (no rainbow). */
-  --grad-brand: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
-  --grad-brand-soft: linear-gradient(180deg, #f3f4ff 0%, #fbfbfe 100%);
-  --grad-fuchsia: var(--grad-brand);
-
-  /* Neutrals — warm paper + near-black ink. */
-  --bg: #fafaf7;
-  --surface: #ffffff;
-  --surface-2: #f5f4f0;
-  --ink: #14151a;
-  --ink-muted: #5a5d68;
-  --ink-faint: #9a9ca6;
-  --border: #e8e5de;
-  --border-strong: #d7d3c9;
-
-  /* Status */
-  --success: #16a34a;
-  --warning: #f59e0b;
-  --error: #ef4444;
-
-  /* Elevation — neutral, soft (no neon glow). */
-  --shadow-sm: 0 1px 2px rgba(20, 21, 26, 0.05), 0 1px 3px rgba(20, 21, 26, 0.05);
-  --shadow-md: 0 6px 24px rgba(20, 21, 26, 0.08), 0 2px 6px rgba(20, 21, 26, 0.05);
-  --glow: 0 10px 30px rgba(20, 21, 26, 0.1);
-
-  /* Tailwind bridge */
-  --background: var(--bg);
-  --foreground: var(--ink);
-}
-
-/* ---------- Dark editorial theme ---------- */
-:root.dark {
-  color-scheme: dark;
-
-  --brand: #7e78ff;
-  --brand-dark: #6c63ff;
-  --brand-light: #9a94ff;
-  --brand-tint: rgba(126, 120, 255, 0.14);
-  --accent: #7e78ff;
-  --accent-dark: #6c63ff;
-  --fuchsia: #7e78ff;
-
-  --grad-brand: linear-gradient(180deg, #7e78ff 0%, #6c63ff 100%);
-  --grad-brand-soft: linear-gradient(180deg, #1c1d24 0%, #16171b 100%);
-
-  --bg: #0e0f12;
-  --surface: #16171b;
-  --surface-2: #1b1c21;
-  --ink: #ececee;
-  --ink-muted: #a2a4ae;
-  --ink-faint: #6b6d77;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.15);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
-  --glow: 0 10px 30px rgba(0, 0, 0, 0.45);
-}
-
 @theme inline {
+  /* Every palette token is exposed as a Tailwind utility, so components write
+     `text-ink-muted` / `border-border-strong` instead of inline style objects.
+     Keep it that way — an inline `style={{ color: "var(--ink)" }}` is a smell. */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-light: var(--brand-light);
+  --color-brand-tint: var(--brand-tint);
+
   --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-dark);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-text: var(--accent-text);
+
+  --color-canvas: var(--bg);
   --color-surface: var(--surface);
-  --color-border: var(--border);
+  --color-surface-2: var(--surface-2);
+
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-ink-faint: var(--ink-faint);
 
-  /* Fonts: Latin renders in Jakarta; Arabic glyphs fall through to Cairo
-     (next/font injects --font-jakarta; Cairo is self-hosted via @font-face). */
-  --font-sans: var(--font-jakarta), "Cairo", system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: var(--font-jakarta), "Cairo", system-ui, sans-serif;
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-input: var(--border-input);
+
+  --color-on-brand: var(--on-brand);
+  --color-on-accent: var(--on-accent);
+  --color-band: var(--band-bg);
+  --color-on-band: var(--on-band);
+
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-error: var(--error);
+  --color-error-tint: var(--error-tint);
+
+  /* Semantic radii — `rounded-card`, `rounded-control`, `rounded-pill`.
+     Deliberately NOT named sm/md/lg: those are Tailwind's own and redefining
+     them would silently resize every existing rounded-* in the codebase. */
+  --radius-control: var(--r-control);
+  --radius-card: var(--r-card);
+  --radius-panel: var(--r-panel);
+  --radius-hero: var(--r-hero);
+  --radius-pill: var(--r-pill);
+
+  /* This DOES intentionally retune Tailwind's shadow-sm/md/lg utilities to the
+     warm palette, so existing usages pick up the new elevation for free. */
+  --shadow-sm: var(--sh-sm);
+  --shadow-md: var(--sh-md);
+  --shadow-lg: var(--sh-lg);
+
+  /* Display = Readex Pro, body = Cairo. Both cover Arabic and Latin. */
+  --font-sans: "Cairo", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Readex Pro", "Cairo", system-ui, sans-serif;
 }
 
 html {
@@ -155,6 +182,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
+  line-height: 1.6;
 }
 
 /* Display font on all headings, including antd Typography titles. */
@@ -164,6 +192,7 @@ h3,
 h4,
 h5 {
   font-family: var(--font-display);
+  letter-spacing: -0.015em;
 }
 h1.ant-typography,
 h2.ant-typography,
@@ -173,62 +202,149 @@ h5.ant-typography {
   font-family: var(--font-display) !important;
 }
 
-/* ---------- Signature effects (accents, used sparingly) ---------- */
-
-/* Editorial headings render in ink; the hero colors its one accent word
-   explicitly. (Kept as a class so existing SectionHeading usage stays valid.) */
-.gradient-text {
-  color: var(--ink);
+/* Arabic needs more leading than Latin at the same size, and the tighter
+   Latin letter-spacing above is wrong for joined script. */
+[dir="rtl"] body,
+[dir="rtl"] {
+  line-height: 1.75;
+}
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] h5 {
+  letter-spacing: 0;
+  line-height: 1.45;
 }
 
-/* Faint single-hue wash behind heroes / auth (no more neon blobs). */
+/* ---------- Type scale ----------
+   One place to change heading sizes. Use these rather than ad-hoc text-*
+   combinations so the rhythm stays consistent across pages. */
+.t-display {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 1.4rem + 3.6vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1.08;
+}
+.t-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.875rem, 1.3rem + 2.2vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.t-h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.15rem + 1.4vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.t-h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.t-h4 {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.t-body-lg {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+.t-body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+.t-small {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+.t-caption {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.t-overline {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* Arabic has no case, so uppercase/tracking is meaningless and harmful. */
+[dir="rtl"] .t-overline {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+}
+
+/* ---------- Backgrounds ----------
+   A faint brand wash plus a tiling 8-point-star mask. Replaces the old
+   `.mesh-bg` radial blob — geometry reads as "place", a gradient reads as
+   "generic SaaS". `.mesh-bg` stays as an alias until Phase 7 retires it. */
+.pattern-bg,
 .mesh-bg {
   position: relative;
   isolation: isolate;
   overflow: hidden;
 }
+.pattern-bg::before,
 .mesh-bg::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(60% 55% at 50% 0%, color-mix(in srgb, var(--brand) 9%, transparent), transparent 70%);
+  background: radial-gradient(
+    70% 60% at 50% 0%,
+    color-mix(in srgb, var(--brand) 10%, transparent),
+    transparent 72%
+  );
   pointer-events: none;
 }
-
-/* Frosted glass surface. */
-.glass {
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
-  backdrop-filter: saturate(140%) blur(14px);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-}
-
-/* Gradient hairline border on a surface (via padding trick). */
-.grad-ring {
-  position: relative;
-}
-.grad-ring::after {
+.pattern-bg::after,
+.mesh-bg::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: var(--grad-brand);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  z-index: -1;
+  background-color: var(--ink);
+  /* Texture, not wallpaper: a larger tile at low opacity, faded out toward the
+     bottom so it never competes with content. */
+  opacity: 0.05;
+  -webkit-mask-image: url("/images/pattern/girih.svg"),
+    linear-gradient(to bottom, #000 0%, transparent 65%);
+  mask-image: url("/images/pattern/girih.svg"),
+    linear-gradient(to bottom, #000 0%, transparent 65%);
+  -webkit-mask-size: 104px 104px, 100% 100%;
+  mask-size: 104px 104px, 100% 100%;
+  -webkit-mask-repeat: repeat, no-repeat;
+  mask-repeat: repeat, no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
   pointer-events: none;
-  opacity: 0.65;
+}
+
+/* Compatibility alias. The frosted-glass header was one of the strongest
+   "admin dashboard" tells; it is now a plain surface with a hairline.
+   Retire the class itself in Phase 7. */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* Editorial headings render in flat ink; the hero colours its one accent word
+   explicitly. Kept as a class so existing SectionHeading usage stays valid. */
+.gradient-text {
+  color: var(--ink);
 }
 
 /* ---------- Reusable surfaces ---------- */
 .surface {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-sm);
 }
 
 .surface-hover {
@@ -236,11 +352,20 @@ h5.ant-typography {
 }
 .surface-hover:hover {
   border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   transform: translateY(-3px);
 }
+@media (prefers-reduced-motion: reduce) {
+  .surface-hover:hover {
+    transform: none;
+  }
+}
 
-/* ---------- Buttons for server pages (landing) ---------- */
+/* ---------- Buttons ----------
+   `.btn-primary` is TEAL: it is the everyday in-app action and appears often.
+   `.btn-accent` is the amber conversion CTA and must stay rare — roughly one
+   per view (sign up, book, top up). Amber needs ink text, not white: white on
+   #E8A33D is 2.16:1 and fails AA. See scripts/check-contrast.mjs. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -248,18 +373,27 @@ h5.ant-typography {
   gap: 0.5rem;
   height: 46px;
   padding: 0 24px;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   font-weight: 600;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease,
     border-color 0.18s ease, color 0.18s ease;
 }
 .btn-primary {
   background: var(--brand);
-  color: #fff;
-  box-shadow: var(--shadow-md);
+  color: var(--on-brand);
+  box-shadow: var(--sh-sm);
 }
 .btn-primary:hover {
   background: var(--brand-dark);
+  transform: translateY(-2px);
+}
+.btn-accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--sh-sm);
+}
+.btn-accent:hover {
+  background: var(--accent-dark);
   transform: translateY(-2px);
 }
 .btn-ghost {
@@ -272,13 +406,18 @@ h5.ant-typography {
   color: var(--brand);
   transform: translateY(-2px);
 }
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover {
+    transform: none;
+  }
+}
 
-/* ---------- Panel: a card that wraps a filter toolbar + a table ---------- */
+/* ---------- Panel: a card that wraps a filter toolbar + a table (admin) ---- */
 .ui-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-sm);
   overflow: hidden;
 }
 .ui-panel__toolbar {
@@ -297,6 +436,14 @@ h5.ant-typography {
 }
 .ui-panel .ant-table-container {
   border-inline-start: none !important;
+}
+
+/* ---------- Focus ----------
+   One visible focus ring everywhere, keyboard-only. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 6px);
 }
 
 /* ---------- Scrollbars ---------- */
@@ -357,7 +504,7 @@ button:not(:disabled),
   color: var(--ink-muted);
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--r-control);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 .icon-btn:hover {
@@ -369,7 +516,7 @@ button:not(:disabled),
 .nav-pill {
   color: var(--ink-muted);
   background: transparent;
-  border-radius: 12px;
+  border-radius: var(--r-control);
   transition: color 0.15s ease, background 0.15s ease;
 }
 .nav-pill:hover {
@@ -387,7 +534,7 @@ button:not(:disabled),
   color: var(--ink-muted);
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 .chip:hover {
@@ -395,21 +542,21 @@ button:not(:disabled),
   color: var(--brand);
 }
 .chip.is-active {
-  color: #fff;
+  color: var(--on-brand);
   background: var(--brand);
   border-color: var(--brand);
 }
 .chip.is-active:hover {
   background: var(--brand-dark);
   border-color: var(--brand-dark);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 /* Segmented control item */
 .seg {
   color: var(--ink-muted);
   background: transparent;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   transition: color 0.15s ease, background 0.15s ease;
 }
 .seg:hover {
@@ -419,7 +566,7 @@ button:not(:disabled),
 .seg.is-active:hover {
   color: var(--ink);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 /* Small bordered item (calendar booking chip) that becomes interactive */
@@ -428,7 +575,7 @@ button:not(:disabled),
 }
 .item-hover:hover {
   border-color: color-mix(in srgb, var(--brand) 45%, var(--border)) !important;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 /* Bookable time-slot chip (teacher schedule) */
@@ -447,7 +594,7 @@ button:not(:disabled),
 .slot-chip.is-active:hover {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
 }
 
 /* Calendar-style slot picker (shared: student booking + reschedule) */
@@ -458,6 +605,7 @@ button:not(:disabled),
 .slot-calendar-panel .ant-picker-calendar {
   background: transparent;
 }
+
 /* Clickable links inside chat bubbles. */
 .chat-link {
   text-decoration: underline;
@@ -473,11 +621,11 @@ button:not(:disabled),
   background: var(--surface);
   border: 1px solid var(--border-strong);
   color: var(--brand);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 600;
-  box-shadow: var(--box-shadow, 0 6px 20px rgba(20, 21, 26, 0.12));
+  box-shadow: var(--sh-md);
   transition: transform 0.12s ease, background 0.12s ease;
 }
 .chat-jump:hover {
@@ -494,4 +642,65 @@ button:not(:disabled),
   font-weight: 700;
   color: var(--brand);
   line-height: 1.4;
+}
+
+/* ---------- Motion ----------
+   Deliberately no animation library: Radix exposes data-state, so CSS
+   keyframes cover every transition the app needs. All of it is suppressed
+   under prefers-reduced-motion at the bottom of this file. */
+@keyframes wisal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes wisal-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Dialogs are centred with translate(-50%, -50%); the keyframe has to carry
+   that translate or the panel flies to the top-left corner while animating.
+   Poppers (select, popover, tooltip) are positioned by Radix and must NOT. */
+@keyframes wisal-dialog-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes wisal-dialog-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+}
+@keyframes wisal-pop-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes wisal-pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+@keyframes wisal-accordion-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+@keyframes wisal-accordion-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+.animate-fade-in { animation: wisal-fade-in 0.16s ease-out; }
+.animate-fade-out { animation: wisal-fade-out 0.14s ease-in; }
+.animate-dialog-in { animation: wisal-dialog-in 0.16s ease-out; }
+.animate-dialog-out { animation: wisal-dialog-out 0.14s ease-in; }
+.animate-scale-in { animation: wisal-pop-in 0.16s ease-out; }
+.animate-scale-out { animation: wisal-pop-out 0.14s ease-in; }
+.animate-accordion-down { animation: wisal-accordion-down 0.2s ease-out; }
+.animate-accordion-up { animation: wisal-accordion-up 0.18s ease-in; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

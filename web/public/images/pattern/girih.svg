@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!--
+    Seamless 8-point star (khatim) tile, built as two overlapping squares —
+    one axis-aligned, one rotated 45 degrees. A full star sits at the centre
+    and quarter stars at each corner, so the tile repeats without a seam.
+
+    Used via CSS `mask-image` so the colour comes from the element, which keeps
+    it theme-aware in both light and dark. Stroke only, never filled.
+  -->
+  <g fill="none" stroke="#000" stroke-width="1.25" stroke-linejoin="round">
+    <!-- centre star -->
+    <rect x="19.27" y="19.27" width="25.46" height="25.46"/>
+    <path d="M32 14 L50 32 L32 50 L14 32 Z"/>
+
+    <!-- corner stars (quarters; the four corners meet to form whole stars) -->
+    <path d="M-12.73 -12.73 H12.73 V12.73 H-12.73 Z"/>
+    <path d="M0 -18 L18 0 L0 18 L-18 0 Z"/>
+
+    <path d="M51.27 -12.73 H76.73 V12.73 H51.27 Z"/>
+    <path d="M64 -18 L82 0 L64 18 L46 0 Z"/>
+
+    <path d="M-12.73 51.27 H12.73 V76.73 H-12.73 Z"/>
+    <path d="M0 46 L18 64 L0 82 L-18 64 Z"/>
+
+    <path d="M51.27 51.27 H76.73 V76.73 H51.27 Z"/>
+    <path d="M64 46 L82 64 L64 82 L46 64 Z"/>
+  </g>
+</svg>

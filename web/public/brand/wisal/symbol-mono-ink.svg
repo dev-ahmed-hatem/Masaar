@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Wisal">
+  <!--
+    Wisal mark — وصال means "connection / bond".
+
+    Two woven rings: the teal ring (the student) and the amber ring (the
+    teacher), linked like a chain. The amber ring is drawn as an open arc
+    rather than a full circle, leaving a gap exactly where the teal stroke
+    crosses on top — that gap is what makes the two rings read as woven
+    together rather than merely overlapping.
+
+    Geometry is generated, not hand-tuned: rings of r=10.5 at 12px separation
+    cross at (24, 14.2) and (24, 33.8); the amber arc opens ±22° around the
+    upper crossing as seen from its own centre.
+
+    Do not close the amber arc into a full circle — the weave is the idea.
+  -->
+  <g fill="none" stroke-width="5" stroke-linecap="round">
+    <circle cx="18" cy="24" r="10.5" stroke="currentColor"/>
+    <path d="M 27.66 13.76 A 10.5 10.5 0 1 1 21.21 18.26" stroke="currentColor"/>
+  </g>
+</svg>

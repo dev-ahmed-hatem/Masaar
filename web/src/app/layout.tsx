@@ -1,30 +1,30 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
-// Jakarta covers Latin only. We deliberately give it NO fallback fonts here:
-// next/font would otherwise bake Arabic-capable system fonts (Segoe UI, Arial,
-// its metric-adjusted "Fallback") into --font-jakarta, and those would catch
-// Arabic glyphs before the stack ever reached Cairo. With the variable holding
-// just the Jakarta face, Arabic falls straight through to "Cairo" (see the
-// --font-sans / --font-display chains + @font-face rules in globals.css).
-const jakarta = localFont({
-  src: "../../public/fonts/plus-jakarta-sans-latin.woff2",
-  variable: "--font-jakarta",
-  display: "swap",
-  weight: "200 800",
-  adjustFontFallback: false,
-  fallback: [],
-});
-
-// Cairo (Arabic) is self-hosted via plain @font-face rules in globals.css,
-// pointing at static files in /public/fonts/cairo — more reliable in prod
-// than next/font for the Arabic subset.
+// Both faces are self-hosted via plain @font-face rules in globals.css
+// (/public/fonts/readex and /public/fonts/cairo) — more reliable in prod than
+// next/font for Arabic subsets, and each face covers Arabic AND Latin:
+//   display -> Readex Pro   body -> Cairo
+// There is deliberately no Latin-only face here. The previous setup needed a
+// `fallback: []` on next/font to stop Arabic-capable system fonts from
+// intercepting Arabic glyphs before the stack reached Cairo; with one
+// bilingual face per role that whole failure mode is gone.
 
 export const metadata: Metadata = {
-  title: "Wisal",
-  description: "Tutoring reservation marketplace — the Arab world.",
+  // Next picks up icon.svg, apple-icon.png and opengraph-image.png from this
+  // directory automatically; metadataBase makes the OG URL absolute.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: { default: "Wisal", template: "%s · Wisal" },
+  description: "Book lessons with vetted teachers across the Arab world.",
+  applicationName: "Wisal",
+  openGraph: {
+    type: "website",
+    siteName: "Wisal",
+    title: "Wisal",
+    description: "Book lessons with vetted teachers across the Arab world.",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 // Runs before first paint to set the theme class from localStorage / system,
@@ -37,14 +37,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={jakarta.variable}
-      suppressHydrationWarning
-    >
+    <html lang="en" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: noFlashTheme }} />
-        <AntdRegistry>{children}</AntdRegistry>
+        <AntdRegistry layer>{children}</AntdRegistry>
       </body>
     </html>
   );

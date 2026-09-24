@@ -185,23 +185,14 @@ export default async function LandingPage({
       </div>
 
       {/* ---------- Final CTA ---------- */}
-      <div
-        className="relative overflow-hidden rounded-3xl px-6 py-14 text-center sm:px-12"
-        style={{ background: "var(--brand)", boxShadow: "var(--shadow-md)" }}
-      >
-        <h2
-          className="mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl"
-          style={{ color: "#fff", fontFamily: "var(--font-display)" }}
-        >
-          {L.cta.title}
-        </h2>
-        <p className="mx-auto mt-4 max-w-md text-base" style={{ color: "rgba(255,255,255,0.85)" }}>
-          {L.cta.desc}
-        </p>
+      {/* Inverted slab. Uses --band-bg, which stays a deep teal in BOTH themes:
+          --brand lifts to #34B9A4 in dark and white on that is only 2.4:1. */}
+      <div className="relative overflow-hidden rounded-hero bg-band px-6 py-14 text-center shadow-md sm:px-12">
+        <h2 className="t-h2 mx-auto max-w-2xl text-on-band">{L.cta.title}</h2>
+        <p className="mx-auto mt-4 max-w-md t-body-lg text-on-band">{L.cta.desc}</p>
         <Link
           href={`/${locale}/sign-up`}
-          className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-xl px-7 font-semibold transition-transform hover:-translate-y-0.5"
-          style={{ background: "#fff", color: "var(--brand-dark)" }}
+          className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-control bg-white px-7 font-semibold text-band transition-transform motion-safe:hover:-translate-y-0.5"
         >
           {L.cta.button}
           <ArrowRight size={18} className="rtl:-scale-x-100" />
@@ -210,9 +201,10 @@ export default async function LandingPage({
 
       {/* ---------- Footer ---------- */}
       <SiteFooter
-        brand={d.app.name}
+        locale={locale}
         tagline={L.footer.tagline}
         rights={L.footer.rights}
+        craftedBy={L.footer.craftedBy}
         links={[
           { label: d.nav.browse, href: `/${locale}/teachers` },
           { label: d.nav.apply, href: `/${locale}/become-a-teacher` },

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
 
 import ThemeToggle from "@/components/theme-toggle";
+import { Logo } from "@/components/brand/logo";
 
 export default async function AuthLayout({
   children,
@@ -18,18 +18,8 @@ export default async function AuthLayout({
         <ThemeToggle />
       </div>
       <div className="w-full" style={{ maxWidth: 420 }}>
-        <Link
-          href={`/${locale}`}
-          className="mb-7 flex items-center justify-center gap-2.5 text-2xl font-bold"
-          style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-        >
-          <span
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white"
-            style={{ background: "var(--grad-brand)", boxShadow: "var(--glow)" }}
-          >
-            <GraduationCap size={20} strokeWidth={2.4} />
-          </span>
-          Wisal
+        <Link href={`/${locale}`} className="mb-7 flex justify-center" aria-label="Wisal">
+          <Logo locale={locale} size="lg" />
         </Link>
         {children}
       </div>
