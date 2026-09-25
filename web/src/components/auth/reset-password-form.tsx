@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { App, Button, Card, Form, Input, Typography } from "antd";
+import { useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
 import { useOtpChannel } from "@/lib/auth-config";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { OtpInput } from "@/components/ui/otp-input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { useToast } from "@/components/ui/toast";
 
 import { fmt, type AuthDict } from "./fmt";
+import { AuthForm, AuthPanel } from "./shell";
 import { maskPhone, useCountdown } from "./use-countdown";
-
-const { Title, Paragraph } = Typography;
-
-interface Values {
-  code: string;
-  new_password: string;
-  confirm: string;
-}
 
 export default function ResetPasswordForm({
   dict,
@@ -29,20 +29,46 @@ export default function ResetPasswordForm({
   locale: string;
   phone: string;
 }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const { left, reset } = useCountdown(60);
   const emailOtp = useOtpChannel() === "email";
 
-  async function onFinish(values: Values) {
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          code: z.string().length(6, dict.requiredCode),
+          new_password: z.string().min(8, dict.passwordMin),
+          confirm: z.string().min(1, dict.requiredPassword),
+        })
+        .refine((v) => v.new_password === v.confirm, {
+          path: ["confirm"],
+          message: dict.passwordMismatch,
+        }),
+    [dict],
+  );
+  type Values = z.infer<typeof schema>;
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { code: "", new_password: "", confirm: "" },
+  });
+
+  async function onSubmit(values: Values) {
     setLoading(true);
     try {
       await authApi.resetConfirm(phone, values.code, values.new_password);
-      message.success(dict.resetSuccess);
+      toast.success(dict.resetSuccess);
       router.push(`/${locale}/sign-in`);
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : dict.genericError);
+      toast.error(err instanceof ApiError ? err.message : dict.genericError);
     } finally {
       setLoading(false);
     }
@@ -52,66 +78,70 @@ export default function ResetPasswordForm({
     try {
       await authApi.resend(phone, "RESET");
       reset();
-      message.success(dict.codeResent);
+      toast.success(dict.codeResent);
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : dict.genericError);
+      toast.error(err instanceof ApiError ? err.message : dict.genericError);
     }
   }
 
   return (
-    <Card>
-      <Title level={3}>{dict.resetTitle}</Title>
-      <Paragraph type="secondary">
-        {emailOtp ? dict.codeSentToAccountEmail : fmt(dict.codeSentTo, { phone: maskPhone(phone) })}
-      </Paragraph>
-      <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
-        <Form.Item
-          name="code"
-          label={dict.code}
-          rules={[{ required: true, message: dict.requiredCode }, { len: 6, message: dict.requiredCode }]}
-        >
-          <Input.OTP length={6} />
-        </Form.Item>
-        <Form.Item
-          name="new_password"
-          label={dict.newPassword}
-          rules={[
-            { required: true, message: dict.requiredPassword },
-            { min: 8, message: dict.passwordMin },
-          ]}
-          hasFeedback
-        >
-          <Input.Password autoComplete="new-password" />
-        </Form.Item>
-        <Form.Item
-          name="confirm"
-          label={dict.confirmPassword}
-          dependencies={["new_password"]}
-          hasFeedback
-          rules={[
-            { required: true, message: dict.requiredPassword },
-            ({ getFieldValue }) => ({
-              validator(_, value) {
-                if (!value || getFieldValue("new_password") === value) return Promise.resolve();
-                return Promise.reject(new Error(dict.passwordMismatch));
-              },
-            }),
-          ]}
-        >
-          <Input.Password autoComplete="new-password" />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+    <AuthPanel
+      title={dict.resetTitle}
+      subtitle={
+        emailOtp ? dict.codeSentToAccountEmail : fmt(dict.codeSentTo, { phone: maskPhone(phone) })
+      }
+      footer={
+        <Link href={`/${locale}/sign-in`} className="link-brand font-semibold">
+          {dict.backToSignIn}
+        </Link>
+      }
+    >
+      <AuthForm onSubmit={handleSubmit(onSubmit)}>
+        <Field id="code" label={dict.code} error={errors.code?.message} required>
+          <Controller
+            control={control}
+            name="code"
+            render={({ field }) => (
+              <OtpInput
+                id="code"
+                value={field.value}
+                onChange={field.onChange}
+                invalid={Boolean(errors.code)}
+                label={dict.code}
+                className="justify-start"
+              />
+            )}
+          />
+        </Field>
+
+        <Field id="new_password" label={dict.newPassword} error={errors.new_password?.message} required>
+          <PasswordInput
+            autoComplete="new-password"
+            showLabel={dict.showPassword}
+            hideLabel={dict.hidePassword}
+            {...register("new_password")}
+          />
+        </Field>
+
+        <Field id="confirm" label={dict.confirmPassword} error={errors.confirm?.message} required>
+          <PasswordInput
+            autoComplete="new-password"
+            showLabel={dict.showPassword}
+            hideLabel={dict.hidePassword}
+            {...register("confirm")}
+          />
+        </Field>
+
+        <Button type="submit" size="lg" block loading={loading}>
           {dict.setPassword}
         </Button>
-      </Form>
-      <div className="mt-4 text-center">
-        <Button type="link" disabled={left > 0} onClick={resend}>
-          {left > 0 ? fmt(dict.resendIn, { s: left }) : dict.resend}
-        </Button>
-      </div>
-      <div className="text-center text-sm">
-        <Link href={`/${locale}/sign-in`}>{dict.backToSignIn}</Link>
-      </div>
-    </Card>
+
+        <div className="text-center">
+          <Button type="button" variant="link" disabled={left > 0} onClick={resend}>
+            {left > 0 ? fmt(dict.resendIn, { s: left }) : dict.resend}
+          </Button>
+        </div>
+      </AuthForm>
+    </AuthPanel>
   );
 }

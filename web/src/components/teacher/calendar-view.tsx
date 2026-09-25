@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { Alert, Button, Spin, Tag } from "antd";
+import { Alert, Button, Spin } from "antd";
 
-import { STATUS_COLORS, statusLabel } from "@/components/bookings/shared";
+import { StatusTag } from "@/components/bookings/shared";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { listBookings, type Booking } from "@/lib/bookings";
 import { stageCardTitle, type WeeklyWindow } from "@/lib/stage-cards";
@@ -261,9 +261,9 @@ function BookingItem({
         {new Date(booking.scheduled_start).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} ·{" "}
         {booking.student_name}
       </div>
-      <Tag color={STATUS_COLORS[booking.status]} className="mt-1">
-        {statusLabel(bookingsDict, booking.status)}
-      </Tag>
+      <div className="mt-1">
+        <StatusTag dict={bookingsDict} status={booking.status} />
+      </div>
     </Link>
   );
 }

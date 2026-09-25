@@ -10,6 +10,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 export interface ComboboxOption<T extends string | number> {
   value: T;
   label: string;
+  /** Matched by search but never displayed (ISO code, dial code, the other language's name). */
+  searchText?: string;
+  /** Leading node — a flag, an icon. */
+  icon?: React.ReactNode;
+  /** Trailing muted text, e.g. a dial code. */
+  hint?: string;
 }
 
 /**
@@ -76,7 +82,9 @@ export function Combobox<T extends string | number>({
 
   const selected = options.find((o) => o.value === value);
   const needle = fold(query);
-  const shown = needle ? options.filter((o) => fold(o.label).includes(needle)) : options;
+  const shown = needle
+    ? options.filter((o) => fold(`${o.label} ${o.searchText ?? ""}`).includes(needle))
+    : options;
 
   // Keep the highlighted row inside the scroll port.
   React.useEffect(() => {
@@ -134,9 +142,9 @@ export function Combobox<T extends string | number>({
               clearable ? "pe-16" : "pe-10",
             )}
           >
-            {startSlot ? (
+            {selected?.icon ?? startSlot ? (
               <span className="flex shrink-0 items-center text-ink-faint [&_svg]:size-4">
-                {startSlot}
+                {selected?.icon ?? startSlot}
               </span>
             ) : null}
             <span
@@ -145,6 +153,11 @@ export function Combobox<T extends string | number>({
             >
               {selected ? selected.label : placeholder}
             </span>
+            {selected?.hint ? (
+              <span dir="ltr" className="shrink-0 t-caption tabular-nums text-ink-faint">
+                {selected.hint}
+              </span>
+            ) : null}
           </button>
         </PopoverTrigger>
 
@@ -214,7 +227,13 @@ export function Combobox<T extends string | number>({
                       isSelected && "font-semibold",
                     )}
                   >
-                    <span className="min-w-0 truncate">{o.label}</span>
+                    {o.icon ? <span className="flex shrink-0 items-center">{o.icon}</span> : null}
+                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                    {o.hint ? (
+                      <span dir="ltr" className="shrink-0 t-caption tabular-nums text-ink-faint">
+                        {o.hint}
+                      </span>
+                    ) : null}
                     {isSelected ? (
                       <Check className="size-4 shrink-0 text-brand" aria-hidden />
                     ) : null}

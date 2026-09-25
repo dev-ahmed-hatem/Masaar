@@ -457,6 +457,19 @@ h5.ant-typography {
 
 /* ---------- Focus ----------
    One visible focus ring everywhere, keyboard-only. */
+/* A slotted <Input> (phone dial code, search icon, unit) is a bordered wrapper
+   around a bare control. The wrapper owns the focus ring; without these two
+   rules the inner input draws the global outline below and the field renders a
+   box inside a box. Unlayered on purpose — the rule below is unlayered too,
+   and a layered utility can never win against it. */
+.input-shell:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent);
+}
+.input-shell input:focus-visible {
+  outline: none;
+}
+
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
@@ -595,34 +608,6 @@ button:not(:disabled),
   box-shadow: var(--sh-sm);
 }
 
-/* Bookable time-slot chip (teacher schedule) */
-.slot-chip {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  color: var(--ink);
-  border-radius: 10px;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-.slot-chip:hover {
-  border-color: var(--brand);
-  color: var(--brand);
-}
-.slot-chip.is-active,
-.slot-chip.is-active:hover {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-brand);
-}
-
-/* Calendar-style slot picker (shared: student booking + reschedule) */
-.slot-calendar-panel {
-  width: 100%;
-  max-width: 340px;
-}
-.slot-calendar-panel .ant-picker-calendar {
-  background: transparent;
-}
-
 /* Clickable links inside chat bubbles. */
 .chat-link {
   text-decoration: underline;
@@ -648,17 +633,6 @@ button:not(:disabled),
 .chat-jump:hover {
   background: var(--brand-tint);
   transform: translateY(-1px);
-}
-
-/* Open-slot count shown beneath each available day's number. antd renders it
-   inside the cell's content slot (.ant-picker-calendar-date-content). */
-.slot-count {
-  display: block;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--brand);
-  line-height: 1.4;
 }
 
 /* ---------- Motion ----------

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Alert as AntAlert, App, Modal, Select as AntSelect, Switch } from "antd";
 import {
   ArrowLeft,
   Award,
@@ -32,13 +31,15 @@ import { cn } from "@/lib/cn";
 import { addFavorite, listFavorites, removeFavorite } from "@/lib/favorites";
 import { refName, stageCardTitle, type StageCard } from "@/lib/stage-cards";
 import type { Paginated } from "@/lib/teachers";
-import { getTeacher, languageName, type TeacherDetail as Teacher } from "@/lib/teachers";
-import { DetailRow } from "@/components/ui";
+import { languageName } from "@/lib/languages";
+import { getTeacher, type TeacherDetail as Teacher } from "@/lib/teachers";
+import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty";
+import { Label } from "@/components/ui/label";
 import { Rating } from "@/components/ui/rating";
 import {
   Select,
@@ -47,7 +48,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import TeacherSchedule from "@/components/students/teacher-schedule";
 import StageCardSummary from "@/components/teaching/stage-card-summary";
@@ -97,7 +101,7 @@ export default function TeacherDetail({
 }) {
   const ar = locale === "ar";
   const router = useRouter();
-  const { message } = App.useApp();
+  const message = useToast();
   const { user } = useAuth();
 
   const [teacher, setTeacher] = useState<Teacher | null>(null);
@@ -216,7 +220,7 @@ export default function TeacherDetail({
   const videoId = teacher.intro_video_url ? youtubeId(teacher.intro_video_url) : null;
   const langs = teacher.languages
     .filter(Boolean)
-    .map((code) => ({ code, label: languageName(code, dict) }));
+    .map((code) => ({ code, label: languageName(code, locale) }));
 
   return (
     <section className="flex flex-col gap-6">
@@ -745,9 +749,10 @@ function ReviewsSection({
 }
 
 /**
- * Booking confirmation. Still antd: the modal, its error mapping and the
- * mobile sheet variant are Phase 3 of the redesign, together with the slot
- * calendar it opens from.
+ * Booking confirmation: the last screen before money is reserved, so it states
+ * the time, what is being booked and the exact price before the button.
+ *
+ * A dialog on desktop and a bottom sheet on a phone — the same component.
  */
 function BookingModal({
   stage,
@@ -763,7 +768,7 @@ function BookingModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { message } = App.useApp();
+  const message = useToast();
   const [subjectId, setSubjectId] = useState<number | undefined>(stage.subjects[0]?.id);
   const [isTrial, setIsTrial] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -794,6 +799,8 @@ function BookingModal({
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
       if (code === "insufficient_balance") {
+        // Kept inline as well as in the toast: it is the one error the student
+        // can act on right here, and the wallet link has to stay reachable.
         setLowFunds(true);
         message.error(dict.errFunds);
       } else if (code === "market_mismatch") message.error(dict.errMarket);
@@ -808,55 +815,85 @@ function BookingModal({
   const priceText = isTrial ? dict.free : stage.price.display;
 
   return (
-    <Modal
+    <ResponsiveDialog
       open
-      onCancel={onClose}
+      onOpenChange={(next) => !next && onClose()}
       title={dict.bookTitle}
-      okText={dict.confirm}
-      okButtonProps={{ disabled: !subjectId, loading: submitting }}
-      onOk={submit}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {dict.cancelBooking}
+          </Button>
+          <Button variant="accent" disabled={!subjectId} loading={submitting} onClick={submit}>
+            {dict.confirm}
+          </Button>
+        </>
+      }
     >
-      <div className="flex flex-col gap-4 py-2">
-        <DetailRow label={dict.selectedTime} value={<strong dir="ltr">{whenLabel}</strong>} />
-
-        <DetailRow label={dict.stageLabel} value={stageCardTitle(stage, locale)} />
-
-        {stage.subjects.length > 1 ? (
-          <label className="flex flex-col gap-1">
-            <span className="t-small font-medium text-ink-muted">{dict.chooseSubject}</span>
-            <AntSelect
-              value={subjectId}
-              onChange={setSubjectId}
-              style={{ width: "100%" }}
-              options={stage.subjects.map((s) => ({ value: s.id, label: refName(s, locale) }))}
-            />
-          </label>
-        ) : (
-          <DetailRow label={dict.subject} value={refName(stage.subjects[0], locale)} />
-        )}
-
-        {stage.free_lessons_offered > 0 ? (
-          <label className="flex items-center gap-3">
-            <Switch checked={isTrial} onChange={setIsTrial} />
-            <span className="t-small text-ink">{dict.trialToggle}</span>
-          </label>
+      <dl className="flex flex-col gap-2.5">
+        <SummaryRow label={dict.selectedTime}>
+          <span dir="ltr" className="font-semibold">{whenLabel}</span>
+        </SummaryRow>
+        <SummaryRow label={dict.stageLabel}>{stageCardTitle(stage, locale)}</SummaryRow>
+        {stage.subjects.length === 1 ? (
+          <SummaryRow label={dict.subject}>{refName(stage.subjects[0], locale)}</SummaryRow>
         ) : null}
+      </dl>
 
-        <DetailRow label={dict.priceLabel} value={<strong>{priceText}</strong>} />
+      {stage.subjects.length > 1 ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="booking-subject">{dict.chooseSubject}</Label>
+          <Select
+            value={subjectId == null ? undefined : String(subjectId)}
+            onValueChange={(v) => setSubjectId(Number(v))}
+          >
+            <SelectTrigger id="booking-subject">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {stage.subjects.map((sub) => (
+                <SelectItem key={sub.id} value={String(sub.id)}>
+                  {refName(sub, locale)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
-        {lowFunds ? (
-          <AntAlert
-            type="warning"
-            showIcon
-            message={dict.errFunds}
-            action={
-              <Link href={`/${locale}/wallet`} className="link-brand font-semibold">
-                {dict.topUp}
-              </Link>
-            }
-          />
-        ) : null}
+      {stage.free_lessons_offered > 0 ? (
+        <label className="flex items-center justify-between gap-3 rounded-card border border-border p-3">
+          <span className="t-small text-ink">{dict.trialToggle}</span>
+          <Switch checked={isTrial} onCheckedChange={setIsTrial} />
+        </label>
+      ) : null}
+
+      <div className="flex items-baseline justify-between gap-3 rounded-card bg-surface-2 px-4 py-3">
+        <span className="t-small font-semibold text-ink-muted">{dict.priceLabel}</span>
+        <span className="font-display text-xl font-bold text-ink">{priceText}</span>
       </div>
-    </Modal>
+
+      {lowFunds ? (
+        <Alert
+          variant="warning"
+          title={dict.errFunds}
+          action={
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/${locale}/wallet`}>{dict.topUp}</Link>
+            </Button>
+          }
+        />
+      ) : null}
+    </ResponsiveDialog>
+  );
+}
+
+/** Label / value row for the booking summary. */
+function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="t-small text-ink-muted">{label}</dt>
+      <dd dir="auto" className="text-end t-small text-ink">{children}</dd>
+    </div>
   );
 }

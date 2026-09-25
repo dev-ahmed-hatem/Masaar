@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Tag } from "antd";
 
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { listBookings, type Booking, type BookingStatus } from "@/lib/bookings";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 type Dict = Dictionary["bookings"];
 
@@ -78,14 +79,18 @@ export function useGroupedBookings(errorMsg: string) {
   return { groups, loading, error, reload, setPage };
 }
 
-export const STATUS_COLORS: Record<BookingStatus, string> = {
-  REQUESTED: "gold",
-  CONFIRMED: "blue",
-  COMPLETED: "green",
-  DECLINED: "default",
-  CANCELLED: "default",
-  DISPUTED: "red",
-  NO_SHOW: "volcano",
+/**
+ * Lesson status -> badge tone. REQUESTED is the only amber here: it is the one
+ * status that is waiting on somebody, so it should catch the eye.
+ */
+export const STATUS_TONES: Record<BookingStatus, NonNullable<BadgeProps["variant"]>> = {
+  REQUESTED: "warning",
+  CONFIRMED: "brand",
+  COMPLETED: "success",
+  DECLINED: "neutral",
+  CANCELLED: "neutral",
+  DISPUTED: "error",
+  NO_SHOW: "error",
 };
 
 export function statusLabel(dict: Dict, status: BookingStatus): string {
@@ -93,15 +98,7 @@ export function statusLabel(dict: Dict, status: BookingStatus): string {
 }
 
 export function StatusTag({ dict, status }: { dict: Dict; status: BookingStatus }) {
-  return (
-    <Tag
-      color={STATUS_COLORS[status]}
-      bordered={false}
-      style={{ borderRadius: 999, fontWeight: 600, paddingInline: 12 }}
-    >
-      {statusLabel(dict, status)}
-    </Tag>
-  );
+  return <Badge variant={STATUS_TONES[status]} size="sm">{statusLabel(dict, status)}</Badge>;
 }
 
 export function formatWhen(iso: string, locale: string): string {
@@ -138,28 +135,31 @@ export function LessonCard({
   actions?: ReactNode;
 }) {
   return (
-    <div className="surface flex flex-col gap-3 p-4">
+    <Card className="flex flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+          <div dir="auto" className="t-body font-semibold text-ink">
             {subjectLabel(booking, locale)}
           </div>
-          <div className="mt-0.5 text-xs" style={{ color: "var(--ink-muted)" }}>
-            {who} · {formatWhen(booking.scheduled_start, locale)}
+          {/* <bdi> per value, not dir="auto" on the line: a Latin teacher name
+              next to an Arabic-formatted date is two directions in one run,
+              and without isolation the date's digits and separators scatter. */}
+          <div className="mt-0.5 t-caption text-ink-muted">
+            <bdi>{who}</bdi> · <bdi>{formatWhen(booking.scheduled_start, locale)}</bdi>
           </div>
         </div>
         <StatusTag dict={bookingsDict} status={booking.status} />
       </div>
-      {(price || actions) && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      {price || actions ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
           {price ? (
-            <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{price}</span>
+            <span className="t-body font-bold text-ink">{price}</span>
           ) : (
             <span />
           )}
-          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
-      )}
-    </div>
+      ) : null}
+    </Card>
   );
 }

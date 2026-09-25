@@ -17,11 +17,28 @@ export default async function LocaleLayout({
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
 
+  const direction = dir(locale);
+
   return (
-    <div dir={dir(locale)} lang={locale} className="min-h-screen">
-      <Providers direction={dir(locale)} locale={locale}>
-        {children}
-      </Providers>
-    </div>
+    <>
+      {/*
+        The `dir`/`lang` below cover this subtree, but Radix portals dialogs,
+        sheets, selects and popovers onto <body> — outside it — so on /ar every
+        overlay laid out left-to-right. <html> is owned by the root layout,
+        which sits above [locale] and cannot know the locale, so mirror the
+        pair onto the document element here. Inline and synchronous: it runs
+        before the body paints, like the no-FOUC theme script.
+      */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.documentElement.dir=${JSON.stringify(direction)};document.documentElement.lang=${JSON.stringify(locale)};`,
+        }}
+      />
+      <div dir={direction} lang={locale} className="min-h-screen">
+        <Providers direction={direction} locale={locale}>
+          {children}
+        </Providers>
+      </div>
+    </>
   );
 }

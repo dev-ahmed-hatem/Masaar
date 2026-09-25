@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, App, Button, Empty, Input, Modal, Pagination, Rate, Spin } from "antd";
+import { CalendarClock, ExternalLink } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -15,83 +16,143 @@ import {
   type BookingGroup,
 } from "@/components/bookings/shared";
 import SlotCalendar from "@/components/bookings/slot-calendar";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty";
+import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
+import { RatingInput } from "@/components/ui/rating";
+import { ConfirmDialog, ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { SegmentedTabs } from "@/components/ui";
 
 type Dict = Dictionary["myLessons"];
 type BookingsDict = Dictionary["bookings"];
+type BrowseDict = Dictionary["browse"];
 
 export default function StudentLessons({
   dict,
   bookingsDict,
+  browseDict,
   locale,
 }: {
   dict: Dict;
   bookingsDict: BookingsDict;
+  browseDict: BrowseDict;
   locale: Locale;
 }) {
-  const { message, modal } = App.useApp();
+  const toast = useToast();
   const { groups, loading, error, reload, setPage } = useGroupedBookings(dict.loadError);
   const [reviewing, setReviewing] = useState<Booking | null>(null);
   const [rescheduling, setRescheduling] = useState<Booking | null>(null);
+  const [cancelling, setCancelling] = useState<Booking | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(new Set());
+  const [tab, setTab] = useState<BookingGroup>("upcoming");
 
   const run = useCallback(
     async (fn: () => Promise<unknown>, ok: string) => {
       try {
         await fn();
-        message.success(ok);
+        toast.success(ok);
         reload();
       } catch (err) {
-        message.error(err instanceof ApiError ? err.message : dict.actionError);
+        toast.error(err instanceof ApiError ? err.message : dict.actionError);
       }
     },
-    [message, reload, dict.actionError],
+    [toast, reload, dict.actionError],
   );
 
-  function confirmCancel(b: Booking) {
-    modal.confirm({
-      title: dict.cancel,
-      content: dict.cancelConfirm,
-      okText: dict.cancel,
-      okButtonProps: { danger: true },
-      onOk: () => run(() => bookingActions.cancel(b.id, ""), dict.cancelled),
-    });
+  async function confirmCancel() {
+    if (!cancelling) return;
+    setCancelBusy(true);
+    await run(() => bookingActions.cancel(cancelling.id, ""), dict.cancelled);
+    setCancelBusy(false);
+    setCancelling(null);
   }
-
-  const [tab, setTab] = useState<BookingGroup>("upcoming");
 
   function actionsFor(b: Booking, group: BookingGroup) {
     if (group === "requested") {
       return (
         <>
-          <Button size="small" onClick={() => setRescheduling(b)}>{dict.reschedule}</Button>
-          <Button size="small" danger onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}>{dict.cancel}</Button>
+          <Button variant="outline" size="sm" onClick={() => setRescheduling(b)}>
+            {dict.reschedule}
+          </Button>
+          {/* Nothing is charged before a teacher confirms, so this one needs no
+              confirmation step. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => run(() => bookingActions.cancel(b.id, ""), dict.cancelled)}
+          >
+            {dict.cancel}
+          </Button>
         </>
       );
     }
     if (group === "upcoming") {
       return (
         <>
-          {b.meeting_link && (
-            <a href={b.meeting_link} target="_blank" rel="noreferrer" className="link-brand text-sm font-semibold">
-              {dict.join} ↗
-            </a>
-          )}
-          <Button size="small" onClick={() => setRescheduling(b)}>{dict.reschedule}</Button>
-          <Button size="small" onClick={() => run(() => bookingActions.complete(b.id), dict.completed)}>{dict.complete}</Button>
-          <Button size="small" danger onClick={() => confirmCancel(b)}>{dict.cancel}</Button>
+          {b.meeting_link ? (
+            <Button size="sm" asChild>
+              <a href={b.meeting_link} target="_blank" rel="noreferrer">
+                {dict.join}
+                <ExternalLink aria-hidden />
+              </a>
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" onClick={() => setRescheduling(b)}>
+            {dict.reschedule}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => run(() => bookingActions.complete(b.id), dict.completed)}
+          >
+            {dict.complete}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setCancelling(b)}>
+            {dict.cancel}
+          </Button>
         </>
       );
     }
     return b.status === "COMPLETED" && !reviewedIds.has(b.id) ? (
-      <Button size="small" onClick={() => setReviewing(b)}>{dict.review}</Button>
+      <Button variant="outline" size="sm" onClick={() => setReviewing(b)}>
+        {dict.review}
+      </Button>
     ) : null;
   }
 
   function renderList(group: BookingGroup) {
     const g = groups[group];
-    if (loading) return <div className="flex justify-center py-16"><Spin /></div>;
-    if (g.rows.length === 0) return <Empty description={dict.empty} className="py-12" />;
+    if (loading) {
+      return (
+        <div className="flex flex-col gap-3" aria-busy>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-card" />
+          ))}
+        </div>
+      );
+    }
+    if (g.rows.length === 0) {
+      return (
+        <Card>
+          <EmptyState
+            icon={<CalendarClock aria-hidden />}
+            title={dict.empty}
+            action={
+              <Button variant="outline" asChild>
+                <Link href={`/${locale}/teachers`}>{dict.browseCta}</Link>
+              </Button>
+            }
+          />
+        </Card>
+      );
+    }
     return (
       <div className="flex flex-col gap-3">
         {g.rows.map((b) => (
@@ -105,22 +166,27 @@ export default function StudentLessons({
             actions={actionsFor(b, group)}
           />
         ))}
-        {g.total > LESSONS_PAGE_SIZE && (
-          <div className="flex justify-center pt-2">
-            <Pagination current={g.page} pageSize={LESSONS_PAGE_SIZE} total={g.total} showSizeChanger={false} onChange={(p) => setPage(group, p)} />
-          </div>
-        )}
+        <Pagination
+          page={g.page}
+          pageSize={LESSONS_PAGE_SIZE}
+          total={g.total}
+          onChange={(p) => setPage(group, p)}
+          prevLabel={browseDict.prevPage}
+          nextLabel={browseDict.nextPage}
+          className="pt-2"
+        />
       </div>
     );
   }
 
-  if (error) return <Alert type="error" message={error} showIcon />;
+  if (error) return <Alert variant="error" title={error} />;
 
   return (
     <section className="flex flex-col gap-5">
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-        {dict.title}
-      </h1>
+      <header className="flex flex-col gap-2">
+        <h1 className="t-h1 text-ink">{dict.title}</h1>
+        <p className="max-w-2xl t-body text-ink-muted">{dict.intro}</p>
+      </header>
 
       <SegmentedTabs
         value={tab}
@@ -134,7 +200,18 @@ export default function StudentLessons({
 
       {renderList(tab)}
 
-      {reviewing && (
+      <ConfirmDialog
+        open={cancelling != null}
+        onOpenChange={(next) => !next && setCancelling(null)}
+        title={dict.cancel}
+        description={dict.cancelConfirm}
+        confirmLabel={dict.cancel}
+        cancelLabel={dict.keepLesson}
+        loading={cancelBusy}
+        onConfirm={confirmCancel}
+      />
+
+      {reviewing ? (
         <ReviewModal
           booking={reviewing}
           dict={dict}
@@ -144,12 +221,13 @@ export default function StudentLessons({
             setReviewing(null);
           }}
         />
-      )}
+      ) : null}
 
-      {rescheduling && (
+      {rescheduling ? (
         <RescheduleModal
           booking={rescheduling}
           dict={dict}
+          browseDict={browseDict}
           locale={locale}
           onClose={() => setRescheduling(null)}
           onDone={() => {
@@ -157,7 +235,7 @@ export default function StudentLessons({
             reload();
           }}
         />
-      )}
+      ) : null}
     </section>
   );
 }
@@ -165,17 +243,19 @@ export default function StudentLessons({
 function RescheduleModal({
   booking,
   dict,
+  browseDict,
   locale,
   onClose,
   onDone,
 }: {
   booking: Booking;
   dict: Dict;
+  browseDict: BrowseDict;
   locale: Locale;
   onClose: () => void;
   onDone: () => void;
 }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [start, setStart] = useState<string | undefined>();
@@ -198,34 +278,46 @@ function RescheduleModal({
     setSubmitting(true);
     try {
       await rescheduleBooking(booking.id, { scheduled_start: start });
-      message.success(dict.rescheduled);
+      toast.success(dict.rescheduled);
       onDone();
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : dict.actionError);
+      toast.error(err instanceof ApiError ? err.message : dict.actionError);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal
+    <ResponsiveDialog
       open
-      width={640}
-      onCancel={onClose}
-      onOk={submit}
+      onOpenChange={(next) => !next && onClose()}
       title={dict.rescheduleTitle}
-      okButtonProps={{ disabled: !start, loading: submitting }}
+      className="md:max-w-3xl"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {dict.close}
+          </Button>
+          <Button disabled={!start} loading={submitting} onClick={submit}>
+            {dict.reschedule}
+          </Button>
+        </>
+      }
     >
-      <div className="py-2">
-        {loadingSlots ? (
-          <div className="flex justify-center py-6"><Spin /></div>
-        ) : slots.length === 0 ? (
-          <Empty description="—" />
-        ) : (
-          <SlotCalendar slots={slots} selected={start} onPick={setStart} locale={locale} />
-        )}
-      </div>
-    </Modal>
+      {loadingSlots ? (
+        <Skeleton className="h-64 w-full rounded-card" />
+      ) : slots.length === 0 ? (
+        <EmptyState icon={<CalendarClock aria-hidden />} title={browseDict.noSlots} />
+      ) : (
+        <SlotCalendar
+          slots={slots}
+          selected={start}
+          onPick={setStart}
+          locale={locale}
+          hint={browseDict.pickTimePrompt}
+        />
+      )}
+    </ResponsiveDialog>
   );
 }
 
@@ -240,7 +332,7 @@ function ReviewModal({
   onClose: () => void;
   onDone: (bookingId: number) => void;
 }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const [rating, setRating] = useState(5);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -249,15 +341,15 @@ function ReviewModal({
     setSubmitting(true);
     try {
       await createReview({ booking: booking.id, rating, text });
-      message.success(dict.reviewSuccess);
+      toast.success(dict.reviewSuccess);
       onDone(booking.id);
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
       if (code === "already_reviewed") {
-        message.error(dict.alreadyReviewed);
+        toast.error(dict.alreadyReviewed);
         onDone(booking.id);
       } else {
-        message.error(err instanceof ApiError ? err.message : dict.actionError);
+        toast.error(err instanceof ApiError ? err.message : dict.actionError);
       }
     } finally {
       setSubmitting(false);
@@ -265,17 +357,35 @@ function ReviewModal({
   }
 
   return (
-    <Modal open onCancel={onClose} onOk={submit} title={dict.reviewTitle} okText={dict.submitReview} okButtonProps={{ loading: submitting }}>
-      <div className="flex flex-col gap-4 py-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.rating}</span>
-          <Rate value={rating} onChange={setRating} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.reviewText}</span>
-          <Input.TextArea rows={4} value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} />
-        </label>
+    <ResponsiveDialog
+      open
+      onOpenChange={(next) => !next && onClose()}
+      title={dict.reviewTitle}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {dict.close}
+          </Button>
+          <Button loading={submitting} onClick={submit}>
+            {dict.submitReview}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label>{dict.rating}</Label>
+        <RatingInput value={rating} onChange={setRating} name="lesson-rating" />
       </div>
-    </Modal>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="review-text">{dict.reviewText}</Label>
+        <Textarea
+          id="review-text"
+          rows={4}
+          maxLength={1000}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </div>
+    </ResponsiveDialog>
   );
 }

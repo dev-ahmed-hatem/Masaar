@@ -2,27 +2,53 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { App, Button, Card, Form, Input, Typography } from "antd";
+import { useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { useAuth } from "@/context/auth-context";
 import { ApiError } from "@/lib/api";
 import { authApi, homePathForRole, storeSession } from "@/lib/auth";
 import { toE164 } from "@/lib/phone";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
+import { useToast } from "@/components/ui/toast";
 
 import CountryPhoneFields from "./country-phone-fields";
 import type { AuthDict } from "./fmt";
-
-const { Title } = Typography;
+import { AuthForm, AuthPanel } from "./shell";
 
 export default function SignInForm({ dict, locale }: { dict: AuthDict; locale: string }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const router = useRouter();
   const { setUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [form] = Form.useForm();
 
-  async function onFinish(values: { market: string; phone: string; password: string }) {
+  const schema = useMemo(
+    () =>
+      z.object({
+        market: z.string().min(1, dict.requiredCountry),
+        phone: z.string().trim().min(1, dict.requiredPhone),
+        password: z.string().min(1, dict.requiredPassword),
+      }),
+    [dict],
+  );
+  type Values = z.infer<typeof schema>;
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { market: "", phone: "", password: "" },
+  });
+
+  async function onSubmit(values: Values) {
     setLoading(true);
     const phone = toE164(values.phone, values.market);
     try {
@@ -44,36 +70,56 @@ export default function SignInForm({ dict, locale }: { dict: AuthDict; locale: s
         router.push(`/${locale}/verify?phone=${encodeURIComponent(phone)}`);
         return;
       }
-      message.error(err instanceof ApiError ? err.message : dict.genericError);
+      toast.error(err instanceof ApiError ? err.message : dict.genericError);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Card>
-      <Title level={3} style={{ marginBottom: 16 }}>
-        {dict.signInTitle}
-      </Title>
-      <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
-        <CountryPhoneFields dict={dict} locale={locale} form={form} />
-        <Form.Item
-          name="password"
-          label={dict.password}
-          rules={[{ required: true, message: dict.requiredPassword }]}
-        >
-          <Input.Password autoComplete="current-password" />
-        </Form.Item>
-        <div className="mb-3 text-end">
-          <Link href={`/${locale}/forgot-password`}>{dict.forgotPassword}</Link>
+    <AuthPanel
+      title={dict.signInTitle}
+      footer={
+        <>
+          {dict.noAccount}{" "}
+          <Link href={`/${locale}/sign-up`} className="link-brand font-semibold">
+            {dict.signUp}
+          </Link>
+        </>
+      }
+    >
+      <AuthForm onSubmit={handleSubmit(onSubmit)}>
+        <CountryPhoneFields
+          dict={dict}
+          locale={locale}
+          market={watch("market")}
+          onMarketChange={(code) =>
+            setValue("market", code ?? "", { shouldValidate: Boolean(code) })
+          }
+          phoneProps={register("phone")}
+          marketError={errors.market?.message}
+          phoneError={errors.phone?.message}
+        />
+
+        <Field id="password" label={dict.password} error={errors.password?.message} required>
+          <PasswordInput
+            autoComplete="current-password"
+            showLabel={dict.showPassword}
+            hideLabel={dict.hidePassword}
+            {...register("password")}
+          />
+        </Field>
+
+        <div className="-mt-1 text-end">
+          <Link href={`/${locale}/forgot-password`} className="link-brand t-small font-semibold">
+            {dict.forgotPassword}
+          </Link>
         </div>
-        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+
+        <Button type="submit" size="lg" block loading={loading}>
           {dict.signIn}
         </Button>
-      </Form>
-      <div className="mt-4 text-center text-sm">
-        {dict.noAccount} <Link href={`/${locale}/sign-up`}>{dict.signUp}</Link>
-      </div>
-    </Card>
+      </AuthForm>
+    </AuthPanel>
   );
 }

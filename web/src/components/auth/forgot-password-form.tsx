@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { App, Button, Card, Form, Typography } from "antd";
+import { useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
 import { useOtpChannel } from "@/lib/auth-config";
 import { toE164 } from "@/lib/phone";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 
 import CountryPhoneFields from "./country-phone-fields";
 import type { AuthDict } from "./fmt";
-
-const { Title, Paragraph } = Typography;
+import { AuthForm, AuthPanel } from "./shell";
 
 export default function ForgotPasswordForm({
   dict,
@@ -22,39 +25,72 @@ export default function ForgotPasswordForm({
   dict: AuthDict;
   locale: string;
 }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [form] = Form.useForm();
   const emailOtp = useOtpChannel() === "email";
 
-  async function onFinish(values: { market: string; phone: string }) {
+  const schema = useMemo(
+    () =>
+      z.object({
+        market: z.string().min(1, dict.requiredCountry),
+        phone: z.string().trim().min(1, dict.requiredPhone),
+      }),
+    [dict],
+  );
+  type Values = z.infer<typeof schema>;
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { market: "", phone: "" },
+  });
+
+  async function onSubmit(values: Values) {
     setLoading(true);
     const phone = toE164(values.phone, values.market);
     try {
       await authApi.resetRequest(phone);
-      message.success(dict.resetSent);
+      toast.success(dict.resetSent);
       router.push(`/${locale}/reset-password?phone=${encodeURIComponent(phone)}`);
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : dict.genericError);
+      toast.error(err instanceof ApiError ? err.message : dict.genericError);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Card>
-      <Title level={3}>{dict.forgotTitle}</Title>
-      <Paragraph type="secondary">{emailOtp ? dict.forgotIntroEmail : dict.forgotIntro}</Paragraph>
-      <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
-        <CountryPhoneFields dict={dict} locale={locale} form={form} />
-        <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+    <AuthPanel
+      title={dict.forgotTitle}
+      subtitle={emailOtp ? dict.forgotIntroEmail : dict.forgotIntro}
+      footer={
+        <Link href={`/${locale}/sign-in`} className="link-brand font-semibold">
+          {dict.backToSignIn}
+        </Link>
+      }
+    >
+      <AuthForm onSubmit={handleSubmit(onSubmit)}>
+        <CountryPhoneFields
+          dict={dict}
+          locale={locale}
+          market={watch("market")}
+          onMarketChange={(code) =>
+            setValue("market", code ?? "", { shouldValidate: Boolean(code) })
+          }
+          phoneProps={register("phone")}
+          marketError={errors.market?.message}
+          phoneError={errors.phone?.message}
+        />
+        <Button type="submit" size="lg" block loading={loading}>
           {dict.sendResetCode}
         </Button>
-      </Form>
-      <div className="mt-4 text-center text-sm">
-        <Link href={`/${locale}/sign-in`}>{dict.backToSignIn}</Link>
-      </div>
-    </Card>
+      </AuthForm>
+    </AuthPanel>
   );
 }

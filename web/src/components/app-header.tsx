@@ -191,11 +191,13 @@ export default function AppHeader({
                 type="button"
                 aria-label={user.full_name || user.phone || "Account"}
                 className="inline-flex items-center justify-center rounded-full p-[2px]"
-                style={{ background: "var(--grad-brand)" }}
+                style={{ background: "var(--brand-tint)" }}
               >
+                {/* Teal on white is only 2.44:1 in dark mode, where --brand
+                    lifts to #34B9A4. The filled pair is the audited one. */}
                 <Avatar
                   size={32}
-                  style={{ background: "#fff", color: "var(--brand)", fontWeight: 700, border: "2px solid #fff" }}
+                  style={{ background: "var(--brand)", color: "var(--on-brand)", fontWeight: 700 }}
                 >
                   {initial}
                 </Avatar>

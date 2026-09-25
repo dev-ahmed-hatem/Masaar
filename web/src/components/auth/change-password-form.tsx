@@ -1,19 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { App, Button, Card, Form, Input, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { useAuth } from "@/context/auth-context";
 import { ApiError } from "@/lib/api";
 import { authApi, homePathForRole } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
+import { useToast } from "@/components/ui/toast";
 
 import type { AuthDict } from "./fmt";
-
-const { Title, Paragraph } = Typography;
+import { AuthForm, AuthPanel } from "./shell";
 
 export default function ChangePasswordForm({ dict, locale }: { dict: AuthDict; locale: string }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const router = useRouter();
   const { user, loading, setUser } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -22,66 +27,94 @@ export default function ChangePasswordForm({ dict, locale }: { dict: AuthDict; l
     if (!loading && !user) router.replace(`/${locale}/sign-in`);
   }, [loading, user, locale, router]);
 
-  async function onFinish(values: { old_password: string; new_password: string }) {
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          old_password: z.string().min(1, dict.requiredPassword),
+          new_password: z.string().min(8, dict.passwordMin),
+          confirm: z.string().min(1, dict.requiredPassword),
+        })
+        .refine((v) => v.new_password === v.confirm, {
+          path: ["confirm"],
+          message: dict.passwordMismatch,
+        }),
+    [dict],
+  );
+  type Values = z.infer<typeof schema>;
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { old_password: "", new_password: "", confirm: "" },
+  });
+
+  async function onSubmit(values: Values) {
     if (!user) return;
     setSaving(true);
     try {
       await authApi.changePassword(values.old_password, values.new_password);
       const updated = { ...user, must_change_password: false };
       setUser(updated);
-      message.success(dict.changeSuccess);
+      toast.success(dict.changeSuccess);
       router.push(homePathForRole(locale, updated.role));
     } catch (err) {
-      message.error(err instanceof ApiError ? err.message : dict.genericError);
+      toast.error(err instanceof ApiError ? err.message : dict.genericError);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Card>
-      <Title level={3}>{dict.changeTitle}</Title>
-      {user?.must_change_password ? (
-        <Paragraph type="secondary">{dict.changeIntro}</Paragraph>
-      ) : null}
-      <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
-        <Form.Item
-          name="old_password"
+    <AuthPanel
+      title={dict.changeTitle}
+      subtitle={user?.must_change_password ? dict.changeIntro : undefined}
+    >
+      <AuthForm onSubmit={handleSubmit(onSubmit)}>
+        <Field
+          id="old_password"
           label={dict.currentPassword}
-          rules={[{ required: true, message: dict.requiredPassword }]}
+          error={errors.old_password?.message}
+          required
         >
-          <Input.Password autoComplete="current-password" />
-        </Form.Item>
-        <Form.Item
-          name="new_password"
+          <PasswordInput
+            autoComplete="current-password"
+            showLabel={dict.showPassword}
+            hideLabel={dict.hidePassword}
+            {...register("old_password")}
+          />
+        </Field>
+
+        <Field
+          id="new_password"
           label={dict.newPassword}
-          rules={[
-            { required: true, message: dict.requiredPassword },
-            { min: 8, message: dict.passwordMin },
-          ]}
+          error={errors.new_password?.message}
+          required
         >
-          <Input.Password autoComplete="new-password" />
-        </Form.Item>
-        <Form.Item
-          name="confirm"
-          label={dict.confirmPassword}
-          dependencies={["new_password"]}
-          rules={[
-            { required: true, message: dict.requiredPassword },
-            ({ getFieldValue }) => ({
-              validator: (_, value) =>
-                !value || getFieldValue("new_password") === value
-                  ? Promise.resolve()
-                  : Promise.reject(new Error(dict.passwordMismatch)),
-            }),
-          ]}
-        >
-          <Input.Password autoComplete="new-password" />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" block size="large" loading={saving}>
+          <PasswordInput
+            autoComplete="new-password"
+            showLabel={dict.showPassword}
+            hideLabel={dict.hidePassword}
+            {...register("new_password")}
+          />
+        </Field>
+
+        <Field id="confirm" label={dict.confirmPassword} error={errors.confirm?.message} required>
+          <PasswordInput
+            autoComplete="new-password"
+            showLabel={dict.showPassword}
+            hideLabel={dict.hidePassword}
+            {...register("confirm")}
+          />
+        </Field>
+
+        <Button type="submit" size="lg" block loading={saving}>
           {dict.changeSubmit}
         </Button>
-      </Form>
-    </Card>
+      </AuthForm>
+    </AuthPanel>
   );
 }

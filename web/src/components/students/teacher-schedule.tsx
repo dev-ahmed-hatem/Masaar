@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Spin } from "antd";
-import { Clock, MessageCircle } from "lucide-react";
+import { CalendarClock, MessageCircle } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { listSlots, type Slot } from "@/lib/bookings";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
 import SlotCalendar from "@/components/bookings/slot-calendar";
 
 type Dict = Dictionary["browse"];
@@ -60,33 +62,37 @@ export default function TeacherSchedule({
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spin />
+      <div className="flex flex-col gap-5 lg:flex-row lg:gap-8">
+        <Skeleton className="h-64 w-full max-w-[17rem] rounded-card" />
+        <div className="flex flex-1 flex-wrap gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-24" />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (slots.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <Clock size={28} style={{ color: "var(--ink-faint)" }} />
-        <p className="text-sm" style={{ color: "var(--ink-muted)" }}>
-          {dict.noSlots}
-        </p>
-        {onMessage && (
-          <Button icon={<MessageCircle size={15} />} onClick={onMessage}>
-            {dict.message}
-          </Button>
-        )}
-      </div>
+      <EmptyState
+        icon={<CalendarClock aria-hidden />}
+        title={dict.noSlots}
+        action={
+          onMessage ? (
+            <Button variant="outline" onClick={onMessage}>
+              <MessageCircle aria-hidden />
+              {dict.message}
+            </Button>
+          ) : undefined
+        }
+      />
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
-        {dict.timezoneNote.replace("{tz}", tz)}
-      </span>
+      <span className="t-caption text-ink-faint">{dict.timezoneNote.replace("{tz}", tz)}</span>
       <SlotCalendar
         slots={slots}
         selected={selected}

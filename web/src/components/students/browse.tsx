@@ -19,8 +19,8 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { guessMarket } from "@/lib/markets";
+import { languageName } from "@/lib/languages";
 import {
-  languageName,
   listSubjects,
   listTeachers,
   type SubjectSummary,
@@ -549,7 +549,7 @@ function TeacherCard({
 }) {
   const ar = locale === "ar";
   const bio = (ar ? t.bio_ar : t.bio_en) || t.bio_en || t.bio_ar || "";
-  const langs = t.languages.filter(Boolean).map((l) => languageName(l, dict));
+  const langs = t.languages.filter(Boolean).map((l) => languageName(l, locale));
   const subjects = t.subjects.map((s) => ({ id: s.id, label: subjectName(s) }));
 
   return (

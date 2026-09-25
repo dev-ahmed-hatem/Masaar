@@ -135,7 +135,8 @@
     "readLess": "Show less",
     "trustVetted": "Qualifications checked and interviewed by our team",
     "trustCancel": "Free cancellation up to 24 hours before the lesson",
-    "freeTrialBadge": "Free trial"
+    "freeTrialBadge": "Free trial",
+    "cancelBooking": "Cancel"
   },
   "wallet": {
     "title": "Wallet",
@@ -177,7 +178,19 @@
     "requiredAmount": "Enter the amount you transferred",
     "requiredAccount": "Choose the account you paid into",
     "requiredImage": "Upload a photo or screenshot of your receipt",
-    "invalidImage": "Upload an image (JPG, PNG, WebP or HEIC) up to 10 MB"
+    "invalidImage": "Upload an image (JPG, PNG, WebP or HEIC) up to 10 MB",
+    "cancel": "Cancel",
+    "copy": "Copy",
+    "copied": "Copied",
+    "stepChooseAccount": "Choose where to pay",
+    "stepTransfer": "Make the transfer",
+    "stepTransferHint": "Send the amount from your bank or mobile wallet, then tell us how much you sent.",
+    "stepUpload": "Upload your receipt",
+    "stepUploadHint": "A photo or screenshot showing the amount, the date and the account you paid into.",
+    "imageHint": "JPG, PNG, WebP or HEIC, up to 10 MB",
+    "removeImage": "Remove image",
+    "rejectReason": "Reason",
+    "noReceiptsHint": "Your top-ups will appear here with their review status."
   },
   "myLessons": {
     "title": "My lessons",
@@ -210,7 +223,9 @@
     "submitReview": "Submit review",
     "reviewSuccess": "Thanks for your review!",
     "alreadyReviewed": "You've already reviewed this lesson.",
-    "browseCta": "Find a teacher"
+    "browseCta": "Find a teacher",
+    "keepLesson": "Keep lesson",
+    "close": "Close"
   },
   "dashboard": {
     "title": "Welcome back, {name}",
@@ -825,7 +840,12 @@
     "codeSentToAccountEmail": "We sent a 6-digit code to the email address on your account. Check your spam folder if you don't see it.",
     "forgotIntroEmail": "Enter your phone number and we'll send a reset code to the email address on your account.",
     "verifiedSuccessEmail": "Account verified. Welcome!",
-    "requiredCountry": "Choose your country"
+    "requiredCountry": "Choose your country",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "chooseCountry": "Select a country",
+    "searchCountry": "Search countries",
+    "noCountry": "No matching country."
   },
   "apply": {
     "badge": "Teach on Wisal",

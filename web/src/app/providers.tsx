@@ -8,6 +8,7 @@ import { DirectionProvider } from "@radix-ui/react-direction";
 import { AuthProvider } from "@/context/auth-context";
 import { ThemeProvider, useTheme } from "@/context/theme-context";
 import { light, dark, radius, type Palette } from "@/design/tokens";
+import { ToastProvider } from "@/components/ui/toast";
 
 /**
  * Ant Design theme, derived from the SAME token module that generates the CSS
@@ -128,7 +129,10 @@ function AntdProviders({
       theme={themeConfig(theme === "dark")}
     >
       <App>
-        <AuthProvider>{children}</AuthProvider>
+        {/* Our own toasts; antd's `message` now only reaches /admin. */}
+        <ToastProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ToastProvider>
       </App>
     </ConfigProvider>
   );

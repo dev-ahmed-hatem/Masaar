@@ -35,8 +35,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
     );
   }
   return (
-    /* The wrapper carries the border so the slots sit inside the field. */
-    <div className={cn(inputBase, "flex h-11 items-center gap-2 px-3.5", className)}>
+    /* The wrapper carries the border so the slots sit inside the field, and it
+       repeats the field's `dir`: a phone number is LTR, so its dial-code slot
+       must sit to the LEFT of the digits even on /ar. */
+    <div
+      dir={props.dir}
+      className={cn(inputBase, "input-shell flex h-11 items-center gap-2 px-3.5", className)}
+    >
       {startSlot ? (
         <span className="text-ink-faint flex shrink-0 items-center [&_svg]:size-4">{startSlot}</span>
       ) : null}

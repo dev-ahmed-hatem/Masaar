@@ -122,17 +122,3 @@ export function getTeacher(id: number): Promise<TeacherDetail> {
 export function listSubjects(): Promise<SubjectSummary[]> {
   return apiAuthed<SubjectSummary[]>(`/api/catalog/subjects/`);
 }
-
-/**
- * Teaching languages are stored as ISO codes. Students should never be shown
- * "ar"; anything we have no name for falls back to the raw code rather than
- * disappearing.
- */
-export function languageName(
-  code: string,
-  labels: { arabic: string; english: string },
-): string {
-  if (code === "ar") return labels.arabic;
-  if (code === "en") return labels.english;
-  return code;
-}

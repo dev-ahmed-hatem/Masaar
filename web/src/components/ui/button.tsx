@@ -72,8 +72,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         aria-busy={loading || undefined}
         {...props}
       >
-        {loading ? <Loader2 className="animate-spin" aria-hidden /> : null}
-        {children}
+        {/* `asChild` hands the single child straight to Radix Slot: wrapping it
+            with the spinner would give Slot two children and it throws. A link
+            rendered through asChild has no loading state anyway. */}
+        {asChild ? (
+          children
+        ) : (
+          <>
+            {loading ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {children}
+          </>
+        )}
       </Comp>
     );
   },

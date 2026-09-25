@@ -135,7 +135,8 @@
     "readLess": "عرض أقل",
     "trustVetted": "تم التحقق من مؤهلاته ومقابلته من قِبل فريقنا",
     "trustCancel": "إلغاء مجاني حتى 24 ساعة قبل بدء الدرس",
-    "freeTrialBadge": "درس تجريبي مجاني"
+    "freeTrialBadge": "درس تجريبي مجاني",
+    "cancelBooking": "إلغاء"
   },
   "wallet": {
     "title": "المحفظة",
@@ -177,7 +178,19 @@
     "requiredAmount": "أدخل المبلغ الذي حوّلته",
     "requiredAccount": "اختر الحساب الذي حوّلت إليه",
     "requiredImage": "ارفع صورة أو لقطة شاشة للإيصال",
-    "invalidImage": "ارفع صورة (JPG أو PNG أو WebP أو HEIC) بحجم لا يتجاوز 10 ميجابايت"
+    "invalidImage": "ارفع صورة (JPG أو PNG أو WebP أو HEIC) بحجم لا يتجاوز 10 ميجابايت",
+    "cancel": "إلغاء",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "stepChooseAccount": "اختر حساب التحويل",
+    "stepTransfer": "نفّذ التحويل",
+    "stepTransferHint": "حوّل المبلغ من حسابك البنكي أو محفظتك، ثم أخبرنا بالمبلغ الذي أرسلته.",
+    "stepUpload": "ارفع إيصال التحويل",
+    "stepUploadHint": "صورة أو لقطة شاشة تُظهر المبلغ والتاريخ والحساب المُحوَّل إليه.",
+    "imageHint": "JPG أو PNG أو WebP أو HEIC، بحد أقصى 10 ميجابايت",
+    "removeImage": "إزالة الصورة",
+    "rejectReason": "السبب",
+    "noReceiptsHint": "ستظهر هنا عمليات الشحن وحالة مراجعتها."
   },
   "myLessons": {
     "title": "دروسي",
@@ -210,7 +223,9 @@
     "submitReview": "إرسال التقييم",
     "reviewSuccess": "شكرًا على تقييمك!",
     "alreadyReviewed": "لقد قيّمت هذا الدرس بالفعل.",
-    "browseCta": "ابحث عن معلم"
+    "browseCta": "ابحث عن معلم",
+    "keepLesson": "الإبقاء على الدرس",
+    "close": "إغلاق"
   },
   "dashboard": {
     "title": "مرحبًا بعودتك، {name}",
@@ -825,7 +840,12 @@
     "codeSentToAccountEmail": "أرسلنا رمزًا من 6 أرقام إلى البريد الإلكتروني المسجّل في حسابك. تحقّق من مجلد الرسائل غير المرغوب فيها إن لم تجده.",
     "forgotIntroEmail": "أدخل رقم هاتفك وسنرسل رمز إعادة التعيين إلى البريد الإلكتروني المسجّل في حسابك.",
     "verifiedSuccessEmail": "تم تأكيد الحساب. أهلًا بك!",
-    "requiredCountry": "اختر دولتك"
+    "requiredCountry": "اختر دولتك",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
+    "chooseCountry": "اختر الدولة",
+    "searchCountry": "ابحث عن دولة",
+    "noCountry": "لا توجد دولة مطابقة."
   },
   "apply": {
     "badge": "درّس على وِصال",
