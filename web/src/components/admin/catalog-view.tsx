@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tag } from "antd";
+import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { PageHeader } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
 import {
   catalogAdmin,
   catalogName,
@@ -111,7 +112,7 @@ function StagesTab({ dict }: { dict: Dict; locale: Locale }) {
     {
       title: dict.active,
       dataIndex: "is_active",
-      render: (a: boolean) => (a ? <Tag color="green">{dict.active}</Tag> : <Tag>{dict.inactive}</Tag>),
+      render: (a: boolean) => (a ? <Badge variant="success" size="sm">{dict.active}</Badge> : <Badge size="sm">{dict.inactive}</Badge>),
     },
     {
       title: "",
@@ -203,7 +204,7 @@ function TracksTab({ dict, locale }: { dict: Dict; locale: Locale }) {
     { title: dict.nameEn, dataIndex: "name_en" },
     { title: dict.nameAr, dataIndex: "name_ar" },
     { title: dict.order, dataIndex: "order" },
-    { title: dict.active, dataIndex: "is_active", render: (a: boolean) => (a ? <Tag color="green">{dict.active}</Tag> : <Tag>{dict.inactive}</Tag>) },
+    { title: dict.active, dataIndex: "is_active", render: (a: boolean) => (a ? <Badge variant="success" size="sm">{dict.active}</Badge> : <Badge size="sm">{dict.inactive}</Badge>) },
     {
       title: "",
       key: "actions",
@@ -286,7 +287,7 @@ function SubjectsTab({ dict }: { dict: Dict; locale: Locale }) {
   const columns: ColumnsType<CatalogSubject> = [
     { title: dict.nameEn, dataIndex: "name_en" },
     { title: dict.nameAr, dataIndex: "name_ar" },
-    { title: dict.active, dataIndex: "is_active", render: (a: boolean) => (a ? <Tag color="green">{dict.active}</Tag> : <Tag>{dict.inactive}</Tag>) },
+    { title: dict.active, dataIndex: "is_active", render: (a: boolean) => (a ? <Badge variant="success" size="sm">{dict.active}</Badge> : <Badge size="sm">{dict.inactive}</Badge>) },
     {
       title: "",
       key: "actions",

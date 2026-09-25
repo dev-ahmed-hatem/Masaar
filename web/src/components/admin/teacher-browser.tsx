@@ -3,24 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Avatar,
   Drawer,
-  Empty,
-  Rate,
   Select,
   Space,
-  Spin,
   Table,
-  Tag,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { Users } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
-import CountrySelect from "@/components/ui/country-select";
+import CountrySelect from "@/components/admin/country-select";
 import {
   getTeacher,
   listSubjects,
@@ -31,6 +27,11 @@ import {
 } from "@/lib/teachers";
 
 import StageCardSummary from "@/components/teaching/stage-card-summary";
+import { EmptyState } from "@/components/ui/empty";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Rating } from "@/components/ui/rating";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Dict = Dictionary["adminTeachers"];
 type CardsDict = Dictionary["stageCards"];
@@ -114,9 +115,7 @@ export default function TeacherBrowser({
       key: "name",
       render: (_, t) => (
         <Space>
-          <Avatar src={t.photo_url ?? undefined} style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 600 }}>
-            {(t.full_name || "?").trim().charAt(0).toUpperCase()}
-          </Avatar>
+          <Avatar size="xs" src={t.photo_url} name={t.full_name} />
           {t.full_name}
         </Space>
       ),
@@ -127,7 +126,7 @@ export default function TeacherBrowser({
       render: (_, t) => (
         <Space size={[0, 4]} wrap>
           {t.subjects.map((s) => (
-            <Tag key={s.id}>{subjectName(s)}</Tag>
+            <Badge key={s.id} size="sm">{subjectName(s)}</Badge>
           ))}
         </Space>
       ),
@@ -140,12 +139,7 @@ export default function TeacherBrowser({
     {
       title: dict.colRating,
       key: "rating",
-      render: (_, t) => (
-        <Space size={4}>
-          <Rate disabled allowHalf value={Number(t.rating_avg)} style={{ fontSize: 14 }} />
-          <Text type="secondary">({t.rating_count})</Text>
-        </Space>
-      ),
+      render: (_, t) => <Rating value={Number(t.rating_avg)} count={t.rating_count} size="sm" />,
     },
     { title: dict.colLessons, dataIndex: "lessons_count", key: "lessons" },
   ];
@@ -217,7 +211,7 @@ export default function TeacherBrowser({
             dataSource={rows}
             loading={loading}
             onRow={(t) => ({ onClick: () => openDetail(t.id), style: { cursor: "pointer" } })}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            locale={{ emptyText: <EmptyState icon={<Users aria-hidden />} title={dict.empty} className="py-10" /> }}
             pagination={{
               current: page,
               pageSize: PAGE_SIZE,
@@ -239,7 +233,7 @@ export default function TeacherBrowser({
       >
         {detailLoading || !selected ? (
           <div className="flex justify-center py-16">
-            <Spin />
+            <Skeleton className="h-40 w-full rounded-card" />
           </div>
         ) : (
           <TeacherDetailView dict={dict} cards={cards} locale={locale} teacher={selected} />
@@ -265,18 +259,17 @@ function TeacherDetailView({
 
   return (
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
-      <Space size={4} wrap>
-        <Rate disabled allowHalf value={Number(teacher.rating_avg)} style={{ fontSize: 16 }} />
+      <Space size={8} wrap>
+        <Rating value={Number(teacher.rating_avg)} count={teacher.rating_count} />
         <Text type="secondary">
-          {Number(teacher.rating_avg).toFixed(1)} · {teacher.rating_count} · {teacher.lessons_count}{" "}
-          {dict.colLessons.toLowerCase()}
+          {teacher.lessons_count} {dict.colLessons.toLowerCase()}
         </Text>
       </Space>
 
       {teacher.free_lessons_offered > 0 && (
-        <Tag color="green">
+        <Badge variant="success" className="w-fit">
           {dict.freeLessons.replace("{n}", String(teacher.free_lessons_offered))}
-        </Tag>
+        </Badge>
       )}
 
       {bio && (
@@ -316,9 +309,9 @@ function TeacherDetailView({
         ) : (
           <Space direction="vertical" style={{ width: "100%", marginTop: 8 }}>
             {teacher.recent_reviews.map((r, i) => (
-              <div key={i} className="rounded-lg border border-black/10 p-3 dark:border-white/10">
+              <div key={i} className="rounded-card border border-border p-3">
                 <Space size={4}>
-                  <Rate disabled value={r.rating} style={{ fontSize: 12 }} />
+                  <Rating value={r.rating} display="stars" size="sm" showValue={false} />
                   <Text type="secondary">{r.student_name}</Text>
                 </Space>
                 {r.text && <Paragraph style={{ marginBottom: 0 }}>{r.text}</Paragraph>}

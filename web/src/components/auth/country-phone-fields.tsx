@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { CountryCombobox } from "@/components/ui/country-combobox";
-import { CountryFlag } from "@/components/ui/country-select";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { findMarket, guessMarket, rememberMarket } from "@/lib/markets";

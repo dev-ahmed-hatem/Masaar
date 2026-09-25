@@ -3,48 +3,9 @@
 import { useMemo } from "react";
 import { Select } from "antd";
 import type { SelectProps } from "antd";
-import {
-  AE, BH, DJ, DZ, EG, IQ, JO, KM, KW, LB, LY, MA, MR, OM, PS, QA, SA, SD, SO, SY, TN, YE,
-} from "country-flag-icons/react/3x2";
-import { Globe } from "lucide-react";
 
-import { findMarket, marketLabel, useMarkets, type MarketOption } from "@/lib/markets";
-
-// SVG flags render the same on every OS (emoji flags show as letters on Windows).
-const FLAGS: Record<string, typeof EG> = {
-  AE, BH, DJ, DZ, EG, IQ, JO, KM, KW, LB, LY, MA, MR, OM, PS, QA, SA, SD, SO, SY, TN, YE,
-};
-
-/** A country's flag as a small rounded rectangle (globe icon if unknown). */
-export function CountryFlag({ code, size = 18 }: { code: string | null | undefined; size?: number }) {
-  const Flag = code ? FLAGS[code] : undefined;
-  const style = {
-    width: size * 1.5,
-    height: size,
-    borderRadius: 3,
-    boxShadow: "0 0 0 1px var(--border)",
-    flexShrink: 0,
-    display: "inline-block",
-  } as const;
-  if (!Flag) {
-    return (
-      <span style={{ ...style, boxShadow: "none" }} className="inline-flex items-center justify-center">
-        <Globe size={size - 2} style={{ color: "var(--ink-faint)" }} />
-      </span>
-    );
-  }
-  return <Flag title={code ?? undefined} style={style} />;
-}
-
-/** Flag + localized country name, e.g. for table cells and detail rows. */
-export function CountryName({ code, locale }: { code: string; locale: string }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <CountryFlag code={code} size={14} />
-      {marketLabel(code, locale)}
-    </span>
-  );
-}
+import { CountryFlag } from "@/components/ui/country-flag";
+import { findMarket, useMarkets, type MarketOption } from "@/lib/markets";
 
 function normalize(text: string): string {
   // Case/diacritic-insensitive; also folds Arabic alef/hamza variants.
@@ -59,7 +20,7 @@ function normalize(text: string): string {
 
 type CountrySelectProps = Omit<SelectProps<string>, "options" | "filterOption" | "showSearch"> & {
   locale: string;
-  /** Show the international dial code next to each country (sign-up, phone fields). */
+  /** Show the international dial code next to each country. */
   showDial?: boolean;
 };
 
@@ -67,6 +28,9 @@ type CountrySelectProps = Omit<SelectProps<string>, "options" | "filterOption" |
  * Searchable country dropdown for every live Arab market: flag, name in the
  * viewer's language and (optionally) dial code. Search matches English and
  * Arabic names, ISO code and dial code.
+ *
+ * antd-only, and therefore /admin-only — the front-of-house picker is
+ * `ui/country-combobox.tsx` on Radix. Keep them in sync in behaviour, not code.
  */
 export default function CountrySelect({
   locale,
@@ -115,7 +79,7 @@ export default function CountrySelect({
             <CountryFlag code={m.code} />
             <span className="min-w-0 flex-1 truncate">{option.data.label}</span>
             {showDial && (
-              <span dir="ltr" className="text-xs tabular-nums" style={{ color: "var(--ink-faint)" }}>
+              <span dir="ltr" className="t-caption tabular-nums text-ink-faint">
                 {m.dial}
               </span>
             )}
@@ -127,7 +91,7 @@ export default function CountrySelect({
           <CountryFlag code={String(code)} />
           <span className="truncate">{label}</span>
           {showDial && (
-            <span dir="ltr" className="text-xs tabular-nums" style={{ color: "var(--ink-faint)" }}>
+            <span dir="ltr" className="t-caption tabular-nums text-ink-faint">
               {findMarket(String(code))?.dial}
             </span>
           )}

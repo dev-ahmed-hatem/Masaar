@@ -12,7 +12,6 @@ import {
   Select,
   Switch,
   Table,
-  Tag,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Plus } from "lucide-react";
@@ -20,13 +19,14 @@ import { Plus } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
-import CountrySelect from "@/components/ui/country-select";
+import CountrySelect from "@/components/admin/country-select";
 import {
   paymentAccountsApi,
   type PaymentAccountAdmin,
   type PaymentAccountInput,
 } from "@/lib/payment-accounts";
 import { PageHeader, Panel } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
 
 type Dict = Dictionary["adminPaymentAccounts"];
 
@@ -83,7 +83,7 @@ export default function PaymentAccountsView({ dict, locale }: { dict: Dict; loca
         <div className="flex flex-col">
           <span className="font-medium">{r.display_name}</span>
           {r.instructions && (
-            <span className="text-xs" style={{ color: "var(--ink-muted)" }}>{r.instructions}</span>
+            <span className="t-caption text-ink-muted">{r.instructions}</span>
           )}
         </div>
       ),
@@ -93,9 +93,9 @@ export default function PaymentAccountsView({ dict, locale }: { dict: Dict; loca
       key: "kind",
       width: 150,
       render: (_, r) => (
-        <Tag bordered={false} color={r.kind === "BANK" ? "blue" : "purple"}>
+        <Badge variant={r.kind === "BANK" ? "brand" : "neutral"} size="sm">
           {r.kind === "BANK" ? dict.kindBANK : dict.kindWALLET}
-        </Tag>
+        </Badge>
       ),
     },
     {

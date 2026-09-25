@@ -20,7 +20,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { findMarket } from "@/lib/markets";
-import CountrySelect from "@/components/ui/country-select";
+import CountrySelect from "@/components/admin/country-select";
 import { PageHeader } from "@/components/ui";
 import {
   pricingApi,

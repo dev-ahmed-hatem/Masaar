@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { Spin } from "antd";
 
 import GoogleCallback from "@/components/integrations/google-callback";
+import { Skeleton } from "@/components/ui/skeleton";
 import RouteGuard from "@/components/route-guard";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -18,7 +18,7 @@ export default async function GoogleCallbackPage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT", "TEACHER"]}>
-      <Suspense fallback={<div className="flex justify-center py-20"><Spin size="large" /></div>}>
+      <Suspense fallback={<Skeleton className="mx-auto h-40 max-w-md rounded-card" />}>
         <GoogleCallback dict={d.googleCalendar} locale={locale} />
       </Suspense>
     </RouteGuard>

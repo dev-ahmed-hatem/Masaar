@@ -1,11 +1,12 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { Typography } from "antd";
 
 import { cn } from "@/lib/cn";
 
-const { Title, Paragraph } = Typography;
+/**
+ * The /admin layout helpers. Everything front-of-house uses the primitives in
+ * this folder directly; these four only exist because the moderator views are
+ * ten variations on "heading, filter toolbar, table, detail drawer".
+ */
 
 /** Consistent page heading: optional eyebrow, strong title, muted subtitle, actions. */
 export function PageHeader({
@@ -23,20 +24,17 @@ export function PageHeader({
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         {eyebrow && (
-          <span
-            className="mb-2 inline-block rounded-full px-3 py-1 text-xs font-semibold"
-            style={{ background: "var(--brand-tint)", color: "var(--on-brand-tint)" }}
-          >
+          <span className="mb-2 inline-block rounded-pill bg-brand-tint px-3 py-1 t-caption font-semibold text-on-brand-tint">
             {eyebrow}
           </span>
         )}
-        <Title level={3} style={{ marginBottom: subtitle ? 2 : 0, fontFamily: "var(--font-display)" }}>
+        <h1 dir="auto" className="t-h2 text-ink">
           {title}
-        </Title>
+        </h1>
         {subtitle && (
-          <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: "62ch" }}>
+          <p dir="auto" className="mt-1 max-w-[62ch] t-body text-ink-muted">
             {subtitle}
-          </Paragraph>
+          </p>
         )}
       </div>
       {extra && <div className="shrink-0">{extra}</div>}
@@ -63,18 +61,10 @@ export function Panel({
 }
 
 /** Labeled filter control used in toolbars. */
-export function FilterField({
-  label,
-  children,
-}: {
-  label: ReactNode;
-  children: ReactNode;
-}) {
+export function FilterField({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium" style={{ color: "var(--ink-muted)" }}>
-        {label}
-      </span>
+    <label className="flex flex-col gap-1.5">
+      <span className="t-caption font-semibold text-ink-muted">{label}</span>
       {children}
     </label>
   );
@@ -83,11 +73,11 @@ export function FilterField({
 /** Label / value row used inside detail drawers. */
 export function DetailRow({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-1">
-      <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
-        {label}
+    <div className="flex items-baseline justify-between gap-4 border-b border-border py-2 last:border-0">
+      <span className="t-small text-ink-muted">{label}</span>
+      <span dir="auto" className="text-end t-small font-semibold text-ink">
+        {value}
       </span>
-      <span className="text-end text-sm font-medium">{value}</span>
     </div>
   );
 }

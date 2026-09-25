@@ -6,31 +6,32 @@ import {
   App,
   Button,
   Drawer,
-  Empty,
   Input,
   Popconfirm,
   Select,
   Space,
   Table,
-  Tag,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { FileCheck } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 import { approveReceipt, listReceipts, rejectReceipt, type Receipt, type ReceiptStatus } from "@/lib/receipts";
+import { EmptyState } from "@/components/ui/empty";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 type Dict = Dictionary["adminReceipts"];
 
 const { Text } = Typography;
 
-const STATUS_COLORS: Record<ReceiptStatus, string> = {
-  PENDING: "gold",
-  APPROVED: "green",
-  REJECTED: "red",
+const STATUS_TONES: Record<ReceiptStatus, NonNullable<BadgeProps["variant"]>> = {
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "error",
 };
 
 const STATUSES: ReceiptStatus[] = ["PENDING", "APPROVED", "REJECTED"];
@@ -97,7 +98,7 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
     {
       title: dict.colStatus,
       key: "status",
-      render: (_, r) => <Tag color={STATUS_COLORS[r.status]}>{tr("status", r.status)}</Tag>,
+      render: (_, r) => <Badge variant={STATUS_TONES[r.status]} size="sm">{tr("status", r.status)}</Badge>,
     },
     { title: dict.colSubmitted, key: "when", render: (_, r) => new Date(r.created_at).toLocaleDateString(locale) },
   ];
@@ -130,7 +131,7 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
             dataSource={rows}
             loading={loading}
             onRow={(r) => ({ onClick: () => { setSelected(r); setReason(""); }, style: { cursor: "pointer" } })}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            locale={{ emptyText: <EmptyState icon={<FileCheck aria-hidden />} title={dict.empty} className="py-10" /> }}
             pagination={{
               current: page,
               pageSize: 20,
@@ -159,11 +160,11 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
                   <img
                     src={selected.image}
                     alt="receipt"
-                    className="max-h-[60vh] w-full rounded-lg border border-black/10 object-contain dark:border-white/10"
+                    className="max-h-[60vh] w-full rounded-card border border-border object-contain"
                   />
                 </a>
               ) : (
-                <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-black/20 text-sm opacity-60 dark:border-white/20">
+                <div className="flex h-48 items-center justify-center rounded-card border border-dashed border-border-strong t-small text-ink-muted">
                   {dict.noImage}
                 </div>
               )}
@@ -171,9 +172,9 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
 
             {/* Details + actions */}
             <div className="flex flex-col gap-3 md:w-1/2">
-              <Tag color={STATUS_COLORS[selected.status]} className="w-fit">
+              <Badge variant={STATUS_TONES[selected.status]} className="w-fit">
                 {tr("status", selected.status)}
-              </Tag>
+              </Badge>
               <DetailRow label={dict.colAmount} value={selected.amount_display} />
               <DetailRow label={dict.phone} value={selected.user_phone} />
               <DetailRow
@@ -182,7 +183,7 @@ export default function ReceiptsQueue({ dict, locale }: { dict: Dict; locale: Lo
                   selected.payment_account ? (
                     <span className="flex flex-col items-end">
                       <span>{selected.payment_account.display_name}</span>
-                      <span className="text-xs font-normal" dir="ltr" style={{ color: "var(--ink-muted)" }}>
+                      <span className="t-caption font-normal text-ink-muted" dir="ltr">
                         {selected.payment_account.details}
                       </span>
                     </span>

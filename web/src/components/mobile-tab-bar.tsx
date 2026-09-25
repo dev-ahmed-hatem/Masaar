@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Badge } from "antd";
 import {
   CalendarClock,
   CalendarDays,
@@ -76,11 +75,8 @@ export default function MobileTabBar({ locale, nav }: { locale: Locale; nav: Nav
 
   return (
     <nav
-      className="glass fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t lg:hidden"
-      style={{
-        borderColor: "var(--border)",
-        paddingBottom: "env(safe-area-inset-bottom)",
-      }}
+      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch justify-around border-t border-border bg-surface lg:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Primary"
     >
       {tabs.map((t, i) => {
@@ -91,14 +87,18 @@ export default function MobileTabBar({ locale, nav }: { locale: Locale; nav: Nav
           <Link
             key={t.seg}
             href={href}
-            className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold"
-            style={{ color: active ? "var(--brand)" : "var(--ink-faint)" }}
+            aria-current={active ? "page" : undefined}
+            className={
+              active
+                ? "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold text-brand"
+                : "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold text-ink-faint"
+            }
           >
             <span className="relative">
               <Icon size={22} strokeWidth={active ? 2.4 : 2} />
               {t.badge && unread > 0 && (
-                <span className="absolute -end-2 -top-1">
-                  <Badge count={unread} size="small" />
+                <span className="absolute -end-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-pill bg-brand px-1 text-[0.625rem] font-bold leading-none text-on-brand tabular-nums">
+                  {unread > 99 ? "99+" : unread}
                 </span>
               )}
             </span>

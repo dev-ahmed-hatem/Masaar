@@ -6,13 +6,13 @@ import {
   App,
   Button,
   Drawer,
-  Empty,
   Select,
   Space,
   Table,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { CalendarCheck } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -21,7 +21,8 @@ import { bookingActions, listBookings, type Booking, type BookingStatus } from "
 
 import { StatusTag, formatWhen, subjectLabel } from "@/components/bookings/shared";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
-import { CountryName } from "@/components/ui/country-select";
+import { CountryName } from "@/components/ui/country-flag";
+import { EmptyState } from "@/components/ui/empty";
 
 type Dict = Dictionary["bookings"];
 
@@ -121,7 +122,7 @@ export default function BookingsView({ dict, locale }: { dict: Dict; locale: Loc
             dataSource={rows}
             loading={loading}
             onRow={(b) => ({ onClick: () => setSelected(b), style: { cursor: "pointer" } })}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            locale={{ emptyText: <EmptyState icon={<CalendarCheck aria-hidden />} title={dict.empty} className="py-10" /> }}
             pagination={{
               current: page,
               pageSize: 20,

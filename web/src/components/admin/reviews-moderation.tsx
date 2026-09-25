@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, App, Button, Empty, Rate, Select, Table, Tag } from "antd";
+import { Alert, App, Button, Select, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { Star } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
 import { listReviews, republishReview, unpublishReview, type Review } from "@/lib/reviews";
+import { EmptyState } from "@/components/ui/empty";
+import { Badge } from "@/components/ui/badge";
+import { Rating } from "@/components/ui/rating";
 
 type Dict = Dictionary["adminReviews"];
 
@@ -61,7 +65,7 @@ export default function ReviewsModeration({ dict }: { dict: Dict; locale: Locale
     {
       title: dict.colRating,
       key: "rating",
-      render: (_, r) => <Rate disabled value={r.rating} style={{ fontSize: 14 }} />,
+      render: (_, r) => <Rating value={r.rating} display="stars" size="sm" showValue={false} />,
     },
     {
       title: dict.colReview,
@@ -72,9 +76,9 @@ export default function ReviewsModeration({ dict }: { dict: Dict; locale: Locale
       title: dict.colStatus,
       key: "status",
       render: (_, r) => (
-        <Tag color={r.is_published ? "green" : "default"}>
+        <Badge variant={r.is_published ? "success" : "neutral"} size="sm">
           {r.is_published ? dict.published : dict.hidden}
-        </Tag>
+        </Badge>
       ),
     },
     {
@@ -116,7 +120,7 @@ export default function ReviewsModeration({ dict }: { dict: Dict; locale: Locale
             columns={columns}
             dataSource={rows}
             loading={loading}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            locale={{ emptyText: <EmptyState icon={<Star aria-hidden />} title={dict.empty} className="py-10" /> }}
             pagination={{
               current: page,
               pageSize: 20,

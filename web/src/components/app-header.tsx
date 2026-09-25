@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar, Button, Popover } from "antd";
+import { useState } from "react";
 import { GraduationCap, MoreVertical, UserRound } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
-
 import { useAuth } from "@/context/auth-context";
 import type { Dictionary } from "@/i18n/dictionaries";
 import NotificationsBell, { type BellLabels } from "@/components/notifications-bell";
 import ThemeToggle from "@/components/theme-toggle";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/cn";
 
 type NavDict = Dictionary["nav"];
+
+const MENU_ITEM =
+  "flex items-center gap-2 rounded-control px-2.5 py-2 t-small font-semibold text-ink transition-colors hover:bg-surface-2";
 
 export default function AppHeader({
   locale,
@@ -33,6 +40,7 @@ export default function AppHeader({
 }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
   const isTeacher = user?.role === "TEACHER";
   const isStaff = user?.role === "MODERATOR" || user?.role === "SUPERADMIN";
   const isStudent = user?.role === "STUDENT";
@@ -75,8 +83,6 @@ export default function AppHeader({
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === activeHref;
 
-  const initial = (user?.full_name || user?.phone || "?").trim().charAt(0).toUpperCase();
-
   // Switch language but stay on the current route (swap only the locale prefix).
   const other = locale === "ar" ? "en" : "ar";
   const rest = pathname.startsWith(`/${locale}`) ? pathname.slice(locale.length + 1) : pathname;
@@ -86,28 +92,23 @@ export default function AppHeader({
   const profileHref = isTeacher ? p("teacher/profile") : isStudent ? p("profile") : null;
 
   return (
-    <header
-      className="glass sticky top-0 z-20"
-      style={{ borderInline: "none", borderTop: "none" }}
-    >
+    <header className="sticky top-0 z-20 border-b border-border bg-surface">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-7">
           <Link href={`/${locale}`} aria-label={brand} className="shrink-0">
             <Logo locale={locale} size="sm" />
           </Link>
           <nav className="hidden items-center gap-1 lg:flex">
-            {links.map(({ href, label }) => {
-              const active = isActive(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`nav-pill px-3.5 py-1.5 text-sm font-semibold${active ? " is-active" : ""}`}
-                >
-                  {label}
-                </Link>
-              );
-            })}
+            {links.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive(href) ? "page" : undefined}
+                className={cn("nav-pill px-3.5 py-1.5 t-small font-semibold", isActive(href) && "is-active")}
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
         </div>
 
@@ -116,103 +117,106 @@ export default function AppHeader({
 
           {/* Secondary controls (theme, language, sign out) live in a menu so the
               bar stays uncluttered on mobile. */}
-          <Popover
-            trigger="click"
-            placement="bottomRight"
-            arrow={false}
-            content={
-              <div className="flex w-52 flex-col gap-2 p-1">
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+            <PopoverTrigger asChild>
+              {user ? (
+                <button
+                  type="button"
+                  aria-label={user.full_name || user.phone || "Account"}
+                  className="inline-flex items-center justify-center rounded-full bg-brand-tint p-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  {/* Teal on white is only 2.44:1 in dark mode, where --brand
+                      lifts to #34B9A4. The filled pair is the audited one. */}
+                  <Avatar
+                    size="xs"
+                    shape="circle"
+                    name={user.full_name || user.phone}
+                    className="bg-brand [&>span]:text-on-brand"
+                  />
+                </button>
+              ) : (
+                <button type="button" aria-label="Menu" className="icon-btn size-9">
+                  <MoreVertical size={18} strokeWidth={2.2} />
+                </button>
+              )}
+            </PopoverTrigger>
+
+            <PopoverContent align="end" className="w-56 p-2">
+              <div className="flex flex-col gap-1">
                 {user && (
-                  <div className="min-w-0 px-1">
-                    <div className="truncate text-sm font-semibold" style={{ color: "var(--ink)" }}>
+                  <div className="min-w-0 px-1.5 pb-1">
+                    <div dir="auto" className="truncate t-small font-semibold text-ink">
                       {user.full_name || user.phone}
                     </div>
                     {user.full_name && (
-                      <div className="truncate text-xs" style={{ color: "var(--ink-faint)" }}>{user.phone}</div>
+                      <div dir="ltr" className="truncate t-caption text-ink-faint">
+                        {user.phone}
+                      </div>
                     )}
                   </div>
                 )}
-                {/* Primary nav for guests on mobile (desktop shows it in the top bar;
-                    signed-in users navigate via the bottom tab bar). */}
+
+                {/* Primary nav for guests on mobile (desktop shows it in the top
+                    bar; signed-in users navigate via the bottom tab bar). */}
                 {!user && (
                   <div className="flex flex-col lg:hidden">
                     {links.map(({ href, label }) => (
                       <Link
                         key={href}
                         href={href}
-                        className="rounded-xl px-2 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-2)]"
-                        style={{ color: "var(--ink)" }}
+                        onClick={() => setMenuOpen(false)}
+                        className={MENU_ITEM}
                       >
                         {label}
                       </Link>
                     ))}
                   </div>
                 )}
+
                 {/* Secondary entry to the teacher application (not for teachers/staff). */}
                 {!isTeacher && !isStaff && (
                   <Link
                     href={p("become-a-teacher")}
-                    className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-2)]"
-                    style={{ color: "var(--ink)" }}
+                    onClick={() => setMenuOpen(false)}
+                    className={MENU_ITEM}
                   >
-                    <GraduationCap size={16} />
+                    <GraduationCap className="size-4" aria-hidden />
                     {nav.apply}
                   </Link>
                 )}
                 {profileHref && (
-                  <Link
-                    href={profileHref}
-                    className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-colors hover:bg-[var(--surface-2)]"
-                    style={{ color: "var(--ink)" }}
-                  >
-                    <UserRound size={16} />
+                  <Link href={profileHref} onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
+                    <UserRound className="size-4" aria-hidden />
                     {nav.profile}
                   </Link>
                 )}
+
+                <Separator className="my-1" />
+
                 <div className="flex items-center gap-2">
                   <ThemeToggle />
                   <Link
                     href={otherPath}
-                    className="icon-btn flex-1 px-3 py-1.5 text-center text-sm font-semibold"
+                    onClick={() => setMenuOpen(false)}
+                    className="icon-btn flex-1 px-3 py-1.5 text-center t-small font-semibold"
                   >
                     {otherLabel}
                   </Link>
                 </div>
+
                 {user && (
-                  <Button block size="small" onClick={logout}>
+                  <Button variant="outline" size="sm" className="mt-1 w-full" onClick={logout}>
                     {signOut}
                   </Button>
                 )}
               </div>
-            }
-          >
-            {user ? (
-              <button
-                type="button"
-                aria-label={user.full_name || user.phone || "Account"}
-                className="inline-flex items-center justify-center rounded-full p-[2px]"
-                style={{ background: "var(--brand-tint)" }}
-              >
-                {/* Teal on white is only 2.44:1 in dark mode, where --brand
-                    lifts to #34B9A4. The filled pair is the audited one. */}
-                <Avatar
-                  size={32}
-                  style={{ background: "var(--brand)", color: "var(--on-brand)", fontWeight: 700 }}
-                >
-                  {initial}
-                </Avatar>
-              </button>
-            ) : (
-              <button type="button" aria-label="Menu" className="icon-btn h-9 w-9">
-                <MoreVertical size={18} strokeWidth={2.2} />
-              </button>
-            )}
+            </PopoverContent>
           </Popover>
 
           {!user && (
-            <Link href={`/${locale}/sign-in`}>
-              <Button type="primary">{signIn}</Button>
-            </Link>
+            <Button asChild>
+              <Link href={`/${locale}/sign-in`}>{signIn}</Link>
+            </Button>
           )}
         </div>
       </div>

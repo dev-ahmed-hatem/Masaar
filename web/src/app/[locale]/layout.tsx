@@ -35,7 +35,7 @@ export default async function LocaleLayout({
         }}
       />
       <div dir={direction} lang={locale} className="min-h-screen">
-        <Providers direction={direction} locale={locale}>
+        <Providers direction={direction}>
           {children}
         </Providers>
       </div>

@@ -6,16 +6,15 @@ import {
   App,
   Button,
   Drawer,
-  Empty,
   Input,
   Popconfirm,
   Select,
   Space,
   Table,
-  Tag,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { UserCheck } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -23,7 +22,9 @@ import { ApiError } from "@/lib/api";
 import { languageName } from "@/lib/languages";
 import { DetailRow, FilterField, PageHeader, Panel } from "@/components/ui";
 import StageCardSummary from "@/components/teaching/stage-card-summary";
-import { CountryName } from "@/components/ui/country-select";
+import { CountryName } from "@/components/ui/country-flag";
+import { EmptyState } from "@/components/ui/empty";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   approveApplication,
   listApplications,
@@ -45,10 +46,7 @@ function Missing({ dict }: { dict: Dict }) {
 function DrawerSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <div
-        className="text-xs font-semibold uppercase tracking-wide"
-        style={{ color: "var(--ink-faint)", borderBottom: "1px solid var(--border)", paddingBottom: 4 }}
-      >
+      <div className="border-b border-border pb-1 t-overline text-ink-faint">
         {title}
       </div>
       {children}
@@ -74,9 +72,9 @@ function ChipBlock({ dict, label, items }: { dict: Dict; label: string; items: s
       <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
         {items && items.length > 0 ? (
           items.map((item, i) => (
-            <Tag key={i} style={{ marginInlineEnd: 0 }}>
+            <Badge key={i} size="sm">
               {item}
-            </Tag>
+            </Badge>
           ))
         ) : (
           <Missing dict={dict} />
@@ -106,7 +104,7 @@ function ResumeBlock({
       )}
       <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
         {filled.map((r, i) => (
-          <div key={i} style={{ borderInlineStart: "2px solid var(--border)", paddingInlineStart: 10 }}>
+          <div key={i} className="border-s-2 border-border ps-2.5">
             {r.head && <div style={{ fontWeight: 600 }}>{r.head}</div>}
             {r.sub && <Text type="secondary">{r.sub}</Text>}
             {r.body && <Paragraph style={{ margin: 0 }}>{r.body}</Paragraph>}
@@ -117,11 +115,13 @@ function ResumeBlock({
   );
 }
 
-const STATUS_COLORS: Record<ApplicationStatus, string> = {
-  PENDING: "gold",
-  CHANGES_REQUESTED: "blue",
-  APPROVED: "green",
-  REJECTED: "red",
+type Tone = NonNullable<BadgeProps["variant"]>;
+
+const STATUS_TONES: Record<ApplicationStatus, Tone> = {
+  PENDING: "warning",
+  CHANGES_REQUESTED: "brand",
+  APPROVED: "success",
+  REJECTED: "error",
 };
 
 const STATUSES: ApplicationStatus[] = [
@@ -210,7 +210,7 @@ export default function ApplicationsQueue({
     {
       title: dict.colStatus,
       key: "status",
-      render: (_, a) => <Tag color={STATUS_COLORS[a.status]}>{statusLabel(a.status)}</Tag>,
+      render: (_, a) => <Badge variant={STATUS_TONES[a.status]} size="sm">{statusLabel(a.status)}</Badge>,
     },
     {
       title: dict.colSubmitted,
@@ -250,7 +250,7 @@ export default function ApplicationsQueue({
             dataSource={rows}
             loading={loading}
             onRow={(a) => ({ onClick: () => openDetail(a), style: { cursor: "pointer" } })}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            locale={{ emptyText: <EmptyState icon={<UserCheck aria-hidden />} title={dict.empty} className="py-10" /> }}
             pagination={{
               current: page,
               pageSize: 20,
@@ -272,9 +272,9 @@ export default function ApplicationsQueue({
       >
         {selected && (
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-            <Tag color={STATUS_COLORS[selected.status]} className="w-fit">
+            <Badge variant={STATUS_TONES[selected.status]} className="w-fit">
               {statusLabel(selected.status)}
-            </Tag>
+            </Badge>
 
             <DrawerSection title={dict.sectionBasics}>
               <div className="flex items-center gap-3">

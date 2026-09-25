@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
 // Both faces are self-hosted via plain @font-face rules in globals.css
@@ -40,7 +39,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: noFlashTheme }} />
-        <AntdRegistry layer>{children}</AntdRegistry>
+        {/* antd is mounted per-subtree in src/app/[locale]/(app)/admin/layout.tsx,
+            not here: it is the only place that still uses it, and mounting its
+            registry globally put the whole library in every route chunk. */}
+        {children}
       </body>
     </html>
   );

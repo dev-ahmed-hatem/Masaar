@@ -4,8 +4,9 @@
    (`a:where(.css-hash) { background-color: transparent }`) silently defeated
    Tailwind utilities such as `bg-white` on ANY element inside <App>.
 
-   We opt antd into an `antd` layer (`<AntdRegistry layer>` in layout.tsx) and
-   pin the order explicitly below. antd must sit AFTER `base` — Tailwind's
+   We opt antd into an `antd` layer (`<AntdRegistry layer>` in
+   components/admin/antd-provider.tsx, which mounts only under /admin) and pin
+   the order explicitly below. antd must sit AFTER `base` — Tailwind's
    preflight resets button/input borders and backgrounds, and if antd loses to
    it every antd control renders unstyled — and BEFORE `utilities`, so our own
    utility classes still win.
@@ -281,17 +282,14 @@ h5.ant-typography {
 }
 
 /* ---------- Backgrounds ----------
-   A faint brand wash plus a tiling 8-point-star mask. Replaces the old
-   `.mesh-bg` radial blob — geometry reads as "place", a gradient reads as
-   "generic SaaS". `.mesh-bg` stays as an alias until Phase 7 retires it. */
-.pattern-bg,
-.mesh-bg {
+   A faint brand wash plus a tiling 8-point-star mask: geometry reads as
+   "place", a gradient reads as "generic SaaS". */
+.pattern-bg {
   position: relative;
   isolation: isolate;
   overflow: hidden;
 }
-.pattern-bg::before,
-.mesh-bg::before {
+.pattern-bg::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -303,8 +301,7 @@ h5.ant-typography {
   );
   pointer-events: none;
 }
-.pattern-bg::after,
-.mesh-bg::after {
+.pattern-bg::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -326,47 +323,10 @@ h5.ant-typography {
   pointer-events: none;
 }
 
-/* Compatibility alias. The frosted-glass header was one of the strongest
-   "admin dashboard" tells; it is now a plain surface with a hairline.
-   Retire the class itself in Phase 7. */
-.glass {
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-
-/* Editorial headings render in flat ink; the hero colours its one accent word
-   explicitly. Kept as a class so existing SectionHeading usage stays valid. */
-.gradient-text {
-  color: var(--ink);
-}
-
-/* ---------- Reusable surfaces ---------- */
-.surface {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-card);
-  box-shadow: var(--sh-sm);
-}
-
-.surface-hover {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-.surface-hover:hover {
-  border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
-  box-shadow: var(--sh-md);
-  transform: translateY(-3px);
-}
-@media (prefers-reduced-motion: reduce) {
-  .surface-hover:hover {
-    transform: none;
-  }
-}
-
 /* ---------- Buttons ----------
-   `.btn-primary` is TEAL: it is the everyday in-app action and appears often.
-   `.btn-accent` is the amber conversion CTA and must stay rare — roughly one
-   per view (sign up, book, top up). Amber needs ink text, not white: white on
-   #E8A33D is 2.16:1 and fails AA. See scripts/check-contrast.mjs. */
+   Only the static pages (landing, error, not-found) use these; everything
+   interactive is <Button>, whose amber `accent` variant is the conversion CTA.
+   `.btn-primary` is TEAL: it is the everyday in-app action. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -386,15 +346,6 @@ h5.ant-typography {
 }
 .btn-primary:hover {
   background: var(--brand-dark);
-  transform: translateY(-2px);
-}
-.btn-accent {
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--sh-sm);
-}
-.btn-accent:hover {
-  background: var(--accent-dark);
   transform: translateY(-2px);
 }
 .btn-ghost {
@@ -439,26 +390,15 @@ h5.ant-typography {
   border-inline-start: none !important;
 }
 
-/* antd preset tag palettes (`<Tag color="green">`) are fixed hex ramps that
-   are not theme-aware and fail AA on our surfaces — the green is 3.37:1 on
-   its own background. Retune the two presets actually used to the status
-   tokens. These rules are unlayered, so they beat the `antd` layer.
-   Phase 2+ replaces these tags with <Badge> and this block can then go. */
-/* The notifications bell count sits on --brand, so it takes --on-brand. antd
-   hard-codes white, which fails AA against the dark theme's mint. */
-.bell-count .ant-badge-count {
-  color: var(--on-brand);
-}
-
-.ant-tag.ant-tag-green {
-  background: var(--success-tint);
-  border-color: color-mix(in srgb, var(--success) 25%, transparent);
-  color: var(--success);
-}
-.ant-tag.ant-tag-orange {
-  background: var(--accent-tint);
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--accent-text);
+/* antd derives a danger button's text from the `colorError` seed and lands on
+   #CF665D in dark mode — 4.34:1 on the moderator panels, just under AA. Our
+   own --error token is 5.6:1 there, so pin both text and border to it. This
+   rule is unlayered on purpose: it must beat the `antd` layer. */
+.ant-btn-color-dangerous.ant-btn-variant-outlined,
+.ant-btn-color-dangerous.ant-btn-variant-text,
+.ant-btn-color-dangerous.ant-btn-variant-link {
+  color: var(--error);
+  border-color: var(--error);
 }
 
 /* ---------- Focus ----------

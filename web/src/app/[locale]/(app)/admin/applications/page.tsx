@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import ApplicationsQueue from "@/components/admin/applications-queue";
-import RouteGuard from "@/components/route-guard";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -14,9 +13,5 @@ export default async function AdminApplicationsPage({
   if (!isValidLocale(locale)) notFound();
   const d = await getDictionary(locale);
 
-  return (
-    <RouteGuard locale={locale} allow={["MODERATOR", "SUPERADMIN"]}>
-      <ApplicationsQueue dict={d.adminApplications} cards={d.stageCards} locale={locale} />
-    </RouteGuard>
-  );
+  return <ApplicationsQueue dict={d.adminApplications} cards={d.stageCards} locale={locale} />;
 }

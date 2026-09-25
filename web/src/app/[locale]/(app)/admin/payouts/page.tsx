@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import PayoutsView from "@/components/admin/payouts-view";
-import RouteGuard from "@/components/route-guard";
 import { isValidLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 
@@ -14,9 +13,5 @@ export default async function AdminPayoutsPage({
   if (!isValidLocale(locale)) notFound();
   const d = await getDictionary(locale);
 
-  return (
-    <RouteGuard locale={locale} allow={["MODERATOR", "SUPERADMIN"]}>
-      <PayoutsView dict={d.adminPayouts} locale={locale} />
-    </RouteGuard>
-  );
+  return <PayoutsView dict={d.adminPayouts} locale={locale} />;
 }

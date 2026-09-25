@@ -1,4 +1,5 @@
 import { apiAuthed } from "./api";
+import type { Paginated } from "./teachers";
 
 export type ChildKind = "NONE" | "BRANCH" | "FACULTY";
 
@@ -147,6 +148,9 @@ export interface StageSubjectInput {
   is_active?: boolean;
 }
 
+/** Drop the pagination envelope the moderator endpoints wrap their lists in. */
+const page = async <T>(req: Promise<Paginated<T>>): Promise<T[]> => (await req).results;
+
 const del = (path: string) => apiAuthed<void>(path, { method: "DELETE" });
 const post = <T>(path: string, body: unknown) =>
   apiAuthed<T>(path, { method: "POST", body: JSON.stringify(body) });
@@ -155,18 +159,20 @@ const patch = <T>(path: string, body: unknown) =>
 
 export const catalogAdmin = {
   // Stages
-  listStages: () => apiAuthed<Stage[]>("/api/admin/stages/"),
+  // The /api/admin/ viewsets are paginated; the public /api/catalog/ ones are
+  // not. Unwrap here so every caller sees a plain array either way.
+  listStages: () => page(apiAuthed<Paginated<Stage>>("/api/admin/stages/")),
   createStage: (body: StageInput) => post<Stage>("/api/admin/stages/", body),
   updateStage: (id: number, body: Partial<StageInput>) => patch<Stage>(`/api/admin/stages/${id}/`, body),
   deleteStage: (id: number) => del(`/api/admin/stages/${id}/`),
   // Tracks
   listTracks: (vertical?: number) =>
-    apiAuthed<Track[]>(`/api/admin/tracks/${vertical ? `?vertical=${vertical}` : ""}`),
+    page(apiAuthed<Paginated<Track>>(`/api/admin/tracks/${vertical ? `?vertical=${vertical}` : ""}`)),
   createTrack: (body: TrackInput) => post<Track>("/api/admin/tracks/", body),
   updateTrack: (id: number, body: Partial<TrackInput>) => patch<Track>(`/api/admin/tracks/${id}/`, body),
   deleteTrack: (id: number) => del(`/api/admin/tracks/${id}/`),
   // Subjects
-  listSubjects: () => apiAuthed<CatalogSubject[]>("/api/admin/subjects/"),
+  listSubjects: () => page(apiAuthed<Paginated<CatalogSubject>>("/api/admin/subjects/")),
   createSubject: (body: SubjectInput) => post<CatalogSubject>("/api/admin/subjects/", body),
   updateSubject: (id: number, body: Partial<SubjectInput>) =>
     patch<CatalogSubject>(`/api/admin/subjects/${id}/`, body),
@@ -177,7 +183,7 @@ export const catalogAdmin = {
     if (vertical) params.set("vertical", String(vertical));
     if (track) params.set("track", String(track));
     const qs = params.toString();
-    return apiAuthed<StageSubject[]>(`/api/admin/stage-subjects/${qs ? `?${qs}` : ""}`);
+    return page(apiAuthed<Paginated<StageSubject>>(`/api/admin/stage-subjects/${qs ? `?${qs}` : ""}`));
   },
   createAssignment: (body: StageSubjectInput) => post<StageSubject>("/api/admin/stage-subjects/", body),
   deleteAssignment: (id: number) => del(`/api/admin/stage-subjects/${id}/`),

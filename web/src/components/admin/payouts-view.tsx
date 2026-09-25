@@ -8,20 +8,21 @@ import {
   Button,
   DatePicker,
   Drawer,
-  Empty,
   Input,
   Space,
   Table,
-  Tag,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { DollarSign } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { FilterField, PageHeader, Panel } from "@/components/ui";
-import CountrySelect from "@/components/ui/country-select";
+import CountrySelect from "@/components/admin/country-select";
+import { EmptyState } from "@/components/ui/empty";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   generateCycle,
   getCycle,
@@ -38,8 +39,13 @@ type Dict = Dictionary["adminPayouts"];
 
 const { Title } = Typography;
 
-const CYCLE_COLORS: Record<CycleStatus, string> = { OPEN: "gold", PROCESSING: "blue", PAID: "green" };
-const ITEM_COLORS: Record<ItemStatus, string> = { PENDING: "gold", PAID: "green" };
+type Tone = NonNullable<BadgeProps["variant"]>;
+const CYCLE_TONES: Record<CycleStatus, Tone> = {
+  OPEN: "warning",
+  PROCESSING: "brand",
+  PAID: "success",
+};
+const ITEM_TONES: Record<ItemStatus, Tone> = { PENDING: "warning", PAID: "success" };
 
 function money(minor: number): string {
   return (minor / 100).toFixed(2);
@@ -125,7 +131,9 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
       title: dict.colStatus,
       key: "status",
       render: (_, c) => (
-        <Tag color={CYCLE_COLORS[c.status]}>{dict[`status${c.status}` as keyof Dict] as string}</Tag>
+        <Badge variant={CYCLE_TONES[c.status]} size="sm">
+          {dict[`status${c.status}` as keyof Dict] as string}
+        </Badge>
       ),
     },
   ];
@@ -138,7 +146,9 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
       title: dict.colStatus,
       key: "status",
       render: (_, i) => (
-        <Tag color={ITEM_COLORS[i.status]}>{dict[`item${i.status}` as keyof Dict] as string}</Tag>
+        <Badge variant={ITEM_TONES[i.status]} size="sm">
+          {dict[`item${i.status}` as keyof Dict] as string}
+        </Badge>
       ),
     },
     {
@@ -159,7 +169,7 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
             </Button>
           </Space.Compact>
         ) : (
-          <span className="text-xs opacity-60">{i.reference || "—"}</span>
+          <span className="t-caption text-ink-muted">{i.reference || "—"}</span>
         ),
     },
   ];
@@ -195,7 +205,7 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
             dataSource={rows}
             loading={loading}
             onRow={(c) => ({ onClick: () => openCycle(c.id), style: { cursor: "pointer" } })}
-            locale={{ emptyText: <Empty description={dict.empty} /> }}
+            locale={{ emptyText: <EmptyState icon={<DollarSign aria-hidden />} title={dict.empty} className="py-10" /> }}
             pagination={{
               current: page,
               pageSize: 20,
@@ -224,7 +234,7 @@ export default function PayoutsView({ dict, locale }: { dict: Dict; locale: Loca
               columns={itemColumns}
               dataSource={selected.items}
               pagination={false}
-              locale={{ emptyText: <Empty description={dict.noItems} /> }}
+              locale={{ emptyText: <EmptyState title={dict.noItems} className="py-8" /> }}
             />
           </>
         )}

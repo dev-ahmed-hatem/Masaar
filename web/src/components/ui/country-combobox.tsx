@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import { findMarket, marketLabel, useMarkets, type MarketOption } from "@/lib/markets";
 import { Combobox } from "./combobox";
-import { CountryFlag } from "./country-select";
+import { CountryFlag } from "./country-flag";
 
 /**
  * Country picker for the auth forms, on the Radix combobox rather than antd.
@@ -13,7 +13,7 @@ import { CountryFlag } from "./country-select";
  * dial codes, so "EG", "20", "Egypt" and "مصر" all find the same row — people
  * type whichever comes to hand.
  *
- * `ui/country-select.tsx` keeps the antd version for /admin until Phase 7.
+ * The /admin picker is the antd one in `admin/country-select.tsx`.
  */
 export function CountryCombobox({
   value,
