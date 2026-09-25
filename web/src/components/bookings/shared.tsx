@@ -101,6 +101,16 @@ export function StatusTag({ dict, status }: { dict: Dict; status: BookingStatus 
   return <Badge variant={STATUS_TONES[status]} size="sm">{statusLabel(dict, status)}</Badge>;
 }
 
+/** Count pill inside a lessons tab trigger — zero is left off, not shown as 0. */
+export function TabCount({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="inline-flex min-w-5 items-center justify-center rounded-pill bg-brand-tint px-1.5 t-caption font-bold text-on-brand-tint">
+      {n}
+    </span>
+  );
+}
+
 export function formatWhen(iso: string, locale: string): string {
   return new Date(iso).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
 }

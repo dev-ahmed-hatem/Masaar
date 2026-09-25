@@ -544,7 +544,15 @@
     "missingStage": "أضف مرحلة واحدة على الأقل تدرّسها",
     "missingAvailability": "كل مرحلة تحتاج إلى مواعيد أسبوعية",
     "stageSaved": "تم حفظ المرحلة.",
-    "stageRemoved": "تمت إزالة المرحلة."
+    "stageRemoved": "تمت إزالة المرحلة.",
+    "requiredName": "أدخل اسمك الكامل",
+    "invalidUrl": "أدخل رابطًا صحيحًا يبدأ بـ https://",
+    "basicsTab": "الملف",
+    "stagesTab": "المراحل",
+    "resumeTab": "الخبرات",
+    "calendarTab": "التقويم",
+    "videoHint": "ألصق رابط يوتيوب ليظهر الفيديو في صفحتك أمام الطلاب.",
+    "retry": "حاول مرة أخرى"
   },
   "admin": {
     "title": "المشرف / الإدارة",
@@ -635,7 +643,11 @@
     "actionError": "فشل الإجراء. يرجى المحاولة مرة أخرى.",
     "empty": "لا يوجد شيء هنا بعد.",
     "loadError": "تعذّر تحميل الحجوزات.",
-    "resultsCount": "{count} حجزًا"
+    "resultsCount": "{count} حجزًا",
+    "requiredLink": "أضف رابط الاجتماع الذي سينضم إليه الطالب.",
+    "invalidLink": "أدخل رابطًا صحيحًا يبدأ بـ https://",
+    "keepLesson": "الإبقاء على الدرس",
+    "retry": "حاول مرة أخرى"
   },
   "adminPayouts": {
     "title": "المدفوعات",
@@ -680,7 +692,9 @@
     "totalPaid": "إجمالي المدفوع",
     "totalPending": "قيد الانتظار",
     "empty": "لا توجد مدفوعات بعد. تُدفع الدروس المكتملة في الدورة التالية.",
-    "loadError": "تعذّر تحميل أرباحك."
+    "loadError": "تعذّر تحميل أرباحك.",
+    "retry": "حاول مرة أخرى",
+    "paidOn": "دُفعت في {date}"
   },
   "adminReviews": {
     "title": "التقييمات",
@@ -925,7 +939,12 @@
     "requiredGender": "اختر الجنس",
     "requiredLanguages": "اختر لغة واحدة على الأقل",
     "requiredVideo": "أضف رابط الفيديو التعريفي",
-    "requiredStages": "أضف مرحلة واحدة على الأقل تدرّسها"
+    "requiredStages": "أضف مرحلة واحدة على الأقل تدرّسها",
+    "next": "متابعة",
+    "back": "رجوع",
+    "stepOf": "الخطوة {n} من {total}",
+    "howItWorks": "كيف تعمل؟",
+    "reviewHint": "راجع بياناتك ثم أرسل طلبك."
   },
   "teacherDashboard": {
     "welcome": "مرحبًا بعودتك، {name}",
@@ -985,7 +1004,12 @@
     "intro": "جدولك الأسبوعي: أوقات التوفر والحصص المحجوزة.",
     "today": "اليوم",
     "legendAvailability": "فترة التوفر",
-    "editAvailability": "تعديل أوقات التوفر"
+    "editAvailability": "تعديل أوقات التوفر",
+    "prevWeek": "الأسبوع السابق",
+    "nextWeek": "الأسبوع التالي",
+    "legendLesson": "درس محجوز",
+    "nothingToday": "لا يوجد شيء",
+    "loadError": "تعذّر تحميل التقويم."
   },
   "adminPricing": {
     "title": "التسعير",
@@ -1132,7 +1156,8 @@
     "missingSubject": "أضف المواد",
     "missingPrice": "السعر أقل من الحد الأدنى",
     "missingAvailability": "أضف المواعيد الأسبوعية",
-    "stageInUse": "لهذه المرحلة دروس قادمة. أنهِها أو ألغِها قبل إزالة المرحلة."
+    "stageInUse": "لهذه المرحلة دروس قادمة. أنهِها أو ألغِها قبل إزالة المرحلة.",
+    "requiredAvailabilityRow": "أكمل هذا الصف أو احذفه."
   },
   "adminPaymentAccounts": {
     "title": "حسابات الدفع",

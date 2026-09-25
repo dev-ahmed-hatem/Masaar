@@ -28,6 +28,7 @@ export default function CountryPhoneFields({
   marketError,
   phoneError,
   countryHint,
+  phoneHint,
 }: {
   dict: AuthDict;
   locale: string;
@@ -37,6 +38,7 @@ export default function CountryPhoneFields({
   marketError?: string;
   phoneError?: string;
   countryHint?: string;
+  phoneHint?: string;
 }) {
   const selected = findMarket(market);
 
@@ -64,7 +66,7 @@ export default function CountryPhoneFields({
         />
       </Field>
 
-      <Field id="phone" label={dict.phone} error={phoneError} required>
+      <Field id="phone" label={dict.phone} hint={phoneHint} error={phoneError} required>
         <Input
           dir="ltr"
           inputMode="tel"

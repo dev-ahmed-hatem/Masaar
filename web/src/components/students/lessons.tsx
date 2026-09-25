@@ -12,6 +12,7 @@ import { createReview } from "@/lib/reviews";
 import {
   LESSONS_PAGE_SIZE,
   LessonCard,
+  TabCount,
   useGroupedBookings,
   type BookingGroup,
 } from "@/components/bookings/shared";
@@ -28,16 +29,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-
-/** Count pill inside a tab trigger — zero is left off rather than shown as 0. */
-function TabCount({ n }: { n: number }) {
-  if (n <= 0) return null;
-  return (
-    <span className="inline-flex min-w-5 items-center justify-center rounded-pill bg-brand-tint px-1.5 t-caption font-bold text-on-brand-tint">
-      {n}
-    </span>
-  );
-}
 
 type Dict = Dictionary["myLessons"];
 type BookingsDict = Dictionary["bookings"];

@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Rating } from "@/components/ui/rating";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Stat } from "@/components/ui/stat";
 
 type Dict = Dictionary["dashboard"];
 
@@ -284,33 +285,6 @@ function NextLesson({
           </a>
         </Button>
       ) : null}
-    </Card>
-  );
-}
-
-function Stat({
-  icon,
-  label,
-  value,
-  action,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <Card className="flex items-center gap-3 p-4">
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-brand-tint text-on-brand-tint [&_svg]:size-4.5">
-        {icon}
-      </span>
-      <div className="flex min-w-0 flex-col leading-tight">
-        <span dir="auto" className="font-display text-lg font-bold text-ink">
-          {value}
-        </span>
-        <span className="t-caption text-ink-muted">{label}</span>
-      </div>
-      {action ? <div className="ms-auto shrink-0">{action}</div> : null}
     </Card>
   );
 }

@@ -16,7 +16,7 @@ export default async function TeacherEarningsPage({
 
   return (
     <RouteGuard locale={locale} allow={["TEACHER"]}>
-      <EarningsView dict={d.teacherEarnings} />
+      <EarningsView dict={d.teacherEarnings} locale={locale} />
     </RouteGuard>
   );
 }

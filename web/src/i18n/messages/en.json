@@ -544,7 +544,15 @@
     "missingStage": "Add at least one stage you teach",
     "missingAvailability": "Every stage needs weekly hours",
     "stageSaved": "Stage saved.",
-    "stageRemoved": "Stage removed."
+    "stageRemoved": "Stage removed.",
+    "requiredName": "Enter your full name",
+    "invalidUrl": "Enter a valid link, starting with https://",
+    "basicsTab": "Profile",
+    "stagesTab": "Stages",
+    "resumeTab": "Experience",
+    "calendarTab": "Calendar",
+    "videoHint": "Paste a YouTube link and students will see it on your profile.",
+    "retry": "Try again"
   },
   "admin": {
     "title": "Moderator / Admin",
@@ -635,7 +643,11 @@
     "actionError": "Action failed. Please try again.",
     "empty": "Nothing here yet.",
     "loadError": "Could not load bookings.",
-    "resultsCount": "{count} bookings"
+    "resultsCount": "{count} bookings",
+    "requiredLink": "Add the meeting link students will join.",
+    "invalidLink": "Enter a valid link, starting with https://",
+    "keepLesson": "Keep the lesson",
+    "retry": "Try again"
   },
   "adminPayouts": {
     "title": "Payouts",
@@ -680,7 +692,9 @@
     "totalPaid": "Total paid",
     "totalPending": "Pending",
     "empty": "No payouts yet. Completed lessons are paid in the next cycle.",
-    "loadError": "Could not load your earnings."
+    "loadError": "Could not load your earnings.",
+    "retry": "Try again",
+    "paidOn": "Paid {date}"
   },
   "adminReviews": {
     "title": "Reviews",
@@ -925,7 +939,12 @@
     "requiredGender": "Choose your gender",
     "requiredLanguages": "Choose at least one language",
     "requiredVideo": "Add a link to your intro video",
-    "requiredStages": "Add at least one stage you teach"
+    "requiredStages": "Add at least one stage you teach",
+    "next": "Continue",
+    "back": "Back",
+    "stepOf": "Step {n} of {total}",
+    "howItWorks": "How it works",
+    "reviewHint": "Check your answers, then send your application."
   },
   "teacherDashboard": {
     "welcome": "Welcome back, {name}",
@@ -985,7 +1004,12 @@
     "intro": "Your weekly schedule: availability windows and booked lessons.",
     "today": "Today",
     "legendAvailability": "Availability window",
-    "editAvailability": "Edit availability"
+    "editAvailability": "Edit availability",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "legendLesson": "Booked lesson",
+    "nothingToday": "Nothing scheduled",
+    "loadError": "Could not load your calendar."
   },
   "adminPricing": {
     "title": "Pricing",
@@ -1132,7 +1156,8 @@
     "missingSubject": "add subjects",
     "missingPrice": "price is below the minimum",
     "missingAvailability": "add weekly hours",
-    "stageInUse": "This stage has upcoming lessons. Finish or cancel them before removing it."
+    "stageInUse": "This stage has upcoming lessons. Finish or cancel them before removing it.",
+    "requiredAvailabilityRow": "Complete this row or remove it."
   },
   "adminPaymentAccounts": {
     "title": "Payment accounts",

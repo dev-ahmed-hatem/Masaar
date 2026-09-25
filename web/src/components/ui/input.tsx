@@ -37,10 +37,20 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   return (
     /* The wrapper carries the border so the slots sit inside the field, and it
        repeats the field's `dir`: a phone number is LTR, so its dial-code slot
-       must sit to the LEFT of the digits even on /ar. */
+       must sit to the LEFT of the digits even on /ar.
+
+       `data-invalid` mirrors the aria state onto the wrapper: `aria-invalid`
+       belongs on the control for assistive tech, but the red border and ring
+       are drawn by the element that actually has a border. */
     <div
       dir={props.dir}
-      className={cn(inputBase, "input-shell flex h-11 items-center gap-2 px-3.5", className)}
+      data-invalid={props["aria-invalid"] ? "true" : undefined}
+      className={cn(
+        inputBase,
+        "input-shell flex h-11 items-center gap-2 px-3.5",
+        "data-[invalid=true]:border-error",
+        className,
+      )}
     >
       {startSlot ? (
         <span className="text-ink-faint flex shrink-0 items-center [&_svg]:size-4">{startSlot}</span>

@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import dayjs, { type Dayjs } from "dayjs";
-import {
-  Button,
-  Form,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  TimePicker,
-  Typography,
-} from "antd";
-import { Plus, Trash2 } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm, type Resolver } from "react-hook-form";
+import { z } from "zod";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import {
   catalog,
@@ -28,10 +20,21 @@ import {
   type StageCardInput,
   type WeeklyWindow,
 } from "@/lib/stage-cards";
+import { Button } from "@/components/ui/button";
+import { ChipGroup } from "@/components/ui/chip-group";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ConfirmDialog, ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import StageCardSummary, { type StageCardsDict } from "./stage-card-summary";
-
-const { Text } = Typography;
 
 const cardKey = (vertical: number, track: number | null) => `${vertical}|${track ?? 0}`;
 
@@ -60,7 +63,8 @@ export default function StageCardsEditor({
   disabled?: boolean;
 }) {
   const [editing, setEditing] = useState<StageCard | "new" | null>(null);
-  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<StageCard | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
 
   const takenKeys = useMemo(
     () =>
@@ -75,7 +79,7 @@ export default function StageCardsEditor({
   return (
     <div className="flex flex-col gap-3">
       {cards.length === 0 ? (
-        <Text type="secondary">{dict.empty}</Text>
+        <p className="t-small text-ink-muted">{dict.empty}</p>
       ) : (
         cards.map((card) => (
           <StageCardSummary
@@ -86,46 +90,45 @@ export default function StageCardsEditor({
             highlight={highlightIds.includes(card.id)}
             actions={
               <>
-                <Button size="small" onClick={() => setEditing(card)} disabled={disabled}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditing(card)}
+                  disabled={disabled}
+                >
+                  <Pencil aria-hidden />
                   {dict.edit}
                 </Button>
-                <Popconfirm
-                  title={dict.removeConfirm}
-                  okText={dict.remove}
-                  cancelText={dict.cancel}
-                  onConfirm={async () => {
-                    setRemovingId(card.id);
-                    try {
-                      await onRemove(card);
-                    } finally {
-                      setRemovingId(null);
-                    }
-                  }}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setRemoving(card)}
+                  disabled={disabled}
+                  aria-label={dict.remove}
+                  className="text-ink-muted hover:bg-error-tint hover:text-error"
                 >
-                  <Button
-                    size="small"
-                    danger
-                    icon={<Trash2 size={14} />}
-                    loading={removingId === card.id}
-                    disabled={disabled}
-                    aria-label={dict.remove}
-                  />
-                </Popconfirm>
+                  <Trash2 aria-hidden />
+                </Button>
               </>
             }
           />
         ))
       )}
+
       <Button
-        icon={<Plus size={15} />}
+        type="button"
+        variant="outline"
         onClick={() => setEditing("new")}
         className="self-start"
         disabled={disabled}
       >
+        <Plus aria-hidden />
         {dict.addStage}
       </Button>
 
-      {editing && (
+      {editing ? (
         <StageCardForm
           dict={dict}
           locale={locale}
@@ -138,35 +141,56 @@ export default function StageCardsEditor({
             setEditing(null);
           }}
         />
-      )}
+      ) : null}
+
+      <ConfirmDialog
+        open={removing != null}
+        onOpenChange={(next) => !next && setRemoving(null)}
+        title={dict.remove}
+        description={dict.removeConfirm}
+        confirmLabel={dict.remove}
+        cancelLabel={dict.cancel}
+        loading={removeBusy}
+        onConfirm={async () => {
+          if (!removing) return;
+          setRemoveBusy(true);
+          try {
+            await onRemove(removing);
+            setRemoving(null);
+          } finally {
+            setRemoveBusy(false);
+          }
+        }}
+      />
     </div>
   );
 }
 
+/** One availability row. Everything is a string — these are form inputs. */
 interface WindowRow {
-  weekday?: number;
-  range?: [Dayjs | null, Dayjs | null] | null;
+  weekday: string;
+  start: string;
+  end: string;
 }
 
 interface FormValues {
-  vertical?: number;
-  track?: number;
-  subjects?: number[];
-  price?: number | null;
-  free_lessons_offered?: number | null;
-  availability?: WindowRow[];
+  vertical: string;
+  track: string;
+  subjects: number[];
+  price: string;
+  free_lessons_offered: string;
+  availability: WindowRow[];
 }
 
-/** "HH:MM" -> today's date at that time (dayjs can't parse a bare time string). */
-function timeOfDay(hhmm: string): Dayjs {
-  const [h, m] = hhmm.split(":").map(Number);
-  return dayjs().hour(h).minute(m).second(0).millisecond(0);
-}
+const BLANK_ROW: WindowRow = { weekday: "", start: "", end: "" };
+const isBlank = (r: WindowRow) => !r.weekday && !r.start && !r.end;
+const isFilled = (r: WindowRow) => Boolean(r.weekday && r.start && r.end);
 
 function toRows(windows: WeeklyWindow[]): WindowRow[] {
   return windows.map((w) => ({
-    weekday: w.weekday,
-    range: [timeOfDay(w.start_time), timeOfDay(w.end_time)],
+    weekday: String(w.weekday),
+    start: w.start_time.slice(0, 5),
+    end: w.end_time.slice(0, 5),
   }));
 }
 
@@ -187,7 +211,6 @@ function StageCardForm({
   onClose: () => void;
   onSubmit: (input: StageCardInput, preview: StageCard) => Promise<void>;
 }) {
-  const [form] = Form.useForm<FormValues>();
   const [saving, setSaving] = useState(false);
   const [stages, setStages] = useState<Stage[]>([]);
   const [rules, setRules] = useState<StagePricing[]>([]);
@@ -196,19 +219,151 @@ function StageCardForm({
   const [tracksFor, setTracksFor] = useState<{ key: number; rows: Track[] } | null>(null);
   const [subjectsFor, setSubjectsFor] = useState<{ key: string; rows: StageSubject[] } | null>(null);
 
-  const verticalId = Form.useWatch("vertical", form) ?? card?.stage.id;
-  const trackId = Form.useWatch("track", form) ?? card?.track?.id;
+  const defaults: FormValues = card
+    ? {
+        vertical: String(card.stage.id),
+        track: card.track ? String(card.track.id) : "",
+        subjects: card.subjects.map((s) => s.id),
+        price: (card.price.amount_minor / 100).toFixed(2),
+        free_lessons_offered: String(card.free_lessons_offered),
+        availability: toRows(card.availability),
+      }
+    : {
+        vertical: "",
+        track: "",
+        subjects: [],
+        price: "",
+        free_lessons_offered: "0",
+        availability: [BLANK_ROW],
+      };
+
+  // The stage/branch choice drives the catalog lookups AND the validation
+  // schema, and the schema has to exist before `useForm` — so it is held here
+  // rather than read back out of the form.
+  const [picked, setPicked] = useState<{ vertical?: number; track?: number }>({
+    vertical: card?.stage.id,
+    track: card?.track?.id,
+  });
+  const { vertical: verticalId, track: trackId } = picked;
+
   const stage = stages.find((s) => s.id === verticalId);
   const needsTrack = stage ? stage.child_kind !== "NONE" : Boolean(card?.track);
   const rule = rules.find((r) => r.vertical === verticalId);
   const minMinor = Math.max(1, rule?.min_price_minor ?? card?.min_price_minor ?? 0);
   const currency = rule?.currency ?? card?.price.currency ?? "";
-  const subjectsKey = verticalId && (!needsTrack || trackId) ? cardKey(verticalId, needsTrack ? trackId! : null) : null;
+  const subjectsKey =
+    verticalId && (!needsTrack || trackId) ? cardKey(verticalId, needsTrack ? trackId! : null) : null;
   const tracks = tracksFor && tracksFor.key === verticalId ? tracksFor.rows : [];
   const subjects = useMemo(
     () => (subjectsFor && subjectsFor.key === subjectsKey ? subjectsFor.rows : []),
     [subjectsFor, subjectsKey],
   );
+
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          vertical: z.string().min(1, dict.requiredStage),
+          track: z.string(),
+          subjects: z.array(z.number()).min(1, dict.requiredSubjects),
+          price: z.string(),
+          free_lessons_offered: z.string(),
+          availability: z.array(
+            z.object({ weekday: z.string(), start: z.string(), end: z.string() }),
+          ),
+        })
+        .superRefine((v, ctx) => {
+          if (needsTrack && !v.track) {
+            ctx.addIssue({ code: "custom", path: ["track"], message: dict.requiredTrack });
+          }
+          // A stage (+ branch) can only be claimed once; ids can't change on an
+          // edit, so this only ever fires while adding.
+          if (!card && v.vertical && (!needsTrack || v.track)) {
+            const key = cardKey(Number(v.vertical), needsTrack ? Number(v.track) : null);
+            if (takenKeys.has(key)) {
+              ctx.addIssue({
+                code: "custom",
+                path: [needsTrack ? "track" : "vertical"],
+                message: dict.duplicateStage,
+              });
+            }
+          }
+
+          const amount = Number(v.price);
+          if (!v.price.trim() || Number.isNaN(amount)) {
+            ctx.addIssue({ code: "custom", path: ["price"], message: dict.requiredPrice });
+          } else if (Math.round(amount * 100) < minMinor) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["price"],
+              message: dict.priceTooLow.replace("{amount}", formatMoney(minMinor, currency)),
+            });
+          }
+
+          // A half-filled row is a mistake; a wholly empty one is just an
+          // unused slot and gets dropped on submit.
+          v.availability.forEach((row, i) => {
+            if (isBlank(row) || isFilled(row)) return;
+            const missing = !row.weekday ? "weekday" : !row.start ? "start" : "end";
+            ctx.addIssue({
+              code: "custom",
+              path: ["availability", i, missing],
+              message: dict.requiredAvailabilityRow,
+            });
+          });
+
+          const filled = v.availability
+            .map((row, i) => ({ row, i }))
+            .filter(({ row }) => isFilled(row));
+
+          for (const { row, i } of filled) {
+            if (row.end <= row.start) {
+              ctx.addIssue({
+                code: "custom",
+                path: ["availability", i, "end"],
+                message: dict.endAfterStart,
+              });
+            }
+          }
+
+          // Same-day overlap: sort by start, then compare neighbours. The issue
+          // lands on the later row, which is the one the teacher must move.
+          const byDay = new Map<string, { row: WindowRow; i: number }[]>();
+          for (const entry of filled) {
+            const list = byDay.get(entry.row.weekday) ?? [];
+            list.push(entry);
+            byDay.set(entry.row.weekday, list);
+          }
+          for (const list of byDay.values()) {
+            const sorted = [...list].sort((a, b) => a.row.start.localeCompare(b.row.start));
+            for (let i = 1; i < sorted.length; i++) {
+              if (sorted[i].row.start < sorted[i - 1].row.end) {
+                ctx.addIssue({
+                  code: "custom",
+                  path: ["availability", sorted[i].i, "start"],
+                  message: dict.overlap,
+                });
+              }
+            }
+          }
+        }),
+    [dict, needsTrack, card, takenKeys, minMinor, currency],
+  );
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
+    // The cast keeps `superRefine`'s widened output off the field types.
+    resolver: zodResolver(schema) as Resolver<FormValues>,
+    defaultValues: defaults,
+  });
+
+  const rows = watch("availability");
 
   useEffect(() => {
     catalog.listStages().then(setStages).catch(() => setStages([]));
@@ -238,49 +393,40 @@ function StageCardForm({
       .catch(() => setSubjectsFor({ key: subjectsKey, rows: [] }));
   }, [verticalId, trackId, needsTrack, subjectsKey]);
 
-  const initialValues: FormValues = card
-    ? {
-        vertical: card.stage.id,
-        track: card.track?.id,
-        subjects: card.subjects.map((s) => s.id),
-        price: card.price.amount_minor / 100,
-        free_lessons_offered: card.free_lessons_offered,
-        availability: toRows(card.availability),
-      }
-    : { subjects: [], free_lessons_offered: 0, availability: [{}] };
-
   // Keep previously chosen subjects selectable while the catalog loads.
   const subjectOptions = useMemo(() => {
     const opts = new Map<number, string>();
     for (const s of card?.subjects ?? []) opts.set(s.id, locale === "ar" ? s.name_ar : s.name_en);
-    for (const ss of subjects) opts.set(ss.subject, locale === "ar" ? ss.subject_name_ar : ss.subject_name_en);
+    for (const ss of subjects)
+      opts.set(ss.subject, locale === "ar" ? ss.subject_name_ar : ss.subject_name_en);
     return [...opts].map(([value, label]) => ({ value, label }));
   }, [subjects, card, locale]);
 
-  async function submit(values: FormValues) {
-    const vertical = values.vertical ?? card!.stage.id;
-    const track = needsTrack ? (values.track ?? card?.track?.id ?? null) : null;
-    const windows: WeeklyWindow[] = (values.availability ?? [])
-      .filter((r) => r.weekday != null && r.range?.[0] && r.range?.[1])
-      .map((r) => ({
-        weekday: r.weekday!,
-        start_time: r.range![0]!.format("HH:mm"),
-        end_time: r.range![1]!.format("HH:mm"),
-      }));
-    const priceMinor = Math.round((values.price ?? 0) * 100);
+  async function submit(v: FormValues) {
+    const vertical = Number(v.vertical) || card!.stage.id;
+    const track = needsTrack ? Number(v.track) || card?.track?.id || null : null;
+    const windows: WeeklyWindow[] = v.availability.filter(isFilled).map((r) => ({
+      weekday: Number(r.weekday),
+      start_time: r.start,
+      end_time: r.end,
+    }));
+    const priceMinor = Math.round(Number(v.price) * 100);
     const input: StageCardInput = {
       vertical,
       track,
-      subjects: values.subjects ?? [],
+      subjects: v.subjects,
       price_minor: priceMinor,
-      free_lessons_offered: values.free_lessons_offered ?? 0,
+      free_lessons_offered: Number(v.free_lessons_offered) || 0,
       availability: windows,
     };
 
     const stageRow = stages.find((s) => s.id === vertical);
     const trackRow = tracks.find((t) => t.id === track);
     const subjectNames = new Map(
-      subjects.map((ss) => [ss.subject, { id: ss.subject, name_en: ss.subject_name_en, name_ar: ss.subject_name_ar }]),
+      subjects.map((ss) => [
+        ss.subject,
+        { id: ss.subject, name_en: ss.subject_name_en, name_ar: ss.subject_name_ar },
+      ]),
     );
     for (const s of card?.subjects ?? []) if (!subjectNames.has(s.id)) subjectNames.set(s.id, s);
     const preview: StageCard = {
@@ -309,174 +455,239 @@ function StageCardForm({
     }
   }
 
+  const trackLabel = stage?.child_kind === "FACULTY" ? dict.faculty : dict.branch;
+  const trackPlaceholder = stage?.child_kind === "FACULTY" ? dict.chooseFaculty : dict.chooseBranch;
+  const trackOptions =
+    card?.track && tracks.length === 0
+      ? [{ value: card.track.id, label: locale === "ar" ? card.track.name_ar : card.track.name_en }]
+      : tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }));
+
   return (
-    <Modal
+    <ResponsiveDialog
       open
-      width={640}
+      onOpenChange={(next) => !next && onClose()}
       title={card ? dict.editStageTitle : dict.newStageTitle}
-      okText={dict.save}
-      cancelText={dict.cancel}
-      confirmLoading={saving}
-      onCancel={onClose}
-      onOk={() => form.submit()}
-      destroyOnHidden
+      className="md:max-w-2xl"
+      footer={
+        <>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {dict.cancel}
+          </Button>
+          <Button type="submit" form="stage-card-form" loading={saving}>
+            {dict.save}
+          </Button>
+        </>
+      }
     >
-      <Form<FormValues>
-        form={form}
-        layout="vertical"
-        requiredMark={false}
-        initialValues={initialValues}
-        onFinish={submit}
-        onValuesChange={(changed) => {
-          if ("vertical" in changed) form.setFieldsValue({ track: undefined, subjects: [] });
-          if ("track" in changed) form.setFieldsValue({ subjects: [] });
-        }}
+      {/* The submit button lives in the dialog footer, outside this element —
+          `form="stage-card-form"` is what still ties them together. */}
+      <form
+        id="stage-card-form"
+        noValidate
+        onSubmit={handleSubmit(submit)}
+        className="flex flex-col gap-4"
       >
-        <div className="grid gap-x-3 sm:grid-cols-2">
-          <Form.Item
-            name="vertical"
-            label={dict.stage}
-            rules={[
-              { required: true, message: dict.requiredStage },
-              {
-                validator: (_, value) =>
-                  !card && value && !needsTrack && takenKeys.has(cardKey(value, null))
-                    ? Promise.reject(new Error(dict.duplicateStage))
-                    : Promise.resolve(),
-              },
-            ]}
-          >
-            <Select
-              placeholder={dict.chooseStage}
-              disabled={Boolean(card)}
-              options={stages.map((s) => ({ value: s.id, label: catalogName(s, locale) }))}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="vertical" label={dict.stage} error={errors.vertical?.message} required>
+            <Controller
+              control={control}
+              name="vertical"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  disabled={Boolean(card)}
+                  onValueChange={(next) => {
+                    field.onChange(next);
+                    // Branch and subjects belong to the old stage.
+                    setPicked({ vertical: Number(next), track: undefined });
+                    setValue("track", "");
+                    setValue("subjects", []);
+                  }}
+                >
+                  <SelectTrigger id="vertical">
+                    <SelectValue placeholder={dict.chooseStage} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {catalogName(s, locale)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
-          </Form.Item>
-          {needsTrack && (
-            <Form.Item
-              name="track"
-              label={stage?.child_kind === "FACULTY" ? dict.faculty : dict.branch}
-              rules={[
-                { required: true, message: dict.requiredTrack },
-                {
-                  validator: (_, value) =>
-                    !card && value && verticalId && takenKeys.has(cardKey(verticalId, value))
-                      ? Promise.reject(new Error(dict.duplicateStage))
-                      : Promise.resolve(),
-                },
-              ]}
-            >
-              <Select
-                placeholder={stage?.child_kind === "FACULTY" ? dict.chooseFaculty : dict.chooseBranch}
-                disabled={Boolean(card)}
-                options={
-                  card?.track && tracks.length === 0
-                    ? [{ value: card.track.id, label: locale === "ar" ? card.track.name_ar : card.track.name_en }]
-                    : tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))
-                }
+          </Field>
+
+          {needsTrack ? (
+            <Field id="track" label={trackLabel} error={errors.track?.message} required>
+              <Controller
+                control={control}
+                name="track"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    disabled={Boolean(card)}
+                    onValueChange={(next) => {
+                      field.onChange(next);
+                      setPicked((prev) => ({ ...prev, track: Number(next) }));
+                      setValue("subjects", []);
+                    }}
+                  >
+                    <SelectTrigger id="track">
+                      <SelectValue placeholder={trackPlaceholder} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {trackOptions.map((t) => (
+                        <SelectItem key={t.value} value={String(t.value)}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
-            </Form.Item>
-          )}
+            </Field>
+          ) : null}
         </div>
 
-        <Form.Item
-          name="subjects"
+        <Field
+          id="subjects"
           label={dict.subjects}
-          rules={[{ required: true, type: "array", min: 1, message: dict.requiredSubjects }]}
+          hint={dict.chooseSubjects}
+          error={errors.subjects?.message}
+          required
         >
-          <Select
-            mode="multiple"
-            placeholder={dict.chooseSubjects}
-            disabled={!verticalId || (needsTrack && !trackId)}
-            optionFilterProp="label"
-            options={subjectOptions}
+          <Controller
+            control={control}
+            name="subjects"
+            render={({ field }) => (
+              <ChipGroup
+                id="subjects"
+                label={dict.subjects}
+                options={subjectOptions}
+                value={field.value}
+                onChange={field.onChange}
+                invalid={Boolean(errors.subjects)}
+                disabled={!verticalId || (needsTrack && !trackId)}
+              />
+            )}
           />
-        </Form.Item>
+        </Field>
 
-        <div className="grid gap-x-3 sm:grid-cols-2">
-          <Form.Item
-            name="price"
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            id="price"
             label={dict.price}
-            extra={verticalId ? dict.minPrice.replace("{amount}", formatMoney(minMinor, currency)) : undefined}
-            rules={[
-              { required: true, message: dict.requiredPrice },
-              {
-                validator: (_, value) =>
-                  value == null || Math.round(value * 100) >= minMinor
-                    ? Promise.resolve()
-                    : Promise.reject(
-                        new Error(dict.priceTooLow.replace("{amount}", formatMoney(minMinor, currency))),
-                      ),
-              },
-            ]}
+            hint={verticalId ? dict.minPrice.replace("{amount}", formatMoney(minMinor, currency)) : undefined}
+            error={errors.price?.message}
+            required
           >
-            <InputNumber min={0} step={0.5} addonAfter={currency || undefined} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="free_lessons_offered" label={dict.freeLessons} extra={dict.freeLessonsHint}>
-            <InputNumber min={0} max={10} style={{ width: "100%" }} />
-          </Form.Item>
+            <Input
+              dir="ltr"
+              inputMode="decimal"
+              endSlot={currency ? <span className="t-small">{currency}</span> : undefined}
+              {...register("price")}
+            />
+          </Field>
+
+          <Field id="free_lessons_offered" label={dict.freeLessons} hint={dict.freeLessonsHint}>
+            <Input type="number" min={0} max={10} dir="ltr" {...register("free_lessons_offered")} />
+          </Field>
         </div>
 
-        <div className="mb-1 font-medium" style={{ color: "var(--ink)" }}>{dict.availability}</div>
-        <Text type="secondary" className="mb-2 block text-sm">{dict.availabilityHint}</Text>
-        <Form.List
-          name="availability"
-          rules={[
-            {
-              validator: async (_, rows: WindowRow[] | undefined) => {
-                const filled = (rows ?? []).filter((r) => r?.weekday != null && r.range?.[0] && r.range?.[1]);
-                if (filled.some((r) => !r.range![1]!.isAfter(r.range![0]!))) {
-                  throw new Error(dict.endAfterStart);
-                }
-                const sorted = [...filled].sort(
-                  (a, b) => a.weekday! - b.weekday! || a.range![0]!.diff(b.range![0]!),
-                );
-                for (let i = 1; i < sorted.length; i++) {
-                  const prev = sorted[i - 1];
-                  const cur = sorted[i];
-                  if (prev.weekday === cur.weekday && cur.range![0]!.isBefore(prev.range![1]!)) {
-                    throw new Error(dict.overlap);
-                  }
-                }
-              },
-            },
-          ]}
-        >
-          {(fields, { add, remove }, { errors }) => (
-            <div className="flex flex-col gap-2">
-              {fields.map((field) => (
-                <div key={field.key} className="flex flex-wrap items-start gap-2">
-                  <Form.Item name={[field.name, "weekday"]} className="!mb-0" style={{ minWidth: 140 }}>
-                    <Select
-                      placeholder={dict.day}
-                      options={dict.weekdays.map((d, i) => ({ value: i, label: d }))}
+        <div className="flex flex-col gap-2">
+          <Label>{dict.availability}</Label>
+          <p className="t-caption text-ink-muted">{dict.availabilityHint}</p>
+
+          <div className="mt-1 flex flex-col gap-3">
+            {rows.map((_, i) => {
+              const rowErrors = errors.availability?.[i];
+              const message =
+                rowErrors?.weekday?.message ?? rowErrors?.start?.message ?? rowErrors?.end?.message;
+              return (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Controller
+                      control={control}
+                      name={`availability.${i}.weekday`}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          {/* Full width on a phone so the two times stay
+                              together on the line below, not split by a wrap. */}
+                          <SelectTrigger aria-label={dict.day} className="w-full sm:w-36">
+                            <SelectValue placeholder={dict.day} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dict.weekdays.map((d, index) => (
+                              <SelectItem key={d} value={String(index)}>
+                                {d}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
-                  </Form.Item>
-                  <Form.Item name={[field.name, "range"]} className="!mb-0">
-                    <TimePicker.RangePicker
-                      format="HH:mm"
-                      minuteStep={15}
-                      placeholder={[dict.from, dict.to]}
-                      order={false}
-                    />
-                  </Form.Item>
-                  <Button
-                    danger
-                    type="text"
-                    icon={<Trash2 size={15} />}
-                    onClick={() => remove(field.name)}
-                    aria-label={dict.remove}
-                  />
+                    <div className="flex flex-1 items-center gap-2">
+                      <Input
+                        type="time"
+                        step={900}
+                        dir="ltr"
+                        aria-label={dict.from}
+                        className="w-32"
+                        {...register(`availability.${i}.start`)}
+                      />
+                      <span aria-hidden className="text-ink-faint">
+                        –
+                      </span>
+                      <Input
+                        type="time"
+                        step={900}
+                        dir="ltr"
+                        aria-label={dict.to}
+                        className="w-32"
+                        {...register(`availability.${i}.end`)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={dict.remove}
+                      className="text-ink-muted hover:bg-error-tint hover:text-error"
+                      onClick={() =>
+                        setValue(
+                          "availability",
+                          rows.filter((_, index) => index !== i),
+                          { shouldValidate: true },
+                        )
+                      }
+                    >
+                      <Trash2 aria-hidden />
+                    </Button>
+                  </div>
+                  {message ? (
+                    <p role="alert" className="t-caption text-error">
+                      {message}
+                    </p>
+                  ) : null}
                 </div>
-              ))}
-              <Form.ErrorList errors={errors} />
-              <Button icon={<Plus size={15} />} onClick={() => add({})} className="self-start">
-                {dict.addHours}
-              </Button>
-            </div>
-          )}
-        </Form.List>
-      </Form>
-    </Modal>
+              );
+            })}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => setValue("availability", [...rows, { ...BLANK_ROW }])}
+            >
+              <Plus aria-hidden />
+              {dict.addHours}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </ResponsiveDialog>
   );
 }

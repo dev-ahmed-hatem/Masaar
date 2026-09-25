@@ -135,7 +135,15 @@ export default function NotificationsBell({
         className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-[var(--brand-tint)]"
         style={{ color: "var(--ink-muted)", border: "1px solid var(--border-strong)" }}
       >
-        <Badge count={count} size="small" offset={[2, -2]} color="var(--brand)">
+        <Badge
+          count={count}
+          size="small"
+          offset={[2, -2]}
+          color="var(--brand)"
+          /* antd draws the count in white; on the dark theme's mint brand that
+             is 2.44:1. The class pairs it with the audited on-brand ink. */
+          className="bell-count"
+        >
           <Bell size={17} />
         </Badge>
       </button>

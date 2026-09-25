@@ -16,7 +16,7 @@ export default async function TeacherLessonsPage({
 
   return (
     <RouteGuard locale={locale} allow={["TEACHER"]}>
-      <LessonsManager dict={d.bookings} locale={locale} />
+      <LessonsManager dict={d.bookings} browseDict={d.browse} locale={locale} />
     </RouteGuard>
   );
 }

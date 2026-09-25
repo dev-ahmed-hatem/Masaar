@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import dayjs from "dayjs";
-import { Alert, Button, Spin } from "antd";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { StatusTag } from "@/components/bookings/shared";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { listBookings, type Booking } from "@/lib/bookings";
+import { cn } from "@/lib/cn";
 import { stageCardTitle, type WeeklyWindow } from "@/lib/stage-cards";
 import { teacherSelf } from "@/lib/teacher-self";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Dict = Dictionary["teacherCalendar"];
 type BookingsDict = Dictionary["bookings"];
@@ -21,13 +25,28 @@ interface CalendarRule extends WeeklyWindow {
   stage: string;
 }
 
-/** Weeks start on Saturday (common school-week start in EG/SA). */
+/** Weeks start on Saturday (the school week in EG/SA). */
 const WEEK_START_DOW = 6;
 
-function startOfWeek(d: dayjs.Dayjs): dayjs.Dayjs {
-  const day = d.day(); // 0=Sun … 6=Sat
-  const diff = (day - WEEK_START_DOW + 7) % 7;
-  return d.subtract(diff, "day").startOf("day");
+function startOfWeek(from: Date): Date {
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() - WEEK_START_DOW + 7) % 7));
+  return d;
+}
+
+function addDays(from: Date, days: number): Date {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 export default function CalendarView({
@@ -39,7 +58,7 @@ export default function CalendarView({
   bookingsDict: BookingsDict;
   locale: string;
 }) {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(dayjs()));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [rules, setRules] = useState<CalendarRule[] | null>(null);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,166 +79,210 @@ export default function CalendarView({
       )
       .catch(() => {
         setRules([]);
-        setError(bookingsDict.loadError);
+        setError(dict.loadError);
       });
-  }, [bookingsDict.loadError, locale]);
+  }, [dict.loadError, locale]);
 
   const loadBookings = useCallback(
-    (showSpinner: boolean) => {
-      if (showSpinner) setBookings(null);
+    (showSkeleton: boolean) => {
+      if (showSkeleton) setBookings(null);
       return listBookings(undefined, {
         from: weekStart.toISOString(),
-        to: weekStart.add(7, "day").toISOString(),
+        to: addDays(weekStart, 7).toISOString(),
         page_size: 100,
       })
         .then((res) => setBookings(res.results))
         .catch(() => {
           setBookings([]);
-          setError(bookingsDict.loadError);
+          setError(dict.loadError);
         });
     },
-    [weekStart, bookingsDict.loadError],
+    [weekStart, dict.loadError],
   );
 
   useEffect(() => {
     loadBookings(true);
   }, [loadBookings]);
 
-  // Reflect student-initiated reschedules/cancels on the open tab (no spinner).
+  // Reflect student-initiated reschedules/cancels on the open tab (no skeleton).
   const refresh = useCallback(() => loadBookings(false), [loadBookings]);
   useRefreshOnFocus(refresh);
 
   const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day")),
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart],
   );
 
   const loading = rules == null || bookings == null;
+  const today = new Date();
 
-  const rulesFor = (day: dayjs.Dayjs) =>
+  const rulesFor = (day: Date) =>
     (rules ?? [])
-      .filter((r) => r.weekday === ((day.day() + 6) % 7))
+      // Rule weekdays are Monday-first; JS is Sunday-first.
+      .filter((r) => r.weekday === (day.getDay() + 6) % 7)
       .sort((a, b) => a.start_time.localeCompare(b.start_time));
-  const bookingsFor = (day: dayjs.Dayjs) =>
+
+  const bookingsFor = (day: Date) =>
     (bookings ?? [])
       // Cancelled/declined lessons free their slot, so don't render them as busy.
       .filter((b) => b.status !== "CANCELLED" && b.status !== "DECLINED")
-      .filter((b) => dayjs(b.scheduled_start).isSame(day, "day"))
+      .filter((b) => sameDay(new Date(b.scheduled_start), day))
       .sort((a, b) => a.scheduled_start.localeCompare(b.scheduled_start));
 
-  if (error) return <Alert type="error" showIcon message={error} />;
+  const rangeLabel = `${weekStart.toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+  })} – ${addDays(weekStart, 6).toLocaleDateString(locale, { month: "short", day: "numeric" })}`;
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-            {dict.title}
-          </h1>
-          <p className="mt-1 text-sm sm:text-base" style={{ color: "var(--ink-muted)" }}>
-            {dict.intro}
-          </p>
+    <section className="flex flex-col gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <h1 className="t-h1 text-ink">{dict.title}</h1>
+          <p className="max-w-2xl t-body text-ink-muted">{dict.intro}</p>
         </div>
+
         <div className="flex items-center gap-2">
-          <Button onClick={() => setWeekStart((w) => w.subtract(7, "day"))}>‹</Button>
-          <Button onClick={() => setWeekStart(startOfWeek(dayjs()))}>{dict.today}</Button>
-          <Button onClick={() => setWeekStart((w) => w.add(7, "day"))}>›</Button>
-          <span className="ms-2 text-sm font-medium" style={{ color: "var(--ink-muted)" }}>
-            {weekStart.toDate().toLocaleDateString(locale, { month: "short", day: "numeric" })} –{" "}
-            {weekStart.add(6, "day").toDate().toLocaleDateString(locale, {
-              month: "short",
-              day: "numeric",
-            })}
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={dict.prevWeek}
+            onClick={() => setWeekStart((w) => addDays(w, -7))}
+          >
+            <ChevronLeft className="rtl:-scale-x-100" aria-hidden />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date()))}>
+            {dict.today}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={dict.nextWeek}
+            onClick={() => setWeekStart((w) => addDays(w, 7))}
+          >
+            <ChevronRight className="rtl:-scale-x-100" aria-hidden />
+          </Button>
+          <span dir="auto" className="ms-1 t-small font-medium text-ink-muted">
+            {rangeLabel}
           </span>
         </div>
-      </div>
+      </header>
+
+      {error ? <Alert variant="error" title={error} /> : null}
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Spin />
+        <div className="grid gap-3 lg:grid-cols-7" aria-busy>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-card lg:h-64" />
+          ))}
         </div>
       ) : (
         <>
-          {/* Mobile: agenda / day list */}
+          {/* Mobile: a day-by-day agenda. A 7-column grid is unreadable at 390px. */}
           <div className="flex flex-col gap-3 lg:hidden">
             {days.map((day) => {
-              const dRules = rulesFor(day);
-              const dBookings = bookingsFor(day);
-              const isToday = day.isSame(dayjs(), "day");
+              const dayRules = rulesFor(day);
+              const dayBookings = bookingsFor(day);
+              const isToday = sameDay(day, today);
               return (
-                <div key={day.toString()} className="surface p-4">
+                <Card key={day.toISOString()} className={cn("p-4", isToday && "border-brand/40")}>
                   <div className="mb-2 flex items-baseline gap-2">
-                    <span className="text-base font-bold" style={{ color: isToday ? "var(--brand)" : "var(--ink)" }}>
-                      {day.toDate().toLocaleDateString(locale, { weekday: "long" })}
+                    <span
+                      className={cn("t-body font-bold", isToday ? "text-brand" : "text-ink")}
+                    >
+                      {day.toLocaleDateString(locale, { weekday: "long" })}
                     </span>
-                    <span className="text-sm" style={{ color: "var(--ink-faint)" }}>
-                      {day.toDate().toLocaleDateString(locale, { month: "short", day: "numeric" })}
+                    <span className="t-caption text-ink-faint">
+                      {day.toLocaleDateString(locale, { month: "short", day: "numeric" })}
                     </span>
                   </div>
-                  {dRules.length === 0 && dBookings.length === 0 ? (
-                    <span className="text-sm" style={{ color: "var(--ink-faint)" }}>—</span>
+
+                  {dayRules.length === 0 && dayBookings.length === 0 ? (
+                    <span className="t-small text-ink-faint">{dict.nothingToday}</span>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {dRules.length > 0 && (
+                      {dayRules.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {dRules.map((r) => (
+                          {dayRules.map((r) => (
                             <AvailChip key={r.key} rule={r} />
                           ))}
                         </div>
-                      )}
-                      {dBookings.map((b) => (
-                        <BookingItem key={b.id} booking={b} locale={locale} bookingsDict={bookingsDict} />
+                      ) : null}
+                      {dayBookings.map((b) => (
+                        <BookingItem
+                          key={b.id}
+                          booking={b}
+                          locale={locale}
+                          bookingsDict={bookingsDict}
+                        />
                       ))}
                     </div>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>
 
-          {/* Desktop: week grid */}
-          <div className="surface hidden overflow-hidden lg:block">
+          {/* Desktop: the week at a glance. */}
+          <Card className="hidden overflow-hidden lg:block">
             <div className="grid grid-cols-7">
-              {days.map((day) => {
-                const isToday = day.isSame(dayjs(), "day");
+              {days.map((day, i) => {
+                const isToday = sameDay(day, today);
                 return (
                   <div
-                    key={day.toString()}
-                    className="flex min-h-64 flex-col gap-2 p-3"
-                    style={{
-                      borderInlineEnd: "1px solid var(--border)",
-                      background: isToday ? "var(--brand-tint)" : "transparent",
-                    }}
+                    key={day.toISOString()}
+                    className={cn(
+                      "flex min-h-64 flex-col gap-2 p-3",
+                      i < 6 && "border-e border-border",
+                      isToday && "bg-brand-tint",
+                    )}
                   >
                     <div className="text-center">
-                      <div className="text-xs font-medium uppercase" style={{ color: "var(--ink-muted)" }}>
-                        {day.toDate().toLocaleDateString(locale, { weekday: "short" })}
+                      <div className="t-overline text-ink-muted">
+                        {day.toLocaleDateString(locale, { weekday: "short" })}
                       </div>
-                      <div className="text-lg font-bold" style={{ color: isToday ? "var(--brand)" : "var(--ink)" }}>
-                        {day.date()}
+                      <div
+                        className={cn(
+                          "font-display text-lg font-bold",
+                          isToday ? "text-on-brand-tint" : "text-ink",
+                        )}
+                      >
+                        {day.getDate()}
                       </div>
                     </div>
                     {rulesFor(day).map((r) => (
                       <AvailChip key={r.key} rule={r} />
                     ))}
                     {bookingsFor(day).map((b) => (
-                      <BookingItem key={b.id} booking={b} locale={locale} bookingsDict={bookingsDict} />
+                      <BookingItem
+                        key={b.id}
+                        booking={b}
+                        locale={locale}
+                        bookingsDict={bookingsDict}
+                      />
                     ))}
                   </div>
                 );
               })}
             </div>
-          </div>
+          </Card>
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-4 text-sm" style={{ color: "var(--ink-muted)" }}>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 t-small text-ink-muted">
         <span className="inline-flex items-center gap-2">
           <span
-            className="inline-block h-3 w-6 rounded"
-            style={{ background: "var(--brand-tint)", border: "1px dashed var(--brand)" }}
+            aria-hidden
+            className="inline-block h-3 w-6 rounded-control border border-dashed border-brand bg-brand-tint"
           />
           {dict.legendAvailability}
+        </span>
+        <span className="inline-flex items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-6 rounded-control border border-border bg-surface"
+          />
+          {dict.legendLesson}
         </span>
         <Link href={`/${locale}/teacher/profile`} className="link-brand font-semibold">
           {dict.editAvailability}
@@ -232,12 +295,15 @@ export default function CalendarView({
 function AvailChip({ rule }: { rule: CalendarRule }) {
   return (
     <div
-      className="rounded-md px-2 py-1 text-center text-[11px] font-medium"
-      style={{ background: "var(--brand-tint)", color: "var(--on-brand-tint)", border: "1px dashed var(--brand)" }}
       title={rule.stage}
+      className="rounded-control border border-dashed border-brand bg-brand-tint px-2 py-1 text-center t-caption font-medium text-on-brand-tint"
     >
-      <div>{rule.start_time.slice(0, 5)}–{rule.end_time.slice(0, 5)}</div>
-      <div className="truncate opacity-80">{rule.stage}</div>
+      <div dir="ltr">
+        {rule.start_time.slice(0, 5)}–{rule.end_time.slice(0, 5)}
+      </div>
+      <div dir="auto" className="truncate opacity-80">
+        {rule.stage}
+      </div>
     </div>
   );
 }
@@ -254,12 +320,16 @@ function BookingItem({
   return (
     <Link
       href={`/${locale}/teacher/lessons`}
-      className="item-hover block rounded-md px-2 py-1.5 text-xs"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+      className="block rounded-control border border-border bg-surface px-2 py-1.5 transition-[border-color,box-shadow] hover:border-brand/40 hover:shadow-sm"
     >
-      <div className="font-semibold" style={{ color: "var(--ink)" }}>
-        {new Date(booking.scheduled_start).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} ·{" "}
-        {booking.student_name}
+      <div className="t-caption font-semibold text-ink">
+        <bdi>
+          {new Date(booking.scheduled_start).toLocaleTimeString(locale, {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </bdi>{" "}
+        · <bdi>{booking.student_name}</bdi>
       </div>
       <div className="mt-1">
         <StatusTag dict={bookingsDict} status={booking.status} />
