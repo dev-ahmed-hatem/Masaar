@@ -251,7 +251,10 @@
     "recommended": "Recommended for you",
     "quickTopUp": "Top up wallet",
     "viewAll": "View all",
-    "loadError": "Could not load your dashboard."
+    "loadError": "Could not load your dashboard.",
+    "searchAction": "Search",
+    "statsTitle": "Your learning",
+    "noRecommended": "No teachers to suggest in your country yet."
   },
   "favorites": {
     "title": "Saved teachers",
@@ -259,7 +262,11 @@
     "empty": "You haven't saved any teachers yet.",
     "browseCta": "Find teachers",
     "remove": "Remove",
-    "loadError": "Could not load your favorites."
+    "loadError": "Could not load your favorites.",
+    "removed": "Removed from your saved teachers.",
+    "removeError": "Could not remove that teacher. Please try again.",
+    "emptyHint": "Tap the heart on a teacher's profile to keep them here.",
+    "retry": "Try again"
   },
   "profile": {
     "title": "Profile & settings",
@@ -290,7 +297,12 @@
     "reviewFor": "Review for {teacher}",
     "noReviews": "You haven't written any reviews yet.",
     "loadError": "Could not load your profile.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "noReviewsCta": "See your lessons",
+    "accountIntro": "How your name and language appear across Wisal.",
+    "learningIntro": "Helps us put the right teachers in front of you.",
+    "securityIntro": "Choose a password you don't use anywhere else.",
+    "reviewsIntro": "The reviews you've written for your teachers."
   },
   "landing": {
     "subtitle": "Live 1-on-1 lessons across the Arab world",
@@ -957,7 +969,11 @@
     "sending": "Sending…",
     "sendFailed": "Not delivered",
     "retry": "Retry",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "introStudent": "Talk to your teachers before and after a lesson.",
+    "noThreadsStudent": "No conversations yet. Open a teacher's profile to send the first message.",
+    "threads": "Conversations",
+    "unreadCount": "{n} unread"
   },
   "notifications": {
     "title": "Notifications",

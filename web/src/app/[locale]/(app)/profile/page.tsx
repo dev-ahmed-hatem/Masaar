@@ -18,7 +18,12 @@ export default async function ProfilePage({
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
       <Suspense fallback={null}>
-        <ProfileView dict={d.profile} gcal={d.googleCalendar} locale={locale} />
+        <ProfileView
+          dict={d.profile}
+          authDict={d.auth}
+          gcal={d.googleCalendar}
+          locale={locale}
+        />
       </Suspense>
     </RouteGuard>
   );

@@ -33,6 +33,7 @@ export default async function TeachersPage({
       locale={locale}
       initialStage={num(sp.stage)}
       initialSubject={num(sp.subject)}
+      initialName={typeof sp.q === "string" ? sp.q : undefined}
     />
   );
 }

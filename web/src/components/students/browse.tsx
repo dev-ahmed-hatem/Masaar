@@ -66,12 +66,15 @@ export default function StudentBrowse({
   locale,
   initialStage,
   initialSubject,
+  initialName,
 }: {
   dict: Dict;
   locale: Locale;
   /** Pre-applied filters, deep-linked from the landing hero search. */
   initialStage?: number;
   initialSubject?: number;
+  /** Free-text name, deep-linked from the dashboard search (?q=). */
+  initialName?: string;
 }) {
   const ar = locale === "ar";
   const { user } = useAuth();
@@ -84,8 +87,10 @@ export default function StudentBrowse({
   // anonymous visitors browse the market we guess for them.
   const lockedMarket = user?.market ?? null;
   const [market, setMarket] = useState<string>(lockedMarket ?? "EG");
-  const [name, setName] = useState("");
-  const [nameQuery, setNameQuery] = useState(""); // debounced value sent to the API
+  const [name, setName] = useState(initialName ?? "");
+  // Seeded from the deep link too, so the first fetch is already filtered and
+  // the debounce below doesn't cause a second, unfiltered request.
+  const [nameQuery, setNameQuery] = useState(initialName ?? "");
   const [stage, setStage] = useState<number | undefined>(initialStage);
   const [track, setTrack] = useState<number | undefined>();
   const [subject, setSubject] = useState<number | undefined>(initialSubject);

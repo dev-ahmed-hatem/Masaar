@@ -15,7 +15,9 @@ export const TabsList = React.forwardRef<
     <TabsPrimitive.List
       ref={ref}
       className={cn(
-        "no-scrollbar inline-flex w-full items-center gap-1 overflow-x-auto rounded-pill bg-surface-2 p-1 sm:w-auto",
+        "no-scrollbar inline-flex w-full items-center gap-1 overflow-x-auto rounded-pill bg-surface-2 p-1",
+        /* As a flex child the list would stretch; from `sm` it sizes to its tabs. */
+        "sm:w-auto sm:self-start",
         className,
       )}
       {...props}

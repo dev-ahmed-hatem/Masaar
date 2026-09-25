@@ -25,9 +25,19 @@ import { Pagination } from "@/components/ui/pagination";
 import { RatingInput } from "@/components/ui/rating";
 import { ConfirmDialog, ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { SegmentedTabs } from "@/components/ui";
+
+/** Count pill inside a tab trigger — zero is left off rather than shown as 0. */
+function TabCount({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="inline-flex min-w-5 items-center justify-center rounded-pill bg-brand-tint px-1.5 t-caption font-bold text-on-brand-tint">
+      {n}
+    </span>
+  );
+}
 
 type Dict = Dictionary["myLessons"];
 type BookingsDict = Dictionary["bookings"];
@@ -188,17 +198,27 @@ export default function StudentLessons({
         <p className="max-w-2xl t-body text-ink-muted">{dict.intro}</p>
       </header>
 
-      <SegmentedTabs
+      <Tabs
         value={tab}
-        onChange={(v) => setTab(v as BookingGroup)}
-        options={[
-          { value: "upcoming", label: dict.tabUpcoming, badge: groups.upcoming.total },
-          { value: "requested", label: dict.tabRequested, badge: groups.requested.total },
-          { value: "past", label: dict.tabPast },
-        ]}
-      />
+        onValueChange={(v) => setTab(v as BookingGroup)}
+        className="flex flex-col gap-5"
+      >
+        <TabsList>
+          <TabsTrigger value="upcoming">
+            {dict.tabUpcoming}
+            <TabCount n={groups.upcoming.total} />
+          </TabsTrigger>
+          <TabsTrigger value="requested">
+            {dict.tabRequested}
+            <TabCount n={groups.requested.total} />
+          </TabsTrigger>
+          <TabsTrigger value="past">{dict.tabPast}</TabsTrigger>
+        </TabsList>
 
-      {renderList(tab)}
+        <TabsContent value="upcoming">{renderList("upcoming")}</TabsContent>
+        <TabsContent value="requested">{renderList("requested")}</TabsContent>
+        <TabsContent value="past">{renderList("past")}</TabsContent>
+      </Tabs>
 
       <ConfirmDialog
         open={cancelling != null}

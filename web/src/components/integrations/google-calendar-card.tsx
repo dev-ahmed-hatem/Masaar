@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { App, Button, Spin, Tag, Typography } from "antd";
-import { CalendarOutlined } from "@ant-design/icons";
+import { CalendarCheck, CalendarPlus } from "lucide-react";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { integrations, type GoogleStatus } from "@/lib/integrations";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 
 type Dict = Dictionary["googleCalendar"];
 
-const { Paragraph } = Typography;
-
 export default function GoogleCalendarCard({ dict, locale }: { dict: Dict; locale: Locale }) {
-  const { message } = App.useApp();
+  const toast = useToast();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -34,7 +36,7 @@ export default function GoogleCalendarCard({ dict, locale }: { dict: Dict; local
       window.location.href = auth_url;
     } catch (err) {
       const disabled = err instanceof ApiError && err.code === "integration_disabled";
-      message.error(disabled ? dict.unavailable : dict.error);
+      toast.error(disabled ? dict.unavailable : dict.error);
       setBusy(false);
     }
   };
@@ -43,57 +45,58 @@ export default function GoogleCalendarCard({ dict, locale }: { dict: Dict; local
     setBusy(true);
     try {
       setStatus(await integrations.googleDisconnect());
-      message.success(dict.disconnected);
+      toast.success(dict.disconnected);
     } catch {
-      message.error(dict.error);
+      toast.error(dict.error);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="surface p-5 sm:p-6">
-      <h2
-        className="mb-2 text-lg font-bold"
-        style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-      >
-        {dict.title}
-      </h2>
-      <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-        {dict.description}
-      </Paragraph>
+    <Card className="max-w-lg">
+      <CardHeader>
+        <CardTitle>{dict.title}</CardTitle>
+        <CardDescription>{dict.description}</CardDescription>
+      </CardHeader>
 
-      {loading ? (
-        <Spin />
-      ) : status?.connected ? (
-        <div className="flex flex-col gap-3">
-          <div>
+      <div className="p-5 pt-0">
+        {loading ? (
+          <Skeleton className="h-11 w-48" />
+        ) : status?.connected ? (
+          <div className="flex flex-col items-start gap-3">
             {status.sync_enabled ? (
-              <Tag color="green">
-                {status.google_email
-                  ? dict.connectedAs.replace("{email}", status.google_email)
-                  : dict.connected}
-              </Tag>
+              <Badge variant="success">
+                <CalendarCheck aria-hidden />
+                <bdi>
+                  {status.google_email
+                    ? dict.connectedAs.replace("{email}", status.google_email)
+                    : dict.connected}
+                </bdi>
+              </Badge>
             ) : (
-              <Tag color="orange">{dict.reconnectNeeded}</Tag>
+              /* The token was revoked or expired: the calendar is linked but no
+                 longer syncing, so the fix is to reconnect, not to disconnect. */
+              <Badge variant="warning">{dict.reconnectNeeded}</Badge>
             )}
-          </div>
-          <div className="flex gap-2">
-            {!status.sync_enabled && (
-              <Button type="primary" loading={busy} onClick={connect}>
-                {dict.connect}
+            <div className="flex flex-wrap gap-2">
+              {!status.sync_enabled ? (
+                <Button loading={busy} onClick={connect}>
+                  {dict.connect}
+                </Button>
+              ) : null}
+              <Button variant="outline" loading={busy} onClick={disconnect}>
+                {dict.disconnect}
               </Button>
-            )}
-            <Button danger loading={busy} onClick={disconnect}>
-              {dict.disconnect}
-            </Button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <Button type="primary" icon={<CalendarOutlined />} loading={busy} onClick={connect}>
-          {dict.connect}
-        </Button>
-      )}
-    </div>
+        ) : (
+          <Button loading={busy} onClick={connect}>
+            <CalendarPlus aria-hidden />
+            {dict.connect}
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }

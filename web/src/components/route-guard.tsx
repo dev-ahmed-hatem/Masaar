@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Spin } from "antd";
+import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import { homePathForRole, type Role } from "@/lib/auth";
@@ -42,8 +42,8 @@ export default function RouteGuard({
 
   if (!allowed) {
     return (
-      <div className="flex justify-center py-20">
-        <Spin />
+      <div className="flex justify-center py-20" role="status" aria-busy>
+        <Loader2 className="size-6 animate-spin text-brand" aria-hidden />
       </div>
     );
   }

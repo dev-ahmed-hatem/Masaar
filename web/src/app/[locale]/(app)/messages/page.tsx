@@ -16,7 +16,7 @@ export default async function StudentMessagesPage({
 
   return (
     <RouteGuard locale={locale} allow={["STUDENT"]}>
-      <MessagesView dict={d.chat} locale={locale} />
+      <MessagesView dict={d.chat} locale={locale} audience="student" />
     </RouteGuard>
   );
 }

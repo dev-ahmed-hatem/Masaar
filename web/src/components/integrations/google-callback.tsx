@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Result, Spin } from "antd";
+import { CalendarX, Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { integrations } from "@/lib/integrations";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty";
 
 type Dict = Dictionary["googleCalendar"];
 
@@ -48,23 +51,23 @@ export default function GoogleCallback({ dict, locale }: { dict: Dict; locale: L
   // Missing params (user landed here without a valid redirect) is an error too.
   if (failed || !code || !state) {
     return (
-      <Result
-        status="error"
-        title={dict.callbackError}
-        subTitle={reason ?? undefined}
-        extra={
-          <Button type="primary" onClick={() => router.replace(dest)}>
-            {dict.backToProfile}
-          </Button>
-        }
-      />
+      <Card className="mx-auto max-w-lg">
+        <EmptyState
+          icon={<CalendarX aria-hidden />}
+          title={dict.callbackError}
+          description={reason ?? undefined}
+          action={
+            <Button onClick={() => router.replace(dest)}>{dict.backToProfile}</Button>
+          }
+        />
+      </Card>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 py-20">
-      <Spin size="large" />
-      <p style={{ color: "var(--ink-faint)" }}>{dict.callbackTitle}</p>
+    <div className="flex flex-col items-center gap-4 py-20" role="status" aria-busy>
+      <Loader2 className="size-7 animate-spin text-brand" aria-hidden />
+      <p className="t-small text-ink-muted">{dict.callbackTitle}</p>
     </div>
   );
 }
