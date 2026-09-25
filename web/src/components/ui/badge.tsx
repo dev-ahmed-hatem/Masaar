@@ -13,7 +13,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         neutral: "bg-surface-2 text-ink-muted",
-        brand: "bg-brand-tint text-brand-dark",
+        brand: "bg-brand-tint text-on-brand-tint",
         solid: "bg-brand text-on-brand",
         /** Free-trial badge — the sanctioned amber usage. */
         trial: "bg-accent-tint text-accent-text",

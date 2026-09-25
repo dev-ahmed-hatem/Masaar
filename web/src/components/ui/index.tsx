@@ -25,7 +25,7 @@ export function PageHeader({
         {eyebrow && (
           <span
             className="mb-2 inline-block rounded-full px-3 py-1 text-xs font-semibold"
-            style={{ background: "var(--brand-tint)", color: "var(--brand-dark)" }}
+            style={{ background: "var(--brand-tint)", color: "var(--on-brand-tint)" }}
           >
             {eyebrow}
           </span>
@@ -44,24 +44,6 @@ export function PageHeader({
   );
 }
 
-/** Gradient-text section heading for marketing / dashboard sections. */
-export function SectionHeading({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <h2
-      className={cn("gradient-text text-2xl font-bold tracking-tight sm:text-3xl", className)}
-      style={{ fontFamily: "var(--font-display)" }}
-    >
-      {children}
-    </h2>
-  );
-}
-
 /** A bordered card surface. Wrap a table so it reads as one panel. */
 export function Panel({
   toolbar,
@@ -76,90 +58,6 @@ export function Panel({
     <div className={cn("ui-panel", className)}>
       {toolbar && <div className="ui-panel__toolbar">{toolbar}</div>}
       {children}
-    </div>
-  );
-}
-
-/** Frosted glass card — for hero/dashboard highlight surfaces. */
-export function GlassCard({
-  children,
-  className,
-  interactive,
-}: {
-  children: ReactNode;
-  className?: string;
-  interactive?: boolean;
-}) {
-  return (
-    <div
-      className={cn("glass rounded-3xl p-6", interactive && "surface-hover", className)}
-      style={{ boxShadow: "var(--shadow-md)" }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Rounded gradient-tinted container for an icon. */
-export function IconChip({
-  children,
-  size = 44,
-  variant = "gradient",
-}: {
-  children: ReactNode;
-  size?: number;
-  variant?: "gradient" | "soft";
-}) {
-  const gradient = variant === "gradient";
-  return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded-2xl"
-      style={{
-        width: size,
-        height: size,
-        background: gradient ? "var(--grad-brand)" : "var(--brand-tint)",
-        color: gradient ? "#fff" : "var(--brand)",
-        boxShadow: gradient ? "var(--glow)" : "none",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-/** Dashboard stat tile: icon chip + big value + label + optional hint. */
-export function StatCard({
-  icon,
-  label,
-  value,
-  hint,
-  accent,
-}: {
-  icon?: ReactNode;
-  label: ReactNode;
-  value: ReactNode;
-  hint?: ReactNode;
-  accent?: string;
-}) {
-  return (
-    <div className="surface surface-hover flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>
-          {label}
-        </span>
-        {icon && <IconChip size={38}>{icon}</IconChip>}
-      </div>
-      <div
-        className="text-3xl font-bold tracking-tight"
-        style={{ color: accent ?? "var(--ink)", fontFamily: "var(--font-display)" }}
-      >
-        {value}
-      </div>
-      {hint && (
-        <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
-          {hint}
-        </span>
-      )}
     </div>
   );
 }
@@ -190,38 +88,6 @@ export function DetailRow({ label, value }: { label: ReactNode; value: ReactNode
         {label}
       </span>
       <span className="text-end text-sm font-medium">{value}</span>
-    </div>
-  );
-}
-
-/** Empty / zero-state with an icon chip, title and optional action. */
-export function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon?: ReactNode;
-  title: ReactNode;
-  description?: ReactNode;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-      {icon && (
-        <IconChip size={56} variant="soft">
-          {icon}
-        </IconChip>
-      )}
-      <div className="text-base font-semibold" style={{ color: "var(--ink)" }}>
-        {title}
-      </div>
-      {description && (
-        <p className="max-w-sm text-sm" style={{ color: "var(--ink-muted)" }}>
-          {description}
-        </p>
-      )}
-      {action}
     </div>
   );
 }
@@ -287,7 +153,7 @@ export function SegmentedTabs({
             {o.badge != null && o.badge > 0 && (
               <span
                 className="inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold"
-                style={{ background: "var(--brand-tint)", color: "var(--brand-dark)" }}
+                style={{ background: "var(--brand-tint)", color: "var(--on-brand-tint)" }}
               >
                 {o.badge}
               </span>

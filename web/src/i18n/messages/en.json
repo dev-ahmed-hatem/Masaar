@@ -120,7 +120,22 @@
     "stagesTitle": "Stages & prices",
     "stageLabel": "Stage",
     "chooseStage": "Choose a stage",
-    "seeTimes": "See times"
+    "seeTimes": "See times",
+    "searchSubjects": "Search subjects",
+    "noMatches": "No matching subjects.",
+    "clearSelection": "Clear selection",
+    "removeFilter": "Remove filter",
+    "retry": "Try again",
+    "emptyHint": "Try removing a filter, or search for a different subject.",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "anyRating": "Any rating",
+    "ratingAndUp": "{n} stars and up",
+    "readMore": "Read more",
+    "readLess": "Show less",
+    "trustVetted": "Qualifications checked and interviewed by our team",
+    "trustCancel": "Free cancellation up to 24 hours before the lesson",
+    "freeTrialBadge": "Free trial"
   },
   "wallet": {
     "title": "Wallet",

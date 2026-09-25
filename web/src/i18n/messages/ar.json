@@ -120,7 +120,22 @@
     "stagesTitle": "المراحل والأسعار",
     "stageLabel": "المرحلة",
     "chooseStage": "اختر المرحلة",
-    "seeTimes": "عرض المواعيد"
+    "seeTimes": "عرض المواعيد",
+    "searchSubjects": "ابحث في المواد",
+    "noMatches": "لا توجد مواد مطابقة.",
+    "clearSelection": "إلغاء الاختيار",
+    "removeFilter": "إزالة الفلتر",
+    "retry": "إعادة المحاولة",
+    "emptyHint": "جرّب إزالة أحد الفلاتر أو البحث عن مادة أخرى.",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "anyRating": "أي تقييم",
+    "ratingAndUp": "{n} نجوم وأكثر",
+    "readMore": "قراءة المزيد",
+    "readLess": "عرض أقل",
+    "trustVetted": "تم التحقق من مؤهلاته ومقابلته من قِبل فريقنا",
+    "trustCancel": "إلغاء مجاني حتى 24 ساعة قبل بدء الدرس",
+    "freeTrialBadge": "درس تجريبي مجاني"
   },
   "wallet": {
     "title": "المحفظة",

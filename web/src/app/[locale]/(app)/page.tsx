@@ -59,7 +59,7 @@ export default async function LandingPage({
       {/* ---------- Hero ---------- */}
       <section className="pattern-bg grid items-center gap-10 rounded-hero py-4 lg:grid-cols-2 lg:gap-14 lg:py-8">
         <div>
-          <span className="inline-block rounded-pill bg-brand-tint px-3.5 py-1.5 t-caption font-semibold text-brand-dark">
+          <span className="inline-block rounded-pill bg-brand-tint px-3.5 py-1.5 t-caption font-semibold text-on-brand-tint">
             {L.subtitle}
           </span>
 

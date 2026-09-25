@@ -233,7 +233,7 @@ function AvailChip({ rule }: { rule: CalendarRule }) {
   return (
     <div
       className="rounded-md px-2 py-1 text-center text-[11px] font-medium"
-      style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", border: "1px dashed var(--brand)" }}
+      style={{ background: "var(--brand-tint)", color: "var(--on-brand-tint)", border: "1px dashed var(--brand)" }}
       title={rule.stage}
     >
       <div>{rule.start_time.slice(0, 5)}–{rule.end_time.slice(0, 5)}</div>

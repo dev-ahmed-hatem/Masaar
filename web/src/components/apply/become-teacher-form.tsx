@@ -123,7 +123,7 @@ export default function BecomeTeacherForm({
       <div className="text-center">
         <span
           className="inline-block rounded-full px-3 py-1 text-xs font-medium"
-          style={{ background: "var(--brand-tint)", color: "var(--brand-dark)" }}
+          style={{ background: "var(--brand-tint)", color: "var(--on-brand-tint)" }}
         >
           {dict.badge}
         </span>

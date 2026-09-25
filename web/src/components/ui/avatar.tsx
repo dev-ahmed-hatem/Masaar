@@ -35,7 +35,7 @@ export function Avatar({ className, size, shape, src, name, ...props }: AvatarPr
         <AvatarPrimitive.Image src={src} alt={name ?? ""} className="size-full object-cover" />
       ) : null}
       <AvatarPrimitive.Fallback
-        className="text-brand-dark flex size-full items-center justify-center font-display font-bold"
+        className="text-on-brand-tint flex size-full items-center justify-center font-display font-bold"
         /* No delay: teachers without a photo should not flash an empty box. */
         delayMs={src ? 300 : 0}
       >

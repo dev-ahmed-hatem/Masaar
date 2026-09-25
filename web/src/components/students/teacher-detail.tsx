@@ -3,32 +3,23 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  App,
-  Avatar,
-  Button,
-  Modal,
-  Rate,
-  Select,
-  Spin,
-  Switch,
-  Tag,
-  Typography,
-} from "antd";
+import { Alert as AntAlert, App, Modal, Select as AntSelect, Switch } from "antd";
 import {
   ArrowLeft,
   Award,
   BookOpen,
   Briefcase,
   CalendarDays,
+  CalendarX,
   GraduationCap,
   Heart,
   MessageCircle,
   PlayCircle,
   Share2,
+  ShieldCheck,
   Sparkles,
   Star,
+  UserX,
 } from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
@@ -37,18 +28,32 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError, apiAuthed } from "@/lib/api";
 import { createBooking } from "@/lib/bookings";
 import { chatApi } from "@/lib/chat";
+import { cn } from "@/lib/cn";
 import { addFavorite, listFavorites, removeFavorite } from "@/lib/favorites";
 import { refName, stageCardTitle, type StageCard } from "@/lib/stage-cards";
 import type { Paginated } from "@/lib/teachers";
-import { getTeacher, type TeacherDetail as Teacher } from "@/lib/teachers";
+import { getTeacher, languageName, type TeacherDetail as Teacher } from "@/lib/teachers";
 import { DetailRow } from "@/components/ui";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty";
+import { Rating } from "@/components/ui/rating";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import TeacherSchedule from "@/components/students/teacher-schedule";
 import StageCardSummary from "@/components/teaching/stage-card-summary";
 
 type Dict = Dictionary["browse"];
 type CardsDict = Dictionary["stageCards"];
-
-const { Paragraph, Text } = Typography;
 
 const SCHEDULE_ID = "teacher-schedule";
 
@@ -187,13 +192,21 @@ export default function TeacherDetail({
     document.getElementById(SCHEDULE_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  if (loading) return <div className="flex justify-center py-24"><Spin /></div>;
+  if (loading) return <DetailSkeleton />;
+
   if (notFound || !teacher) {
     return (
-      <section className="flex flex-col items-center gap-4 py-20">
-        <Text type="secondary">{dict.notFound}</Text>
-        <Link href={`/${locale}/teachers`} className="btn btn-ghost">{dict.backToList}</Link>
-      </section>
+      <Card>
+        <EmptyState
+          icon={<UserX aria-hidden />}
+          title={dict.notFound}
+          action={
+            <Button variant="outline" asChild>
+              <Link href={`/${locale}/teachers`}>{dict.backToList}</Link>
+            </Button>
+          }
+        />
+      </Card>
     );
   }
 
@@ -201,88 +214,128 @@ export default function TeacherDetail({
   const rating = Number(teacher.rating_avg);
   const topRated = rating >= 4.8 && teacher.rating_count >= 10;
   const videoId = teacher.intro_video_url ? youtubeId(teacher.intro_video_url) : null;
+  const langs = teacher.languages
+    .filter(Boolean)
+    .map((code) => ({ code, label: languageName(code, dict) }));
 
   return (
     <section className="flex flex-col gap-6">
-      <Link href={`/${locale}/teachers`} className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--ink-muted)" }}>
-        <ArrowLeft size={15} className="rtl:-scale-x-100" />
+      <Link
+        href={`/${locale}/teachers`}
+        className="link-quiet inline-flex w-fit items-center gap-1.5 t-small font-semibold"
+      >
+        <ArrowLeft className="size-4 rtl:-scale-x-100" aria-hidden />
         {dict.backToList}
       </Link>
 
+      {/* Three grid children, not two: the hero stays above the booking card on
+          mobile (who before how much), while on lg the sidebar still rises to
+          the top of the page and sticks. */}
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Main column */}
-        <div className="flex min-w-0 flex-col gap-6">
-          {/* Hero */}
-          <div className="surface flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
-            <Avatar size={96} src={teacher.photo_url ?? undefined} className="shrink-0" style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700, fontSize: 34 }}>
-              {(teacher.full_name || "?").trim().charAt(0).toUpperCase()}
-            </Avatar>
-            <div className="flex flex-1 flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-                  {teacher.full_name}
-                </h1>
-                {topRated && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: "var(--brand-tint)", color: "var(--brand-dark)" }}>
-                    <Star size={12} fill="currentColor" />
-                    {dict.topRated}
+        {/* Hero */}
+        <Card className="overflow-hidden lg:col-start-1 lg:row-start-1">
+          {/* A thin geometry band instead of a stock cover photo. */}
+          <div className="pattern-bg h-16 border-b border-border sm:h-20" aria-hidden />
+          <div className="flex flex-col gap-4 p-5 sm:p-6">
+            <div className="-mt-12 flex flex-wrap items-end gap-4 sm:-mt-14">
+              <Avatar
+                src={teacher.photo_url}
+                name={teacher.full_name}
+                className="size-24 text-3xl ring-4 ring-surface sm:size-28"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5 pb-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 dir="auto" className="t-h2 text-ink">{teacher.full_name}</h1>
+                  {topRated ? (
+                    <Badge variant="brand">
+                      <Star className="fill-current" aria-hidden />
+                      {dict.topRated}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Rating value={rating || 0} display="stars" size="sm" />
+                  <span className="t-small text-ink-muted">
+                    {rating > 0 ? rating.toFixed(1) : "—"} ·{" "}
+                    {dict.reviewsCount.replace("{n}", String(teacher.rating_count))}
                   </span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Rate disabled allowHalf value={rating} style={{ fontSize: 15 }} />
-                <Text type="secondary">
-                  {rating.toFixed(1)} · {dict.reviewsCount.replace("{n}", String(teacher.rating_count))} · {teacher.lessons_count} {dict.lessons}
-                </Text>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {teacher.languages.filter(Boolean).map((l) => (
-                  <Tag key={l} bordered={false} style={{ background: "var(--surface-2)" }}>{l}</Tag>
-                ))}
-                {teacher.free_lessons_offered > 0 && (
-                  <Tag color="green" bordered={false}>
-                    {dict.freeLessons.replace("{n}", String(teacher.free_lessons_offered))}
-                  </Tag>
-                )}
-              </div>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {canAct && (
-                  <Button
-                    icon={<Heart size={15} fill={isFav ? "currentColor" : "none"} />}
-                    onClick={onToggleFav}
-                    style={isFav ? { color: "var(--brand)", borderColor: "var(--brand)" } : undefined}
-                  >
-                    {isFav ? dict.saved : dict.save}
-                  </Button>
-                )}
-                <Button icon={<Share2 size={15} />} onClick={onShare}>{dict.share}</Button>
+                  <span className="inline-flex items-center gap-1 t-small text-ink-muted">
+                    <GraduationCap className="size-4" aria-hidden />
+                    {teacher.lessons_count} {dict.lessons}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
+            {(langs.length > 0 || teacher.free_lessons_offered > 0) && (
+              <div className="flex flex-wrap gap-1.5">
+                {langs.map((l) => (
+                  <Badge key={l.code} size="sm">{l.label}</Badge>
+                ))}
+                {teacher.free_lessons_offered > 0 ? (
+                  <Badge variant="trial" size="sm">
+                    {dict.freeLessons.replace("{n}", String(teacher.free_lessons_offered))}
+                  </Badge>
+                ) : null}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              {canAct ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleFav}
+                  aria-pressed={isFav}
+                  className={cn(isFav && "border-brand text-brand")}
+                >
+                  <Heart className={cn(isFav && "fill-current")} aria-hidden />
+                  {isFav ? dict.saved : dict.save}
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="sm" onClick={onShare}>
+                <Share2 aria-hidden />
+                {dict.share}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Booking sidebar — the focal point of the page */}
+        <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <BookingPanel
+            teacher={teacher}
+            dict={dict}
+            videoId={videoId}
+            signedIn={Boolean(user)}
+            messaging={messaging}
+            onMessage={onMessage}
+            onBook={scrollToSchedule}
+          />
+        </aside>
+
+        <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-2">
           {/* About */}
-          {bio && (
-            <Section icon={<BookOpen size={18} />} title={dict.aboutTitle}>
-              <Paragraph style={{ color: "var(--ink-muted)", whiteSpace: "pre-line", marginBottom: 0 }}>{bio}</Paragraph>
+          {bio ? (
+            <Section icon={<BookOpen aria-hidden />} title={dict.aboutTitle}>
+              <ExpandableText text={bio} more={dict.readMore} less={dict.readLess} />
             </Section>
-          )}
+          ) : null}
 
           {/* Specialties */}
-          {teacher.specialties.length > 0 && (
-            <Section icon={<Sparkles size={18} />} title={dict.specialtiesTitle}>
+          {teacher.specialties.length > 0 ? (
+            <Section icon={<Sparkles aria-hidden />} title={dict.specialtiesTitle}>
               <div className="flex flex-wrap gap-1.5">
                 {teacher.specialties.map((s, i) => (
-                  <Tag key={i} bordered={false} style={{ background: "var(--brand-tint)", color: "var(--brand-dark)", margin: 0 }}>
-                    {s}
-                  </Tag>
+                  <Badge key={i} variant="brand" dir="auto">{s}</Badge>
                 ))}
               </div>
             </Section>
-          )}
+          ) : null}
 
           {/* Stages & prices: each stage card's subjects, price, trials and hours */}
-          {teacher.stages.length > 0 && (
-            <Section icon={<GraduationCap size={18} />} title={dict.stagesTitle}>
+          {teacher.stages.length > 0 ? (
+            <Section icon={<GraduationCap aria-hidden />} title={dict.stagesTitle}>
               <div className="flex flex-col gap-3">
                 {teacher.stages.map((card) => (
                   <StageCardSummary
@@ -292,7 +345,8 @@ export default function TeacherDetail({
                     locale={locale}
                     actions={
                       isBookable(card) ? (
-                        <Button size="small" icon={<CalendarDays size={14} />} onClick={() => showStageTimes(card.id)}>
+                        <Button variant="outline" size="sm" onClick={() => showStageTimes(card.id)}>
+                          <CalendarDays aria-hidden />
                           {dict.seeTimes}
                         </Button>
                       ) : undefined
@@ -301,32 +355,34 @@ export default function TeacherDetail({
                 ))}
               </div>
             </Section>
-          )}
+          ) : null}
 
           {/* Schedule — the centerpiece */}
-          <div id={SCHEDULE_ID} className="surface p-5 sm:p-6">
-            <h2 className="mb-1 flex items-center gap-2 text-lg font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-              <CalendarDays size={18} />
-              {dict.scheduleTitle}
-            </h2>
-            <p className="mb-4 text-sm" style={{ color: "var(--ink-muted)" }}>{dict.scheduleIntro}</p>
-            {bookableStages.length > 1 && activeStage && (
-              <label className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.stageLabel}</span>
+          <Section id={SCHEDULE_ID} icon={<CalendarDays aria-hidden />} title={dict.scheduleTitle}>
+            <p className="-mt-2 mb-4 t-small text-ink-muted">{dict.scheduleIntro}</p>
+            {bookableStages.length > 1 && activeStage ? (
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="t-small font-semibold text-ink">{dict.stageLabel}</span>
                 <Select
-                  value={activeStage.id}
-                  onChange={(v) => {
-                    setPickedStageId(v);
+                  value={String(activeStage.id)}
+                  onValueChange={(v) => {
+                    setPickedStageId(Number(v));
                     setPickedStart(null);
                   }}
-                  style={{ minWidth: 220 }}
-                  options={bookableStages.map((c) => ({
-                    value: c.id,
-                    label: `${stageCardTitle(c, locale)} · ${c.price.display}`,
-                  }))}
-                />
-              </label>
-            )}
+                >
+                  <SelectTrigger aria-label={dict.chooseStage} className="w-auto min-w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bookableStages.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {`${stageCardTitle(c, locale)} · ${c.price.display}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <TeacherSchedule
               key={activeStage?.id ?? 0}
               teacherId={teacher.id}
@@ -337,12 +393,12 @@ export default function TeacherDetail({
               onMessage={onMessage}
               selected={pickedStart ?? undefined}
             />
-          </div>
+          </Section>
 
           {/* Education */}
-          {teacher.education.length > 0 && (
-            <Section icon={<GraduationCap size={18} />} title={dict.educationTitle}>
-              <div className="flex flex-col gap-3">
+          {teacher.education.length > 0 ? (
+            <Section icon={<GraduationCap aria-hidden />} title={dict.educationTitle}>
+              <ResumeList>
                 {teacher.education.map((e, i) => (
                   <ResumeItem
                     key={i}
@@ -352,14 +408,14 @@ export default function TeacherDetail({
                     description={e.description}
                   />
                 ))}
-              </div>
+              </ResumeList>
             </Section>
-          )}
+          ) : null}
 
           {/* Work experience */}
-          {teacher.work_experience.length > 0 && (
-            <Section icon={<Briefcase size={18} />} title={dict.experienceTitle}>
-              <div className="flex flex-col gap-3">
+          {teacher.work_experience.length > 0 ? (
+            <Section icon={<Briefcase aria-hidden />} title={dict.experienceTitle}>
+              <ResumeList>
                 {teacher.work_experience.map((e, i) => (
                   <ResumeItem
                     key={i}
@@ -369,14 +425,14 @@ export default function TeacherDetail({
                     description={e.description}
                   />
                 ))}
-              </div>
+              </ResumeList>
             </Section>
-          )}
+          ) : null}
 
           {/* Certifications */}
-          {teacher.certifications.length > 0 && (
-            <Section icon={<Award size={18} />} title={dict.certificationsTitle}>
-              <div className="flex flex-col gap-3">
+          {teacher.certifications.length > 0 ? (
+            <Section icon={<Award aria-hidden />} title={dict.certificationsTitle}>
+              <ResumeList>
                 {teacher.certifications.map((c, i) => (
                   <ResumeItem
                     key={i}
@@ -386,60 +442,21 @@ export default function TeacherDetail({
                     description={c.description}
                   />
                 ))}
-              </div>
+              </ResumeList>
             </Section>
-          )}
+          ) : null}
 
           {/* Reviews */}
-          <Section icon={<Star size={18} />} title={`${dict.reviews} (${teacher.reviews_summary.rating_count})`}>
+          <Section
+            icon={<Star aria-hidden />}
+            title={`${dict.reviews} (${teacher.reviews_summary.rating_count})`}
+          >
             <ReviewsSection teacherId={id} locale={locale} dict={dict} seed={teacher.recent_reviews} />
           </Section>
         </div>
-
-        {/* Sticky booking sidebar */}
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
-          <div className="surface overflow-hidden">
-            {videoId ? (
-              <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
-                <iframe
-                  className="absolute inset-0 h-full w-full"
-                  src={`https://www.youtube.com/embed/${videoId}`}
-                  title={teacher.full_name}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : teacher.intro_video_url ? (
-              <a href={teacher.intro_video_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-5 pt-5 text-sm font-semibold" style={{ color: "var(--brand)" }}>
-                <PlayCircle size={18} />
-                {dict.introVideo}
-              </a>
-            ) : null}
-
-            <div className="flex flex-col gap-3 p-5">
-              {teacher.from_price && (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold" style={{ color: "var(--ink)" }}>{teacher.from_price.display}</span>
-                  <span className="text-xs" style={{ color: "var(--ink-faint)" }}>{dict.perLesson}</span>
-                </div>
-              )}
-              {teacher.free_lessons_offered > 0 && (
-                <Tag color="green" bordered={false} style={{ width: "fit-content", margin: 0 }}>
-                  {dict.freeLessons.replace("{n}", String(teacher.free_lessons_offered))}
-                </Tag>
-              )}
-              <Button type="primary" size="large" icon={<CalendarDays size={16} />} onClick={scrollToSchedule}>
-                {user ? dict.bookLesson : dict.signInToBook}
-              </Button>
-              <Button size="large" icon={<MessageCircle size={16} />} loading={messaging} onClick={onMessage}>
-                {dict.message}
-              </Button>
-            </div>
-          </div>
-        </aside>
       </div>
 
-      {pickedStart && activeStage && (
+      {pickedStart && activeStage ? (
         <BookingModal
           stage={activeStage}
           startIso={pickedStart}
@@ -447,21 +464,162 @@ export default function TeacherDetail({
           locale={locale}
           onClose={() => setPickedStart(null)}
         />
-      )}
+      ) : null}
     </section>
   );
 }
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+/**
+ * Price, the two calls to action and the reasons to trust them. Sticky on
+ * desktop; on mobile it sits directly under the hero, above everything else.
+ */
+function BookingPanel({
+  teacher,
+  dict,
+  videoId,
+  signedIn,
+  messaging,
+  onMessage,
+  onBook,
+}: {
+  teacher: Teacher;
+  dict: Dict;
+  videoId: string | null;
+  signedIn: boolean;
+  messaging: boolean;
+  onMessage: () => void;
+  onBook: () => void;
+}) {
   return (
-    <div className="surface p-5 sm:p-6">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-        {icon}
+    <Card className="overflow-hidden lg:sticky lg:top-20">
+      {videoId ? (
+        <div className="relative w-full border-b border-border" style={{ aspectRatio: "16 / 9" }}>
+          <iframe
+            className="absolute inset-0 h-full w-full"
+            src={`https://www.youtube.com/embed/${videoId}`}
+            title={teacher.full_name}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      ) : teacher.intro_video_url ? (
+        <a
+          href={teacher.intro_video_url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 border-b border-border px-5 py-4 t-small font-semibold text-brand hover:underline"
+        >
+          <PlayCircle className="size-4" aria-hidden />
+          {dict.introVideo}
+        </a>
+      ) : null}
+
+      <div className="flex flex-col gap-4 p-5">
+        {teacher.from_price ? (
+          <div>
+            <div className="t-caption text-ink-faint">{dict.from}</div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display text-3xl font-bold leading-none text-ink">
+                {teacher.from_price.display}
+              </span>
+              <span className="t-caption text-ink-faint">{dict.perLesson}</span>
+            </div>
+          </div>
+        ) : null}
+
+        {teacher.free_lessons_offered > 0 ? (
+          <Badge variant="trial" className="w-fit">
+            {dict.freeLessons.replace("{n}", String(teacher.free_lessons_offered))}
+          </Badge>
+        ) : null}
+
+        <div className="flex flex-col gap-2">
+          {/* Amber is the conversion CTA and appears once per view. */}
+          <Button variant="accent" size="lg" block onClick={onBook}>
+            <CalendarDays aria-hidden />
+            {signedIn ? dict.bookLesson : dict.signInToBook}
+          </Button>
+          <Button variant="outline" size="lg" block loading={messaging} onClick={onMessage}>
+            <MessageCircle aria-hidden />
+            {dict.message}
+          </Button>
+        </div>
+
+        <Separator />
+
+        <ul className="flex flex-col gap-2.5">
+          <TrustLine icon={<ShieldCheck aria-hidden />}>{dict.trustVetted}</TrustLine>
+          <TrustLine icon={<CalendarX aria-hidden />}>{dict.trustCancel}</TrustLine>
+        </ul>
+      </div>
+    </Card>
+  );
+}
+
+function Section({
+  icon,
+  title,
+  id,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  id?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card id={id} className="p-5 sm:p-6">
+      <h2 className="mb-4 flex items-center gap-2.5 t-h3 text-ink">
+        <span className="grid size-9 shrink-0 place-items-center rounded-control bg-brand-tint text-on-brand-tint [&_svg]:size-4">
+          {icon}
+        </span>
         {title}
       </h2>
       {children}
+    </Card>
+  );
+}
+
+function TrustLine({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2.5 t-small text-ink-muted">
+      <span className="mt-0.5 shrink-0 text-brand [&_svg]:size-4">{icon}</span>
+      {children}
+    </li>
+  );
+}
+
+/**
+ * Long bios get clamped with a toggle. Bios run to several paragraphs and the
+ * schedule — the thing the page is for — should stay within reach.
+ */
+function ExpandableText({ text, more, less }: { text: string; more: string; less: string }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 420;
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <p
+        dir="auto"
+        className={cn("whitespace-pre-line t-body text-ink-muted", long && !open && "line-clamp-6")}
+      >
+        {text}
+      </p>
+      {long ? (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="link-brand t-small font-semibold"
+        >
+          {open ? less : more}
+        </button>
+      ) : null}
     </div>
   );
+}
+
+/** Résumé rail: a hairline with a node per entry — reads as a timeline. */
+function ResumeList({ children }: { children: React.ReactNode }) {
+  return <ol className="flex flex-col gap-5 border-s border-border ps-5">{children}</ol>;
 }
 
 function ResumeItem({
@@ -476,17 +634,50 @@ function ResumeItem({
   description: string;
 }) {
   return (
-    <div className="rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
+    <li className="relative">
+      <span
+        aria-hidden
+        className="absolute top-1.5 start-[-1.5625rem] size-2.5 rounded-full border-2 border-surface bg-brand"
+      />
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{title || subtitle}</span>
-        {meta && <span className="text-xs" style={{ color: "var(--ink-faint)" }}>{meta}</span>}
+        <span dir="auto" className="t-body font-semibold text-ink">{title || subtitle}</span>
+        {meta ? <span className="t-caption text-ink-faint">{meta}</span> : null}
       </div>
-      {title && subtitle && (
-        <div className="text-sm" style={{ color: "var(--ink-muted)" }}>{subtitle}</div>
-      )}
-      {description && (
-        <p className="mt-1 text-sm" style={{ color: "var(--ink-muted)", whiteSpace: "pre-line" }}>{description}</p>
-      )}
+      {title && subtitle ? (
+        <div dir="auto" className="t-small text-ink-muted">{subtitle}</div>
+      ) : null}
+      {description ? (
+        <p dir="auto" className="mt-1 whitespace-pre-line t-small text-ink-muted">{description}</p>
+      ) : null}
+    </li>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="flex flex-col gap-6">
+        <Card className="flex flex-col gap-4 p-6">
+          <div className="flex gap-4">
+            <Skeleton className="size-24 rounded-card" />
+            <div className="flex flex-1 flex-col gap-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </div>
+        </Card>
+        <Card className="flex flex-col gap-3 p-6">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+        </Card>
+      </div>
+      <Card className="flex flex-col gap-3 p-5">
+        <Skeleton className="h-8 w-28" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </Card>
     </div>
   );
 }
@@ -522,29 +713,42 @@ function ReviewsSection({
     }
   }
 
-  if (reviews.length === 0) return <Text type="secondary">{dict.noReviews}</Text>;
+  if (reviews.length === 0) {
+    return <p className="t-small text-ink-muted">{dict.noReviews}</p>;
+  }
 
   return (
     <div className="flex flex-col gap-3">
       {reviews.map((r) => (
-        <div key={r.id} className="rounded-xl p-4" style={{ border: "1px solid var(--border)" }}>
-          <div className="flex items-center gap-2">
-            <Rate disabled value={r.rating} style={{ fontSize: 13 }} />
-            <Text type="secondary" className="text-sm">{r.student_name}</Text>
+        <div key={r.id} className="rounded-card border border-border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Rating value={r.rating} display="stars" size="sm" />
+              <span dir="auto" className="t-small font-semibold text-ink">{r.student_name}</span>
+            </div>
+            <span className="t-caption text-ink-faint">
+              {new Date(r.created_at).toLocaleDateString(locale, { dateStyle: "medium" })}
+            </span>
           </div>
-          {r.text && <Paragraph style={{ marginBottom: 0, marginTop: 6 }}>{r.text}</Paragraph>}
-          <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
-            {new Date(r.created_at).toLocaleDateString(locale, { dateStyle: "medium" })}
-          </span>
+          {r.text ? (
+            <p dir="auto" className="mt-1.5 t-small text-ink-muted">{r.text}</p>
+          ) : null}
         </div>
       ))}
-      {hasNext && (
-        <Button loading={loading} onClick={loadMore} className="self-start">{dict.loadMore}</Button>
-      )}
+      {hasNext ? (
+        <Button variant="outline" size="sm" loading={loading} onClick={loadMore} className="self-start">
+          {dict.loadMore}
+        </Button>
+      ) : null}
     </div>
   );
 }
 
+/**
+ * Booking confirmation. Still antd: the modal, its error mapping and the
+ * mobile sheet variant are Phase 3 of the redesign, together with the slot
+ * calendar it opens from.
+ */
 function BookingModal({
   stage,
   startIso,
@@ -619,8 +823,8 @@ function BookingModal({
 
         {stage.subjects.length > 1 ? (
           <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium" style={{ color: "var(--ink-muted)" }}>{dict.chooseSubject}</span>
-            <Select
+            <span className="t-small font-medium text-ink-muted">{dict.chooseSubject}</span>
+            <AntSelect
               value={subjectId}
               onChange={setSubjectId}
               style={{ width: "100%" }}
@@ -631,27 +835,27 @@ function BookingModal({
           <DetailRow label={dict.subject} value={refName(stage.subjects[0], locale)} />
         )}
 
-        {stage.free_lessons_offered > 0 && (
+        {stage.free_lessons_offered > 0 ? (
           <label className="flex items-center gap-3">
             <Switch checked={isTrial} onChange={setIsTrial} />
-            <span className="text-sm" style={{ color: "var(--ink)" }}>{dict.trialToggle}</span>
+            <span className="t-small text-ink">{dict.trialToggle}</span>
           </label>
-        )}
+        ) : null}
 
         <DetailRow label={dict.priceLabel} value={<strong>{priceText}</strong>} />
 
-        {lowFunds && (
-          <Alert
+        {lowFunds ? (
+          <AntAlert
             type="warning"
             showIcon
             message={dict.errFunds}
             action={
-              <Link href={`/${locale}/wallet`} className="font-semibold" style={{ color: "var(--brand)" }}>
+              <Link href={`/${locale}/wallet`} className="link-brand font-semibold">
                 {dict.topUp}
               </Link>
             }
           />
-        )}
+        ) : null}
       </div>
     </Modal>
   );

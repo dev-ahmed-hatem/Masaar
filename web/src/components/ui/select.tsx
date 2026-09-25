@@ -67,7 +67,7 @@ export const SelectItem = React.forwardRef<
       className={cn(
         "relative flex cursor-pointer select-none items-center gap-2 rounded-control py-2 pe-8 ps-3",
         "t-small text-ink outline-none",
-        "data-[highlighted]:bg-brand-tint data-[highlighted]:text-brand-dark",
+        "data-[highlighted]:bg-brand-tint data-[highlighted]:text-on-brand-tint",
         "data-[state=checked]:font-semibold",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,

@@ -2,14 +2,25 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Avatar, Drawer, Empty, Input, Pagination, Select, Spin, Tag } from "antd";
-import { ArrowRight, GraduationCap, Languages, Search, SlidersHorizontal, Star } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  GraduationCap,
+  Languages,
+  Search,
+  SearchX,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
 import { useAuth } from "@/context/auth-context";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/cn";
+import { guessMarket } from "@/lib/markets";
 import {
+  languageName,
   listSubjects,
   listTeachers,
   type SubjectSummary,
@@ -22,11 +33,33 @@ import {
   type StageSubject,
   type Track as CatalogTrack,
 } from "@/lib/catalog";
-import { FilterField } from "@/components/ui";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
+import { EmptyState } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
+import { Rating } from "@/components/ui/rating";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Dict = Dictionary["browse"];
 
 const PAGE_SIZE = 12;
+
+/** Radix Select has no empty value, so "any" needs a sentinel. */
+const ANY = "__any";
 
 export default function StudentBrowse({
   dict,
@@ -48,7 +81,7 @@ export default function StudentBrowse({
   );
 
   // Signed-in users are locked to their own market (they can only book there);
-  // anonymous visitors can browse either market.
+  // anonymous visitors browse the market we guess for them.
   const lockedMarket = user?.market ?? null;
   const [market, setMarket] = useState<string>(lockedMarket ?? "EG");
   const [name, setName] = useState("");
@@ -69,15 +102,18 @@ export default function StudentBrowse({
   const [scopedSubjects, setScopedSubjects] = useState<StageSubject[]>([]);
   const [rows, setRows] = useState<TeacherListItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [reloads, setReloads] = useState(0);
 
   const activeStage = stages.find((s) => s.id === stage);
   const needsTrack = activeStage != null && activeStage.child_kind !== "NONE";
 
+  // `guessMarket` reads localStorage and the device timezone, so it can only
+  // run after mount — on the server it always answers EG.
   useEffect(() => {
-    if (lockedMarket) setMarket(lockedMarket);
+    setMarket(lockedMarket ?? guessMarket());
   }, [lockedMarket]);
 
   useEffect(() => {
@@ -142,7 +178,7 @@ export default function StudentBrowse({
     return () => {
       active = false;
     };
-  }, [market, nameQuery, stage, track, subject, gender, language, weekday, minRating, ordering, page, dict.loadError]);
+  }, [market, nameQuery, stage, track, subject, gender, language, weekday, minRating, ordering, page, reloads, dict.loadError]);
 
   useEffect(() => setPage(1), [market, nameQuery, stage, track, subject, gender, language, weekday, minRating, ordering]);
 
@@ -180,208 +216,246 @@ export default function StudentBrowse({
   // Removable summary chips for each applied filter.
   const activeChips: { key: string; label: string; clear: () => void }[] = [];
   if (nameQuery) activeChips.push({ key: "name", label: `"${nameQuery}"`, clear: () => { setName(""); setNameQuery(""); } });
-  if (stage != null) activeChips.push({ key: "stage", label: activeStage ? catalogName(activeStage, locale) : "", clear: () => setStage(undefined) });
-  if (track != null) { const t = tracks.find((x) => x.id === track); activeChips.push({ key: "track", label: t ? catalogName(t, locale) : "", clear: () => setTrack(undefined) }); }
-  if (subject != null) { const opt = subjectOptions.find((o) => o.value === subject); activeChips.push({ key: "subject", label: opt?.label ?? "", clear: () => setSubject(undefined) }); }
+  // A deep link can carry an id the catalog lists don't know (stale URL, other
+  // market). Fall back to the filter's own name so the chip is still readable
+  // and, more importantly, still removable.
+  if (stage != null) activeChips.push({ key: "stage", label: activeStage ? catalogName(activeStage, locale) : dict.stageFilter, clear: () => setStage(undefined) });
+  if (track != null) { const t = tracks.find((x) => x.id === track); activeChips.push({ key: "track", label: t ? catalogName(t, locale) : dict.branchFilter, clear: () => setTrack(undefined) }); }
+  if (subject != null) { const opt = subjectOptions.find((o) => o.value === subject); activeChips.push({ key: "subject", label: opt?.label || dict.subject, clear: () => setSubject(undefined) }); }
   if (gender) activeChips.push({ key: "gender", label: gender === "MALE" ? dict.male : dict.female, clear: () => setGender(undefined) });
   if (language) activeChips.push({ key: "language", label: language === "ar" ? dict.arabic : dict.english, clear: () => setLanguage(undefined) });
   if (weekday != null) activeChips.push({ key: "weekday", label: weekdayLabels[weekday] ?? "", clear: () => setWeekday(undefined) });
-  if (minRating != null) activeChips.push({ key: "rating", label: `${minRating}★+`, clear: () => setMinRating(undefined) });
+  if (minRating != null) activeChips.push({ key: "rating", label: `${minRating}+`, clear: () => setMinRating(undefined) });
 
   return (
-    <section className="flex flex-col gap-5">
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
-        {dict.title}
-      </h1>
+    <section className="flex flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <h1 className="t-h1 text-ink">{dict.title}</h1>
+        <p className="max-w-2xl t-body text-ink-muted">{dict.intro}</p>
+      </header>
 
-      {/* Primary search: teacher name (free text, debounced). */}
-      <Input
-        allowClear
-        size="large"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={dict.searchNamePlaceholder}
-        prefix={<Search size={18} style={{ color: "var(--ink-faint)" }} />}
-      />
-
-      {/* Search-first row: subject search + advanced-filters trigger */}
-      <div className="flex items-center gap-2">
-        <Select
-          showSearch
-          allowClear
-          size="large"
-          optionFilterProp="label"
-          value={subject}
-          onChange={(v) => setSubject(v)}
-          placeholder={dict.searchPlaceholder}
-          suffixIcon={<Search size={18} style={{ color: "var(--ink-faint)" }} />}
-          options={subjectOptions}
-          className="flex-1"
-          style={{ minWidth: 0 }}
-        />
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(true)}
-          className="icon-btn h-10 shrink-0 px-3.5 text-sm font-semibold sm:px-4"
-        >
-          <SlidersHorizontal size={16} />
-          <span className="hidden sm:inline">{dict.filters}</span>
-          {advancedCount > 0 && (
-            <span className="inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold" style={{ background: "var(--brand)", color: "#fff" }}>
-              {advancedCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Stage chips */}
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Chip active={stage == null} onClick={() => setStage(undefined)}>{dict.allStages}</Chip>
-        {stages.map((s) => (
-          <Chip key={s.id} active={stage === s.id} onClick={() => setStage(s.id)}>{catalogName(s, locale)}</Chip>
-        ))}
-      </div>
-
-      {/* Branch / faculty chips */}
-      {needsTrack && tracks.length > 0 && (
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <Chip active={track == null} onClick={() => setTrack(undefined)}>
-            {activeStage?.child_kind === "FACULTY" ? dict.allFaculties : dict.allBranches}
-          </Chip>
-          {tracks.map((t) => (
-            <Chip key={t.id} active={track === t.id} onClick={() => setTrack(t.id)}>{catalogName(t, locale)}</Chip>
-          ))}
+      {/* Search panel: free text, subject, then the stage rails it scopes. */}
+      <Card className="flex flex-col gap-4 p-4 sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={dict.searchNamePlaceholder}
+            aria-label={dict.searchNamePlaceholder}
+            startSlot={<Search aria-hidden />}
+            endSlot={
+              name ? (
+                <button type="button" aria-label={dict.clearFilters} onClick={() => setName("")}>
+                  <X aria-hidden />
+                </button>
+              ) : undefined
+            }
+          />
+          <div className="flex gap-2">
+            <Combobox
+              value={subject}
+              onChange={setSubject}
+              options={subjectOptions}
+              placeholder={dict.searchPlaceholder}
+              searchPlaceholder={dict.searchSubjects}
+              emptyText={dict.noMatches}
+              clearLabel={dict.clearSelection}
+              startSlot={<BookOpen aria-hidden />}
+              className="min-w-0 flex-1"
+            />
+            <Button
+              variant="outline"
+              onClick={() => setFiltersOpen(true)}
+              className="shrink-0 px-3.5 sm:px-4"
+            >
+              <SlidersHorizontal aria-hidden />
+              <span className="hidden sm:inline">{dict.filters}</span>
+              {advancedCount > 0 ? (
+                <Badge variant="solid" size="sm" className="min-w-5 justify-center px-1.5">
+                  {advancedCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </div>
         </div>
-      )}
 
-      {/* Active-filter chips — each removable */}
-      {activeChips.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        {/* Stage rail */}
+        <ChipRail>
+          <Chip active={stage == null} onClick={() => setStage(undefined)}>{dict.allStages}</Chip>
+          {stages.map((s) => (
+            <Chip key={s.id} active={stage === s.id} onClick={() => setStage(s.id)}>{catalogName(s, locale)}</Chip>
+          ))}
+        </ChipRail>
+
+        {/* Branch / faculty rail */}
+        {needsTrack && tracks.length > 0 ? (
+          <ChipRail>
+            <Chip active={track == null} onClick={() => setTrack(undefined)}>
+              {activeStage?.child_kind === "FACULTY" ? dict.allFaculties : dict.allBranches}
+            </Chip>
+            {tracks.map((t) => (
+              <Chip key={t.id} active={track === t.id} onClick={() => setTrack(t.id)}>{catalogName(t, locale)}</Chip>
+            ))}
+          </ChipRail>
+        ) : null}
+      </Card>
+
+      {/* Applied filters — each removable */}
+      {activeChips.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
           {activeChips.map((c) => (
-            <Tag key={c.key} closable onClose={c.clear} style={{ marginInlineEnd: 0 }}>
+            <span
+              key={c.key}
+              dir="auto"
+              className="inline-flex items-center gap-1 rounded-pill bg-brand-tint py-1 pe-1.5 ps-3 t-caption font-semibold text-on-brand-tint"
+            >
               {c.label}
-            </Tag>
+              <button
+                type="button"
+                aria-label={`${dict.removeFilter}: ${c.label}`}
+                onClick={c.clear}
+                className="rounded-full p-0.5 transition-colors hover:bg-brand hover:text-on-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </span>
           ))}
+          <button type="button" onClick={clearAll} className="link-brand t-small font-semibold">
+            {dict.clearFilters}
+          </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Results header */}
-      {!loading && !error && (
-        <div className="flex items-center justify-between">
-          <span className="text-sm" style={{ color: "var(--ink-muted)" }}>
-            {dict.resultsCount.replace("{count}", String(total))}
-          </span>
-          {anyFilter && (
-            <button type="button" onClick={clearAll} className="link-brand text-sm font-semibold">
-              {dict.clearFilters}
-            </button>
-          )}
-        </div>
-      )}
-
+      {/* Results */}
       {error ? (
-        <Alert type="error" message={error} showIcon />
+        <Alert
+          variant="error"
+          title={error}
+          action={
+            <Button variant="outline" size="sm" onClick={() => setReloads((n) => n + 1)}>
+              {dict.retry}
+            </Button>
+          }
+        />
       ) : loading ? (
-        <div className="flex justify-center py-20">
-          <Spin />
+        <div className="flex flex-col gap-4" aria-busy>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <TeacherCardSkeleton key={i} />
+          ))}
         </div>
       ) : rows.length === 0 ? (
-        <Empty description={dict.empty} className="py-16" />
+        <Card>
+          <EmptyState
+            icon={<SearchX aria-hidden />}
+            title={dict.empty}
+            description={dict.emptyHint}
+            action={
+              anyFilter ? (
+                <Button variant="outline" onClick={clearAll}>
+                  {dict.clearFilters}
+                </Button>
+              ) : undefined
+            }
+          />
+        </Card>
       ) : (
         <>
+          <p aria-live="polite" className="t-small text-ink-muted">
+            {dict.resultsCount.replace("{count}", String(total))}
+          </p>
+
           <div className="flex flex-col gap-4">
             {rows.map((t) => (
               <TeacherCard key={t.id} teacher={t} locale={locale} dict={dict} subjectName={subjectName} />
             ))}
           </div>
-          {total > PAGE_SIZE && (
-            <div className="flex justify-center pt-2">
-              <Pagination
-                current={page}
-                pageSize={PAGE_SIZE}
-                total={total}
-                showSizeChanger={false}
-                onChange={setPage}
-              />
-            </div>
-          )}
+
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onChange={setPage}
+            prevLabel={dict.prevPage}
+            nextLabel={dict.nextPage}
+            className="pt-2"
+          />
         </>
       )}
 
-      {/* Advanced filters — mobile bottom sheet */}
-      <Drawer
-        title={dict.filters}
-        placement="bottom"
-        height="auto"
-        open={filtersOpen}
-        onClose={() => setFiltersOpen(false)}
-      >
-        <div className="mx-auto flex max-w-md flex-col gap-4 pb-2">
-          <FilterField label={dict.gender}>
-            <Select
-              allowClear
-              placeholder={dict.anyGender}
-              value={gender}
-              onChange={(v) => setGender(v)}
-              style={{ width: "100%" }}
-              options={[
-                { value: "MALE", label: dict.male },
-                { value: "FEMALE", label: dict.female },
-              ]}
-            />
-          </FilterField>
-          <FilterField label={dict.language}>
-            <Select
-              allowClear
-              placeholder={dict.anyLanguage}
-              value={language}
-              onChange={(v) => setLanguage(v)}
-              style={{ width: "100%" }}
-              options={[
-                { value: "ar", label: dict.arabic },
-                { value: "en", label: dict.english },
-              ]}
-            />
-          </FilterField>
-          <FilterField label={dict.availableOn}>
-            <Select
-              allowClear
-              placeholder={dict.anyDay}
-              value={weekday}
-              onChange={(v) => setWeekday(v)}
-              style={{ width: "100%" }}
-              options={weekdayLabels.map((label, i) => ({ value: i, label }))}
-            />
-          </FilterField>
-          <FilterField label={dict.minRating}>
-            <Select
-              allowClear
-              placeholder="—"
-              value={minRating}
-              onChange={(v) => setMinRating(v)}
-              style={{ width: "100%" }}
-              options={[3, 3.5, 4, 4.5].map((r) => ({ value: r, label: `${r}★+` }))}
-            />
-          </FilterField>
-          <FilterField label={dict.sortBy}>
-            <Select
-              value={ordering}
-              onChange={setOrdering}
-              style={{ width: "100%" }}
-              options={[
-                { value: "-rating_avg", label: dict.sortRating },
-                { value: "from_price_minor", label: dict.sortPriceAsc },
-                { value: "-lessons_count", label: dict.sortLessons },
-              ]}
-            />
-          </FilterField>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={clearAll} className="btn btn-ghost flex-1">{dict.clearFilters}</button>
-            <button type="button" onClick={() => setFiltersOpen(false)} className="btn btn-primary flex-1">{dict.showResults}</button>
-          </div>
-        </div>
-      </Drawer>
+      {/* Advanced filters — bottom sheet on every width; the shape mobile needs
+          and one less layout to maintain. */}
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom">
+          <SheetHeader>
+            <SheetTitle>{dict.filters}</SheetTitle>
+          </SheetHeader>
+          <SheetBody>
+            <div className="mx-auto flex max-w-md flex-col gap-4">
+              <FilterSelect
+                label={dict.gender}
+                placeholder={dict.anyGender}
+                value={gender}
+                onChange={setGender}
+                options={[
+                  { value: "MALE", label: dict.male },
+                  { value: "FEMALE", label: dict.female },
+                ]}
+              />
+              <FilterSelect
+                label={dict.language}
+                placeholder={dict.anyLanguage}
+                value={language}
+                onChange={setLanguage}
+                options={[
+                  { value: "ar", label: dict.arabic },
+                  { value: "en", label: dict.english },
+                ]}
+              />
+              <FilterSelect
+                label={dict.availableOn}
+                placeholder={dict.anyDay}
+                value={weekday == null ? undefined : String(weekday)}
+                onChange={(v) => setWeekday(v == null ? undefined : Number(v))}
+                options={weekdayLabels.map((label, i) => ({ value: String(i), label }))}
+              />
+              <FilterSelect
+                label={dict.minRating}
+                placeholder={dict.anyRating}
+                value={minRating == null ? undefined : String(minRating)}
+                onChange={(v) => setMinRating(v == null ? undefined : Number(v))}
+                options={[3, 3.5, 4, 4.5].map((r) => ({
+                  value: String(r),
+                  label: dict.ratingAndUp.replace("{n}", String(r)),
+                }))}
+              />
+              <FilterSelect
+                label={dict.sortBy}
+                value={ordering}
+                onChange={(v) => setOrdering(v ?? "-rating_avg")}
+                options={[
+                  { value: "-rating_avg", label: dict.sortRating },
+                  { value: "from_price_minor", label: dict.sortPriceAsc },
+                  { value: "-lessons_count", label: dict.sortLessons },
+                ]}
+              />
+            </div>
+          </SheetBody>
+          <SheetFooter>
+            <Button variant="ghost" block onClick={clearAll}>{dict.clearFilters}</Button>
+            <Button block onClick={() => setFiltersOpen(false)}>{dict.showResults}</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </section>
+  );
+}
+
+/** Horizontally scrolling filter row: full-bleed on mobile so it reads as scrollable. */
+function ChipRail({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      {children}
+    </div>
   );
 }
 
@@ -397,11 +471,68 @@ function Chip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
-      className={`chip shrink-0 px-3.5 py-1.5 text-sm font-semibold${active ? " is-active" : ""}`}
+      className={cn("chip shrink-0 px-3.5 py-1.5 t-small font-semibold", active && "is-active")}
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * One labelled filter. `undefined` is "any": Radix Select has no empty value,
+ * so it travels as a sentinel option and is translated back here.
+ */
+function FilterSelect({
+  label,
+  placeholder,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  /** Provide to offer an "any" choice; omit for a required select. */
+  placeholder?: string;
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+  options: { value: string; label: string }[];
+}) {
+  const id = `filter-${label}`;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Select
+        value={value ?? (placeholder ? ANY : undefined)}
+        onValueChange={(v) => onChange(v === ANY ? undefined : v)}
+      >
+        <SelectTrigger id={id}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {placeholder ? <SelectItem value={ANY}>{placeholder}</SelectItem> : null}
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function TeacherCardSkeleton() {
+  return (
+    <Card className="flex gap-4 p-4 sm:gap-5 sm:p-5">
+      <Skeleton className="size-20 rounded-card sm:size-28" />
+      <div className="flex flex-1 flex-col gap-2.5">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-3.5 w-28" />
+        <Skeleton className="h-3.5 w-full max-w-md" />
+        <Skeleton className="h-3.5 w-2/3" />
+      </div>
+    </Card>
   );
 }
 
@@ -417,117 +548,81 @@ function TeacherCard({
   subjectName: (s: SubjectSummary) => string;
 }) {
   const ar = locale === "ar";
-  const rating = Number(t.rating_avg);
   const bio = (ar ? t.bio_ar : t.bio_en) || t.bio_en || t.bio_ar || "";
-  const langs = t.languages.filter(Boolean);
-
-  // Brief chips: the distinct subjects taught across the teacher's stages.
-  const specChips = t.subjects.map((s) => ({ id: s.id, label: subjectName(s) }));
+  const langs = t.languages.filter(Boolean).map((l) => languageName(l, dict));
+  const subjects = t.subjects.map((s) => ({ id: s.id, label: subjectName(s) }));
 
   return (
-    <Link
-      href={`/${locale}/teachers/${t.id}`}
-      className="surface surface-hover group flex gap-4 p-4 sm:gap-5 sm:p-5"
-    >
-      {/* Photo */}
-      <Avatar
-        shape="square"
-        src={t.photo_url ?? undefined}
-        className="h-20 w-20 shrink-0 sm:h-28 sm:w-28"
-        style={{ background: "var(--brand-tint)", color: "var(--brand)", fontWeight: 700, fontSize: 30, borderRadius: 16 }}
-      >
-        {(t.full_name || "?").trim().charAt(0).toUpperCase()}
-      </Avatar>
+    <Link href={`/${locale}/teachers/${t.id}`} className="group block">
+      <Card interactive className="flex gap-4 p-4 sm:gap-5 sm:p-5">
+        <Avatar
+          src={t.photo_url}
+          name={t.full_name}
+          className="size-20 shrink-0 text-2xl sm:size-28 sm:text-3xl"
+        />
 
-      {/* Body */}
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        {/* Name + price */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3
-              className="truncate text-base font-bold sm:text-lg"
-              style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
-            >
-              {t.full_name}
-            </h3>
-            {langs.length > 0 && (
-              <p className="mt-0.5 flex items-center gap-1 truncate text-xs" style={{ color: "var(--ink-muted)" }}>
-                <Languages size={13} className="shrink-0" />
-                <span className="truncate">{langs.join(" · ")}</span>
-              </p>
-            )}
-          </div>
-          {t.from_price && (
-            <div className="shrink-0 text-end">
-              <div className="text-lg font-bold leading-tight" style={{ color: "var(--ink)" }}>
-                {t.from_price.display}
-              </div>
-              <div className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                {dict.perLesson}
-              </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {/* Name + price. The price is the second thing a parent looks at, so
+              it gets its own column rather than a line in the meta row. */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 dir="auto" className="line-clamp-2 t-h4 text-ink">{t.full_name}</h3>
+              {langs.length > 0 ? (
+                <p dir="auto" className="mt-0.5 flex items-center gap-1 truncate t-caption text-ink-muted">
+                  <Languages className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{langs.join(" · ")}</span>
+                </p>
+              ) : null}
             </div>
-          )}
-        </div>
-
-        {/* Rating + lessons */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span className="flex items-center gap-1 font-semibold" style={{ color: "var(--ink)" }}>
-            <Star size={15} fill="var(--warning)" stroke="var(--warning)" />
-            {rating > 0 ? rating.toFixed(1) : "—"}
-          </span>
-          {t.rating_count > 0 && (
-            <span className="text-xs" style={{ color: "var(--ink-muted)" }}>
-              {dict.reviewsCount.replace("{n}", String(t.rating_count))}
-            </span>
-          )}
-          <span aria-hidden style={{ color: "var(--ink-faint)" }}>·</span>
-          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--ink-muted)" }}>
-            <GraduationCap size={14} />
-            {t.lessons_count} {dict.lessons}
-          </span>
-        </div>
-
-        {/* Subject chips (brief) */}
-        {specChips.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {specChips.slice(0, 4).map((c) => (
-              <Tag key={c.id} bordered={false} style={{ background: "var(--surface-2)", margin: 0 }}>
-                {c.label}
-              </Tag>
-            ))}
-            {specChips.length > 4 && (
-              <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
-                +{specChips.length - 4}
-              </span>
-            )}
+            {t.from_price ? (
+              <div className="shrink-0 text-end">
+                <div className="t-caption text-ink-faint">{dict.from}</div>
+                <div className="font-display text-lg font-bold leading-tight text-ink">
+                  {t.from_price.display}
+                </div>
+                <div className="t-caption text-ink-faint">{dict.perLesson}</div>
+              </div>
+            ) : null}
           </div>
-        )}
 
-        {/* Description */}
-        {bio && (
-          <p className="line-clamp-2 text-sm" style={{ color: "var(--ink-muted)" }}>
-            {bio}
-          </p>
-        )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Rating value={Number(t.rating_avg) || 0} count={t.rating_count || undefined} size="sm" />
+            <span className="inline-flex items-center gap-1 t-caption text-ink-muted">
+              <GraduationCap className="size-3.5" aria-hidden />
+              {t.lessons_count} {dict.lessons}
+            </span>
+          </div>
 
-        {/* Footer: free-trial badge + view CTA */}
-        <div className="mt-1 flex items-center justify-between gap-3">
-          {t.free_lessons_offered > 0 ? (
-            <Tag color="green" bordered={false} style={{ margin: 0 }}>
-              {dict.freeLessons.replace("{n}", String(t.free_lessons_offered))}
-            </Tag>
-          ) : (
-            <span />
-          )}
-          <span
-            className="flex items-center gap-1 text-sm font-semibold transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5"
-            style={{ color: "var(--brand)" }}
-          >
-            {dict.viewProfile}
-            <ArrowRight size={15} className="rtl:-scale-x-100" />
-          </span>
+          {subjects.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {subjects.slice(0, 4).map((s) => (
+                <Badge key={s.id} size="sm" className="max-w-40 truncate">
+                  {s.label}
+                </Badge>
+              ))}
+              {subjects.length > 4 ? (
+                <span className="t-caption text-ink-faint">+{subjects.length - 4}</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {bio ? (
+            <p dir="auto" className="line-clamp-2 t-small text-ink-muted">{bio}</p>
+          ) : null}
+
+          <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+            {t.free_lessons_offered > 0 ? (
+              <Badge variant="trial" size="sm">{dict.freeTrialBadge}</Badge>
+            ) : (
+              <span />
+            )}
+            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap t-small font-semibold text-brand transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5">
+              {dict.viewProfile}
+              <ArrowRight className="size-4 rtl:-scale-x-100" aria-hidden />
+            </span>
+          </div>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }

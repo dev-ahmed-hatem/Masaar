@@ -31,7 +31,7 @@ const buttonVariants = cva(
         outline:
           "bg-surface text-ink border border-border-strong hover:border-brand hover:text-brand",
         ghost: "bg-transparent text-ink-muted hover:bg-surface-2 hover:text-ink",
-        subtle: "bg-brand-tint text-brand-dark hover:bg-brand hover:text-on-brand",
+        subtle: "bg-brand-tint text-on-brand-tint hover:bg-brand hover:text-on-brand",
         danger: "bg-error text-white shadow-sm hover:opacity-90",
         link: "bg-transparent text-brand underline-offset-4 hover:underline p-0 h-auto",
       },
