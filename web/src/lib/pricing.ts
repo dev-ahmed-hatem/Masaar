@@ -39,25 +39,11 @@ export interface StageRuleInput {
   commission_pct: number;
 }
 
-export interface Vertical {
-  id: number;
-  code: string;
-  name_en: string;
-  name_ar: string;
-}
-
-export interface GradeLevel {
-  id: number;
-  vertical: number;
-  name_en: string;
-  name_ar: string;
-}
-
-export interface Subject {
-  id: number;
-  name_en: string;
-  name_ar: string;
-}
+// The catalog shapes live in lib/catalog.ts; these aliases keep the existing
+// call sites reading naturally without a second, drifting definition.
+export type { GradeLevel } from "./catalog";
+export type { Stage as Vertical, CatalogSubject as Subject } from "./catalog";
+import type { CatalogSubject, GradeLevel, Stage } from "./catalog";
 
 export const pricingApi = {
   // Lesson categories are taxonomy only (which subjects are bookable per market/stage/grade).
@@ -94,10 +80,10 @@ export const pricingApi = {
   deleteStageRule: (id: number) =>
     apiAuthed<void>(`/api/admin/stage-pricing/${id}/`, { method: "DELETE" }),
 
-  listVerticals: () => apiAuthed<Vertical[]>("/api/catalog/verticals/"),
+  listVerticals: () => apiAuthed<Stage[]>("/api/catalog/verticals/"),
   listGrades: (vertical?: number) =>
     apiAuthed<GradeLevel[]>(
       `/api/catalog/grade-levels/${vertical ? `?vertical=${vertical}` : ""}`,
     ),
-  listSubjects: () => apiAuthed<Subject[]>("/api/catalog/subjects/"),
+  listSubjects: () => apiAuthed<CatalogSubject[]>("/api/catalog/subjects/"),
 };

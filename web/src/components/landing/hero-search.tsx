@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { catalog, catalogName, type Stage } from "@/lib/catalog";
+import { StageOptions } from "@/components/catalog/stage-options";
 import { listSubjects, type SubjectSummary } from "@/lib/teachers";
 
 type Dict = Dictionary["landing"]["search"];
@@ -88,11 +89,7 @@ export default function HeroSearch({ locale, dict }: { locale: string; dict: Dic
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ANY}>{dict.anyStage}</SelectItem>
-                {stages.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {catalogName(s, locale)}
-                  </SelectItem>
-                ))}
+                <StageOptions stages={stages} locale={locale} />
               </SelectContent>
             </Select>
           </>

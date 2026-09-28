@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -27,6 +27,8 @@ import {
   type TeacherListItem,
 } from "@/lib/teachers";
 import {
+  groupStages,
+  trackWord,
   catalog,
   catalogName,
   type Stage,
@@ -224,8 +226,9 @@ export default function StudentBrowse({
   // A deep link can carry an id the catalog lists don't know (stale URL, other
   // market). Fall back to the filter's own name so the chip is still readable
   // and, more importantly, still removable.
-  if (stage != null) activeChips.push({ key: "stage", label: activeStage ? catalogName(activeStage, locale) : dict.stageFilter, clear: () => setStage(undefined) });
-  if (track != null) { const t = tracks.find((x) => x.id === track); activeChips.push({ key: "track", label: t ? catalogName(t, locale) : dict.branchFilter, clear: () => setTrack(undefined) }); }
+  // Prefix the group so a stage like "International exams" reads in context.
+  if (stage != null) activeChips.push({ key: "stage", label: activeStage ? [activeStage.group ? catalogName(activeStage.group, locale) : null, catalogName(activeStage, locale)].filter(Boolean).join(" · ") : dict.stageFilter, clear: () => setStage(undefined) });
+  if (track != null) { const t = tracks.find((x) => x.id === track); activeChips.push({ key: "track", label: t ? catalogName(t, locale) : trackWord(activeStage, dict, locale), clear: () => setTrack(undefined) }); }
   if (subject != null) { const opt = subjectOptions.find((o) => o.value === subject); activeChips.push({ key: "subject", label: opt?.label || dict.subject, clear: () => setSubject(undefined) }); }
   if (gender) activeChips.push({ key: "gender", label: gender === "MALE" ? dict.male : dict.female, clear: () => setGender(undefined) });
   if (language) activeChips.push({ key: "language", label: language === "ar" ? dict.arabic : dict.english, clear: () => setLanguage(undefined) });
@@ -284,19 +287,33 @@ export default function StudentBrowse({
           </div>
         </div>
 
-        {/* Stage rail */}
+        {/* Stage rail. Grouped stages (e.g. the international ones) get an
+            inline, non-interactive header rather than a second row: a group has
+            no id to filter by, so a tappable header could only ever produce an
+            ambiguous state. Logical properties keep the divider on the correct
+            side in both directions. */}
         <ChipRail>
           <Chip active={stage == null} onClick={() => setStage(undefined)}>{dict.allStages}</Chip>
-          {stages.map((s) => (
-            <Chip key={s.id} active={stage === s.id} onClick={() => setStage(s.id)}>{catalogName(s, locale)}</Chip>
+          {groupStages(stages).map((section, i) => (
+            <Fragment key={section.group?.id ?? `plain-${i}`}>
+              {section.group ? (
+                <span className="ms-1 flex shrink-0 items-center border-s border-border ps-3 t-caption font-semibold text-ink-faint">
+                  {catalogName(section.group, locale)}
+                </span>
+              ) : null}
+              {section.stages.map((s) => (
+                <Chip key={s.id} active={stage === s.id} onClick={() => setStage(s.id)}>{catalogName(s, locale)}</Chip>
+              ))}
+            </Fragment>
           ))}
         </ChipRail>
 
-        {/* Branch / faculty rail */}
+        {/* Track rail — a branch, faculty, curriculum or exam, whatever the
+            chosen stage calls it. */}
         {needsTrack && tracks.length > 0 ? (
           <ChipRail>
             <Chip active={track == null} onClick={() => setTrack(undefined)}>
-              {activeStage?.child_kind === "FACULTY" ? dict.allFaculties : dict.allBranches}
+              {trackWord(activeStage, dict, locale, "all")}
             </Chip>
             {tracks.map((t) => (
               <Chip key={t.id} active={track === t.id} onClick={() => setTrack(t.id)}>{catalogName(t, locale)}</Chip>

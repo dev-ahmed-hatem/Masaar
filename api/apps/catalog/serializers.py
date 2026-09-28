@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import (
     GradeLevel,
     LessonCategory,
+    StageGroup,
     StagePricingRule,
     StageSubject,
     Subject,
@@ -11,10 +12,35 @@ from .models import (
 )
 
 
+class StageGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StageGroup
+        fields = ("id", "code", "name_en", "name_ar", "order")
+
+
 class VerticalSerializer(serializers.ModelSerializer):
+    group = serializers.SerializerMethodField()
+
     class Meta:
         model = Vertical
-        fields = ("id", "code", "name_en", "name_ar", "child_kind", "order", "is_active")
+        fields = (
+            "id",
+            "code",
+            "name_en",
+            "name_ar",
+            "group",
+            "child_kind",
+            "child_label_en",
+            "child_label_ar",
+            "order",
+            "is_active",
+        )
+
+    def get_group(self, obj) -> dict | None:
+        # Deactivating a group just stops the grouping; its stages stay listed.
+        if obj.group_id is None or not obj.group.is_active:
+            return None
+        return StageGroupSerializer(obj.group).data
 
 
 class TrackSerializer(serializers.ModelSerializer):

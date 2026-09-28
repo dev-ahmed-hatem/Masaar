@@ -1,6 +1,6 @@
 """Stage cards: the shared validation + write rules for a teacher's teaching setup.
 
-A card is one stage (+ branch/faculty) with its subjects, lesson price, free
+A card is one stage (+ its track, if the stage has one) with its subjects, price, free
 trial lessons and weekly availability — everything applies to all subjects in
 the card. Used by the teacher self-serve API, teacher applications (submit and
 approval) and the seed, so the rules live in one place.
@@ -18,7 +18,7 @@ from apps.catalog.models import StagePricingRule, StageSubject, Track, Vertical
 
 from .models import AvailabilityRule, TeacherStage, TeacherStageSubject
 
-MAX_CARDS = 8
+MAX_CARDS = 12
 MAX_SUBJECTS = 30
 MAX_WINDOWS = 30
 MAX_FREE_LESSONS = 10
@@ -108,12 +108,12 @@ def validate_card(market_id, data, *, instance: TeacherStage | None = None, part
         track = None
         if vertical.child_kind != Vertical.ChildKind.NONE:
             if track_raw in (None, "", 0, "0"):
-                raise serializers.ValidationError({"track": "This stage requires a branch/faculty."})
+                raise serializers.ValidationError({"track": "This stage requires a track selection."})
             track = Track.objects.filter(
                 id=_int(track_raw, "track"), vertical=vertical, is_active=True
             ).first()
             if track is None:
-                raise serializers.ValidationError({"track": "Unknown branch/faculty for this stage."})
+                raise serializers.ValidationError({"track": "Unknown track for this stage."})
 
     cleaned = {"vertical": vertical.id, "track": track.id if track else None}
 
@@ -132,7 +132,7 @@ def validate_card(market_id, data, *, instance: TeacherStage | None = None, part
         )
         if set(ids) - offered:
             raise serializers.ValidationError(
-                {"subjects": "Some subjects aren't offered under this stage/branch."}
+                {"subjects": "Some subjects aren't offered under this stage/track."}
             )
         cleaned["subjects"] = ids
 
@@ -170,7 +170,7 @@ def validate_cards(market_id, cards) -> list[dict]:
         data = validate_card(market_id, card)
         key = (data["vertical"], data["track"])
         if key in seen:
-            raise serializers.ValidationError("The same stage/branch is listed twice.")
+            raise serializers.ValidationError("The same stage/track is listed twice.")
         seen.add(key)
         cleaned.append(data)
     return cleaned

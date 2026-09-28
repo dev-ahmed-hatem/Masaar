@@ -20,6 +20,7 @@ import LandingActions from "@/components/landing-actions";
 import FeaturedTeachers from "@/components/landing/featured-teachers";
 import HeroSearch from "@/components/landing/hero-search";
 import LandingReviews from "@/components/landing/landing-reviews";
+import StageStrip from "@/components/landing/stage-strip";
 import StatsStrip from "@/components/landing/stats-strip";
 import {
   Accordion,
@@ -129,6 +130,12 @@ export default async function LandingPage({
 
       {/* ---------- Featured teachers (live) ---------- */}
       <FeaturedTeachers locale={locale} dict={L.featured} browse={d.browse} />
+
+      {/* ---------- Browse by stage (live catalog) ---------- */}
+      <section className="flex flex-col gap-8">
+        <SectionHead title={L.stages.title} subtitle={L.stages.subtitle} />
+        <StageStrip locale={locale} dict={L.stages} />
+      </section>
 
       {/* ---------- Popular subjects ---------- */}
       <section className="flex flex-col gap-8">

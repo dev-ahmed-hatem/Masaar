@@ -136,7 +136,8 @@
     "trustVetted": "تم التحقق من مؤهلاته ومقابلته من قِبل فريقنا",
     "trustCancel": "إلغاء مجاني حتى 24 ساعة قبل بدء الدرس",
     "freeTrialBadge": "درس تجريبي مجاني",
-    "cancelBooking": "إلغاء"
+    "cancelBooking": "إلغاء",
+    "allTracksFor": "كل {label}"
   },
   "wallet": {
     "title": "المحفظة",
@@ -475,6 +476,10 @@
       "forStudents": "للطلاب",
       "forTeachers": "للمعلمين",
       "company": "وِصال"
+    },
+    "stages": {
+      "title": "تصفّح حسب المرحلة",
+      "subtitle": "من الابتدائي إلى الجامعة والمناهج والاختبارات الدولية."
     }
   },
   "teacher": {
@@ -1084,7 +1089,17 @@
     "selectFaculty": "اختر كلية",
     "selectSubject": "اختر مادة",
     "saved": "تم الحفظ.",
-    "actionError": "حدث خطأ ما. حاول مرة أخرى."
+    "actionError": "حدث خطأ ما. حاول مرة أخرى.",
+    "tabGroups": "المجموعات",
+    "group": "المجموعة",
+    "noGroup": "بدون مجموعة",
+    "newGroup": "مجموعة جديدة",
+    "groupOrderHint": "يجب أن تكون مراحل المجموعة متتالية في الترتيب.",
+    "childGrouped": "تجميع مخصّص",
+    "childLabelEn": "اسم التجميع (إنجليزي)",
+    "childLabelAr": "اسم التجميع (عربي)",
+    "childLabelHint": "مثلاً: المنهج أو الاختبار — ما يظهر للطالب بدل «الشعبة».",
+    "selectTrackFor": "اختر {label}"
   },
   "googleCalendar": {
     "title": "تقويم Google",
@@ -1157,7 +1172,8 @@
     "missingPrice": "السعر أقل من الحد الأدنى",
     "missingAvailability": "أضف المواعيد الأسبوعية",
     "stageInUse": "لهذه المرحلة دروس قادمة. أنهِها أو ألغِها قبل إزالة المرحلة.",
-    "requiredAvailabilityRow": "أكمل هذا الصف أو احذفه."
+    "requiredAvailabilityRow": "أكمل هذا الصف أو احذفه.",
+    "chooseTrackFor": "اختر {label}"
   },
   "adminPaymentAccounts": {
     "title": "حسابات الدفع",

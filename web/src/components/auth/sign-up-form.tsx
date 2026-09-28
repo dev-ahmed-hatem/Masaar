@@ -10,7 +10,8 @@ import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
 import { useOtpChannel } from "@/lib/auth-config";
-import { catalog, catalogName, type Stage } from "@/lib/catalog";
+import { catalog, type Stage } from "@/lib/catalog";
+import { StageOptions } from "@/components/catalog/stage-options";
 import { isValidLocalMobile, marketLabel } from "@/lib/markets";
 import { toE164 } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
@@ -199,11 +200,7 @@ export default function SignUpForm({ dict, locale }: { dict: AuthDict; locale: s
                   <SelectValue placeholder={dict.selectStage} />
                 </SelectTrigger>
                 <SelectContent>
-                  {stages.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {catalogName(s, locale)}
-                    </SelectItem>
-                  ))}
+                  <StageOptions stages={stages} locale={locale} />
                 </SelectContent>
               </Select>
             )}

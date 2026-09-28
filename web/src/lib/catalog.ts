@@ -1,16 +1,96 @@
 import { apiAuthed } from "./api";
 import type { Paginated } from "./teachers";
 
-export type ChildKind = "NONE" | "BRANCH" | "FACULTY";
+/**
+ * Whether a stage has an intermediate grouping (a Track) and what to call it.
+ * BRANCH and FACULTY are translated here; GROUPED takes its name from the
+ * stage's own `child_label_*`, so a moderator can add e.g. a "Curriculum" or
+ * "Exam" grouping without a deploy.
+ */
+export type ChildKind = "NONE" | "BRANCH" | "FACULTY" | "GROUPED";
+
+/** A display-only header over sibling stages (e.g. "International education"). */
+export interface StageGroup {
+  id: number;
+  code: string;
+  name_en: string;
+  name_ar: string;
+  order: number;
+}
 
 export interface Stage {
   id: number;
   code: string;
   name_en: string;
   name_ar: string;
+  group: StageGroup | null;
   child_kind: ChildKind;
+  child_label_en: string;
+  child_label_ar: string;
   order: number;
   is_active: boolean;
+}
+
+/** One rendered section of the stage list: a header (or none) and its stages. */
+export interface StageSection {
+  group: StageGroup | null;
+  stages: Stage[];
+}
+
+/**
+ * Split the server-ordered stage list into sections, preserving order.
+ *
+ * The server keeps a group's stages contiguous, so this only has to open a new
+ * section when the group changes. A non-contiguous group degrades gracefully
+ * into two sections rather than reordering anything.
+ */
+export function groupStages(stages: Stage[]): StageSection[] {
+  const sections: StageSection[] = [];
+  for (const stage of stages) {
+    const last = sections[sections.length - 1];
+    if (last && (last.group?.id ?? null) === (stage.group?.id ?? null)) last.stages.push(stage);
+    else sections.push({ group: stage.group, stages: [stage] });
+  }
+  return sections;
+}
+
+/** The i18n keys a caller needs for a stage's track field, per grouping kind. */
+type TrackWords = { label: string; choose: string; all: string };
+
+const TRACK_WORDS: Record<Exclude<ChildKind, "NONE" | "GROUPED">, TrackWords> = {
+  BRANCH: { label: "branch", choose: "chooseBranch", all: "allBranches" },
+  FACULTY: { label: "faculty", choose: "chooseFaculty", all: "allFaculties" },
+};
+
+/**
+ * What this stage calls its Track, in the reader's language.
+ *
+ * A GROUPED stage names itself (moderator-authored); the others read from the
+ * caller's dictionary. `dict` is the block holding the branch/faculty strings —
+ * `browse` or `stageCards`, depending on the screen.
+ */
+export function trackWord(
+  stage: Stage | undefined | null,
+  // The i18n blocks hold arrays too (weekday names), so this stays loose and
+  // reads through `str` rather than forcing every caller to narrow its dict.
+  dict: Record<string, unknown>,
+  locale: string,
+  which: keyof TrackWords = "label",
+): string {
+  const str = (key: string) => (typeof dict[key] === "string" ? (dict[key] as string) : "");
+  const fallback = () => str(TRACK_WORDS.BRANCH[which]);
+
+  if (!stage || stage.child_kind === "NONE") return fallback();
+  if (stage.child_kind === "GROUPED") {
+    const name = locale === "ar" ? stage.child_label_ar : stage.child_label_en;
+    if (!name) return fallback();
+    // "Curriculum" -> "Choose a curriculum" / "All curricula" come from one
+    // pattern, not a fresh translation per grouping a moderator invents.
+    if (which === "choose") return (str("chooseTrackFor") || "{label}").replace("{label}", name);
+    if (which === "all") return (str("allTracksFor") || "{label}").replace("{label}", name);
+    return name;
+  }
+  return str(TRACK_WORDS[stage.child_kind][which]);
 }
 
 export interface Track {
@@ -124,7 +204,18 @@ export interface StageInput {
   code: string;
   name_en: string;
   name_ar: string;
+  /** Written by id; read back nested as `Stage.group`. */
+  group_id?: number | null;
   child_kind: ChildKind;
+  child_label_en?: string;
+  child_label_ar?: string;
+  order?: number;
+  is_active?: boolean;
+}
+export interface StageGroupInput {
+  code: string;
+  name_en: string;
+  name_ar: string;
   order?: number;
   is_active?: boolean;
 }
@@ -158,6 +249,12 @@ const patch = <T>(path: string, body: unknown) =>
   apiAuthed<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 
 export const catalogAdmin = {
+  // Stage groups (display-only headers)
+  listGroups: () => page(apiAuthed<Paginated<StageGroup>>("/api/admin/stage-groups/")),
+  createGroup: (body: StageGroupInput) => post<StageGroup>("/api/admin/stage-groups/", body),
+  updateGroup: (id: number, body: Partial<StageGroupInput>) =>
+    patch<StageGroup>(`/api/admin/stage-groups/${id}/`, body),
+  deleteGroup: (id: number) => del(`/api/admin/stage-groups/${id}/`),
   // Stages
   // The /api/admin/ viewsets are paginated; the public /api/catalog/ ones are
   // not. Unwrap here so every caller sees a plain array either way.

@@ -63,8 +63,6 @@ class TeacherFilter(filters.FilterSet):
     subject = filters.NumberFilter(method="filter_stage_card")
     stage = filters.NumberFilter(method="filter_stage_card")
     track = filters.NumberFilter(method="filter_stage_card")
-    grade = filters.NumberFilter(field_name="stages__vertical__grade_levels", distinct=True)
-    vertical = filters.CharFilter(field_name="stages__vertical__code", distinct=True)
     language = filters.CharFilter(field_name="languages", lookup_expr="icontains")
     name = filters.CharFilter(field_name="user__full_name", lookup_expr="icontains")
     min_rating = filters.NumberFilter(field_name="rating_avg", lookup_expr="gte")
@@ -114,9 +112,7 @@ class _MarketScopedMixin:
         OpenApiParameter("market", str, description="Market code (EG/SA). Falls back to the signed-in user's market."),
         OpenApiParameter("subject", int, description="Subject id (taught in a stage card)"),
         OpenApiParameter("stage", int, description="Stage id (combined with subject/track per card)"),
-        OpenApiParameter("track", int, description="Branch/faculty id (combined with stage/subject per card)"),
-        OpenApiParameter("grade", int, description="Grade level id (teachers of the grade's stage)"),
-        OpenApiParameter("vertical", str, description="Stage code"),
+        OpenApiParameter("track", int, description="Track id — branch/faculty/curriculum/exam (combined with stage/subject per card)"),
         OpenApiParameter("gender", str, description="MALE / FEMALE"),
         OpenApiParameter("language", str, description="Language code substring, e.g. 'en'"),
         OpenApiParameter("name", str, description="Teacher name substring (case-insensitive)"),

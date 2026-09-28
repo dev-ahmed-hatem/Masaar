@@ -272,3 +272,63 @@ def test_publish_then_visible_in_discovery(teacher_api, world):
 
     # Unpublish removes them again.
     assert teacher_api.post(UNPUBLISH, format="json").data["is_published"] is False
+
+
+# --- GROUPED stages (international) -----------------------------------------
+
+
+@pytest.fixture
+def exams(world):
+    """An international-exams stage: GROUPED, so it needs a track like any
+    branch/faculty stage, but names it from `child_label_*` instead of the enum."""
+    stage = Vertical.objects.create(
+        code=Vertical.Code.INTL_EXAMS, name_en="International Exams", name_ar="Exams AR",
+        order=6, child_kind=Vertical.ChildKind.GROUPED,
+        child_label_en="Exam", child_label_ar="Exam AR",
+    )
+    sat = Track.objects.create(vertical=stage, name_en="SAT", name_ar="SAT")
+    act = Track.objects.create(vertical=stage, name_en="ACT", name_ar="ACT")
+    sat_math = Subject.objects.create(name_en="SAT - Math", name_ar="SAT Math AR")
+    StageSubject.objects.create(vertical=stage, track=sat, subject=sat_math)
+    StagePricingRule.objects.create(
+        market=world["eg"], vertical=stage, min_price_minor=25000, commission_pct=22
+    )
+    return {"stage": stage, "sat": sat, "act": act, "sat_math": sat_math}
+
+
+def _exam_card(exams, **overrides):
+    payload = {
+        "vertical": exams["stage"].id,
+        "track": exams["sat"].id,
+        "subjects": [exams["sat_math"].id],
+        "price_minor": 26000,
+        "free_lessons_offered": 0,
+        "availability": [{"weekday": 0, "start_time": "16:00", "end_time": "20:00"}],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_grouped_stage_card_is_created_with_its_track(teacher_api, exams):
+    res = teacher_api.post(STAGES, _exam_card(exams), format="json")
+    assert res.status_code == 201, res.data
+    assert res.data["track"]["name_en"] == "SAT"
+    assert res.data["stage"]["name_en"] == "International Exams"
+
+
+def test_grouped_stage_requires_a_track(teacher_api, exams):
+    res = teacher_api.post(STAGES, _exam_card(exams, track=None), format="json")
+    assert res.status_code == 400
+    assert "track" in str(res.data)
+
+
+def test_grouped_stage_rejects_a_subject_from_another_track(teacher_api, exams):
+    res = teacher_api.post(STAGES, _exam_card(exams, track=exams["act"].id), format="json")
+    assert res.status_code == 400
+    assert "subjects" in str(res.data)
+
+
+def test_grouped_stage_enforces_its_own_price_floor(teacher_api, exams):
+    res = teacher_api.post(STAGES, _exam_card(exams, price_minor=9000), format="json")
+    assert res.status_code == 400
+    assert "25000" in str(res.data)

@@ -12,12 +12,14 @@ from apps.markets.models import Market
 
 from .models import (
     LessonCategory,
+    StageGroup,
     StagePricingRule,
     StageSubject,
     Subject,
     Track,
     Vertical,
 )
+from .serializers import StageGroupSerializer
 
 
 class LessonCategoryAdminSerializer(serializers.ModelSerializer):
@@ -132,10 +134,50 @@ class StagePricingRuleAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestr
 # --- Taxonomy management: Stage / Track / Subject / StageSubject -----------
 
 
+class StageGroupAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StageGroup
+        fields = ("id", "code", "name_en", "name_ar", "order", "is_active")
+
+
 class StageAdminSerializer(serializers.ModelSerializer):
+    # Read the group nested (same shape as the public stage list, so the web
+    # client keeps one Stage type) and write it by id.
+    group = StageGroupSerializer(read_only=True)
+    group_id = serializers.PrimaryKeyRelatedField(
+        source="group",
+        queryset=StageGroup.objects.all(),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+
     class Meta:
         model = Vertical
-        fields = ("id", "code", "name_en", "name_ar", "child_kind", "order", "is_active")
+        fields = (
+            "id",
+            "code",
+            "name_en",
+            "name_ar",
+            "group",
+            "group_id",
+            "child_kind",
+            "child_label_en",
+            "child_label_ar",
+            "order",
+            "is_active",
+        )
+
+    def validate(self, attrs):
+        kind = attrs.get("child_kind", getattr(self.instance, "child_kind", None))
+        if kind == Vertical.ChildKind.GROUPED:
+            for field in ("child_label_en", "child_label_ar"):
+                value = attrs.get(field, getattr(self.instance, field, ""))
+                if not (value or "").strip():
+                    raise serializers.ValidationError(
+                        {field: "A custom grouping needs a name in both languages."}
+                    )
+        return attrs
 
 
 class TrackAdminSerializer(serializers.ModelSerializer):
@@ -176,16 +218,28 @@ class StageSubjectAdminSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class StageGroupAdminListCreateView(ListCreateAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StageGroupAdminSerializer
+    queryset = StageGroup.objects.all().order_by("order")
+
+
+class StageGroupAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsStaff]
+    serializer_class = StageGroupAdminSerializer
+    queryset = StageGroup.objects.all()
+
+
 class StageAdminListCreateView(ListCreateAPIView):
     permission_classes = [IsStaff]
     serializer_class = StageAdminSerializer
-    queryset = Vertical.objects.all().order_by("order")
+    queryset = Vertical.objects.select_related("group").order_by("order")
 
 
 class StageAdminDetailView(ProtectedDestroyMixin, RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaff]
     serializer_class = StageAdminSerializer
-    queryset = Vertical.objects.all()
+    queryset = Vertical.objects.select_related("group")
 
 
 class TrackAdminListCreateView(ListCreateAPIView):

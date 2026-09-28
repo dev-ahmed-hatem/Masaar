@@ -184,8 +184,39 @@ def test_stage_and_subject_filters_match_within_one_card(api, world):
     assert names({"stage": world["primary"].id, "subject": world["math"].id}) == {"Ahmed Ali", "Sara Nabil"}
 
 
-def test_filter_by_grade_matches_stage(api, world):
-    assert api.get(TEACHERS, {"market": "EG", "grade": world["g4"].id}).data["count"] == 2
+def test_retired_grade_and_vertical_params_no_longer_filter(api, world):
+    """`grade` matched any teacher of the grade's stage (a teacher never declares
+    a grade) and `vertical` duplicated `stage` without the same-card constraint.
+    Both are gone; django-filter ignores the unknown params."""
+    unfiltered = api.get(TEACHERS, {"market": "EG"}).data["count"]
+    assert api.get(TEACHERS, {"market": "EG", "grade": world["g4"].id}).data["count"] == unfiltered
+    assert api.get(TEACHERS, {"market": "EG", "vertical": "SECONDARY"}).data["count"] == unfiltered
+
+
+def test_international_stage_and_track_filters(api, world):
+    """A GROUPED stage filters exactly like a BRANCH one — the grouping is only
+    a label — and stage/track/subject still have to meet inside one card."""
+    curricula = Vertical.objects.create(
+        code=Vertical.Code.INTL_CURRICULA, name_en="International Curricula",
+        name_ar="المناهج الدولية", order=5,
+        child_kind=Vertical.ChildKind.GROUPED,
+        child_label_en="Curriculum", child_label_ar="المنهج",
+    )
+    igcse = Track.objects.create(vertical=curricula, name_en="British IGCSE", name_ar="بريطاني - IGCSE")
+    alevel = Track.objects.create(vertical=curricula, name_en="British A Level", name_ar="بريطاني - A Level")
+    further = Subject.objects.create(name_en="Further Mathematics", name_ar="رياضيات متقدمة")
+
+    make_stage_card(world["t1"], curricula, [further], track=alevel, price_minor=24000, windows=[])
+    make_stage_card(world["t2"], curricula, [world["math"]], track=igcse, price_minor=20000, windows=[])
+
+    def names(params):
+        return {r["full_name"] for r in api.get(TEACHERS, {"market": "EG", **params}).data["results"]}
+
+    assert names({"stage": curricula.id}) == {"Ahmed Ali", "Sara Nabil"}
+    assert names({"stage": curricula.id, "track": alevel.id}) == {"Ahmed Ali"}
+    assert names({"stage": curricula.id, "track": igcse.id, "subject": world["math"].id}) == {"Sara Nabil"}
+    # Sara teaches Math, but in her IGCSE card — not the A Level one.
+    assert names({"stage": curricula.id, "track": alevel.id, "subject": world["math"].id}) == set()
 
 
 def test_slots_endpoint_public_for_anonymous(api, world):

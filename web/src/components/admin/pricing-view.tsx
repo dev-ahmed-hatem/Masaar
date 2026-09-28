@@ -22,6 +22,7 @@ import { ApiError } from "@/lib/api";
 import { findMarket } from "@/lib/markets";
 import CountrySelect from "@/components/admin/country-select";
 import { PageHeader } from "@/components/ui";
+import { stageSelectOptions } from "@/components/catalog/stage-options";
 import {
   pricingApi,
   type GradeLevel,
@@ -230,9 +231,12 @@ function NewStageRuleModal({
     }
   }
 
-  const options = verticals
-    .filter((v) => !usedStageIds.has(v.id))
-    .map((v) => ({ value: v.id, label: ar ? v.name_ar : v.name_en }));
+  // Grouped so a moderator adding the "International exams" floor finds it
+  // under the same header students see.
+  const options = stageSelectOptions(
+    verticals.filter((v) => !usedStageIds.has(v.id)),
+    ar ? "ar" : "en",
+  );
 
   return (
     <Modal open={open} onCancel={onClose} title={`${dict.newRule} · ${market}`} footer={null} destroyOnHidden>

@@ -136,7 +136,8 @@
     "trustVetted": "Qualifications checked and interviewed by our team",
     "trustCancel": "Free cancellation up to 24 hours before the lesson",
     "freeTrialBadge": "Free trial",
-    "cancelBooking": "Cancel"
+    "cancelBooking": "Cancel",
+    "allTracksFor": "All {label}"
   },
   "wallet": {
     "title": "Wallet",
@@ -475,6 +476,10 @@
       "forStudents": "For students",
       "forTeachers": "For teachers",
       "company": "Wisal"
+    },
+    "stages": {
+      "title": "Browse by stage",
+      "subtitle": "From primary school to university, plus international curricula and exams."
     }
   },
   "teacher": {
@@ -1084,7 +1089,17 @@
     "selectFaculty": "Select a faculty",
     "selectSubject": "Select a subject",
     "saved": "Saved.",
-    "actionError": "Something went wrong. Please try again."
+    "actionError": "Something went wrong. Please try again.",
+    "tabGroups": "Groups",
+    "group": "Group",
+    "noGroup": "No group",
+    "newGroup": "New group",
+    "groupOrderHint": "Stages in a group must be consecutive in Order.",
+    "childGrouped": "Custom grouping",
+    "childLabelEn": "Grouping name (English)",
+    "childLabelAr": "Grouping name (Arabic)",
+    "childLabelHint": "e.g. Curriculum or Exam — what students see instead of “Branch”.",
+    "selectTrackFor": "Select a {label}"
   },
   "googleCalendar": {
     "title": "Google Calendar",
@@ -1157,7 +1172,8 @@
     "missingPrice": "price is below the minimum",
     "missingAvailability": "add weekly hours",
     "stageInUse": "This stage has upcoming lessons. Finish or cancel them before removing it.",
-    "requiredAvailabilityRow": "Complete this row or remove it."
+    "requiredAvailabilityRow": "Complete this row or remove it.",
+    "chooseTrackFor": "Choose a {label}"
   },
   "adminPaymentAccounts": {
     "title": "Payment accounts",

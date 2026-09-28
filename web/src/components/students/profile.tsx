@@ -14,7 +14,8 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { getStudentProfile, updateMe, updateStudentProfile } from "@/lib/account";
 import { ApiError } from "@/lib/api";
 import { authApi } from "@/lib/auth";
-import { listGradeLevels, listVerticals, type GradeLevel } from "@/lib/catalog";
+import { catalog, listGradeLevels, type GradeLevel, type Stage } from "@/lib/catalog";
+import { StageOptions } from "@/components/catalog/stage-options";
 import { listMyReviews, type Review } from "@/lib/reviews";
 import GoogleCalendarCard from "@/components/integrations/google-calendar-card";
 import { Button } from "@/components/ui/button";
@@ -220,7 +221,7 @@ function AccountTab({ dict, authDict }: { dict: Dict; authDict: AuthDict }) {
 function LearningTab({ dict, locale }: { dict: Dict; locale: Locale }) {
   const ar = locale === "ar";
   const toast = useToast();
-  const [stages, setStages] = useState<{ id: number; name_en: string; name_ar: string }[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [grades, setGrades] = useState<GradeLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -241,7 +242,7 @@ function LearningTab({ dict, locale }: { dict: Dict; locale: Locale }) {
     let active = true;
     (async () => {
       try {
-        const [verticals, profile] = await Promise.all([listVerticals(), getStudentProfile()]);
+        const [verticals, profile] = await Promise.all([catalog.listStages(), getStudentProfile()]);
         if (!active) return;
         setStages(verticals);
         reset({
@@ -329,11 +330,7 @@ function LearningTab({ dict, locale }: { dict: Dict; locale: Locale }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>{dict.selectStage}</SelectItem>
-                  {stages.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {ar ? s.name_ar : s.name_en}
-                    </SelectItem>
-                  ))}
+                  <StageOptions stages={stages} locale={ar ? "ar" : "en"} />
                 </SelectContent>
               </Select>
             )}

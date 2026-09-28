@@ -25,12 +25,16 @@ from .serializers import (
 
 
 class VerticalListView(ListAPIView):
-    """Public list of active stages (Primary / Secondary / College)."""
+    """Public list of active stages, in display order.
+
+    Each row carries its (optional) display group inline, so a client can
+    render grouped headers without a second request.
+    """
 
     permission_classes = [AllowAny]
     pagination_class = None  # small fixed reference set
     serializer_class = VerticalSerializer
-    queryset = Vertical.objects.filter(is_active=True)
+    queryset = Vertical.objects.filter(is_active=True).select_related("group")
 
 
 class TrackListView(ListAPIView):

@@ -13,7 +13,9 @@ import {
   type StagePricing,
   type StageSubject,
   type Track,
+  trackWord,
 } from "@/lib/catalog";
+import { StageOptions } from "@/components/catalog/stage-options";
 import {
   formatMoney,
   type StageCard,
@@ -274,7 +276,11 @@ function StageCardForm({
         })
         .superRefine((v, ctx) => {
           if (needsTrack && !v.track) {
-            ctx.addIssue({ code: "custom", path: ["track"], message: dict.requiredTrack });
+            ctx.addIssue({
+              code: "custom",
+              path: ["track"],
+              message: trackWord(stage, dict, locale, "choose"),
+            });
           }
           // A stage (+ branch) can only be claimed once; ids can't change on an
           // edit, so this only ever fires while adding.
@@ -455,8 +461,9 @@ function StageCardForm({
     }
   }
 
-  const trackLabel = stage?.child_kind === "FACULTY" ? dict.faculty : dict.branch;
-  const trackPlaceholder = stage?.child_kind === "FACULTY" ? dict.chooseFaculty : dict.chooseBranch;
+  // Branch, faculty, curriculum, exam -- whatever this stage calls its track.
+  const trackLabel = trackWord(stage, dict, locale);
+  const trackPlaceholder = trackWord(stage, dict, locale, "choose");
   const trackOptions =
     card?.track && tracks.length === 0
       ? [{ value: card.track.id, label: locale === "ar" ? card.track.name_ar : card.track.name_en }]
@@ -508,11 +515,7 @@ function StageCardForm({
                     <SelectValue placeholder={dict.chooseStage} />
                   </SelectTrigger>
                   <SelectContent>
-                    {stages.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>
-                        {catalogName(s, locale)}
-                      </SelectItem>
-                    ))}
+                    <StageOptions stages={stages} locale={locale} />
                   </SelectContent>
                 </Select>
               )}

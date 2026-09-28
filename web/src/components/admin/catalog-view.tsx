@@ -8,13 +8,16 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { ApiError } from "@/lib/api";
 import { PageHeader } from "@/components/ui";
+import { stageSelectOptions } from "@/components/catalog/stage-options";
 import { Badge } from "@/components/ui/badge";
 import {
   catalogAdmin,
   catalogName,
+  trackWord,
   type CatalogSubject,
   type ChildKind,
   type Stage,
+  type StageGroup,
   type StageSubject,
   type Track,
 } from "@/lib/catalog";
@@ -27,6 +30,7 @@ export default function CatalogView({ dict, locale }: { dict: Dict; locale: Loca
       <PageHeader title={dict.title} subtitle={dict.intro} />
       <Tabs
         items={[
+          { key: "groups", label: dict.tabGroups, children: <GroupsTab dict={dict} /> },
           { key: "stages", label: dict.tabStages, children: <StagesTab dict={dict} locale={locale} /> },
           { key: "tracks", label: dict.tabTracks, children: <TracksTab dict={dict} locale={locale} /> },
           { key: "subjects", label: dict.tabSubjects, children: <SubjectsTab dict={dict} locale={locale} /> },
@@ -45,27 +49,131 @@ function useFail(dict: Dict) {
   );
 }
 
+const CHILD_KIND_LABELS: Record<ChildKind, (d: Dict) => string> = {
+  NONE: (d) => d.childNone,
+  BRANCH: (d) => d.childBranch,
+  FACULTY: (d) => d.childFaculty,
+  GROUPED: (d) => d.childGrouped,
+};
+
 function childKindOptions(dict: Dict) {
-  return [
-    { value: "NONE", label: dict.childNone },
-    { value: "BRANCH", label: dict.childBranch },
-    { value: "FACULTY", label: dict.childFaculty },
-  ];
+  return (Object.keys(CHILD_KIND_LABELS) as ChildKind[]).map((value) => ({
+    value,
+    label: CHILD_KIND_LABELS[value](dict),
+  }));
 }
 
-// --- Stages ----------------------------------------------------------------
+// --- Stage groups ----------------------------------------------------------
+// A display-only header over sibling stages. Nothing is priced or booked by a
+// group; it only decides how the stage list is chunked in the UI.
 
-function StagesTab({ dict }: { dict: Dict; locale: Locale }) {
+function GroupsTab({ dict }: { dict: Dict }) {
   const { message } = App.useApp();
   const fail = useFail(dict);
-  const [rows, setRows] = useState<Stage[]>([]);
+  const [rows, setRows] = useState<StageGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Stage | "new" | null>(null);
+  const [editing, setEditing] = useState<StageGroup | "new" | null>(null);
   const [form] = Form.useForm();
 
   const load = useCallback(() => {
     setLoading(true);
-    catalogAdmin.listStages().then(setRows).catch(fail).finally(() => setLoading(false));
+    catalogAdmin.listGroups().then(setRows).catch(fail).finally(() => setLoading(false));
+  }, [fail]);
+  useEffect(load, [load]);
+
+  function open(row: StageGroup | "new") {
+    setEditing(row);
+    form.setFieldsValue(
+      row === "new" ? { code: "", name_en: "", name_ar: "", order: 0, is_active: true } : row,
+    );
+  }
+
+  async function save() {
+    const values = await form.validateFields();
+    try {
+      if (editing === "new") await catalogAdmin.createGroup(values);
+      else if (editing) await catalogAdmin.updateGroup(editing.id, values);
+      message.success(dict.saved);
+      setEditing(null);
+      load();
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  async function remove(id: number) {
+    try {
+      await catalogAdmin.deleteGroup(id);
+      load();
+    } catch (err) {
+      // A group still assigned to a stage comes back as a 409 with a message.
+      fail(err);
+    }
+  }
+
+  const columns: ColumnsType<StageGroup> = [
+    { title: dict.code, dataIndex: "code" },
+    { title: dict.nameEn, dataIndex: "name_en" },
+    { title: dict.nameAr, dataIndex: "name_ar" },
+    { title: dict.order, dataIndex: "order" },
+    {
+      title: "",
+      key: "actions",
+      render: (_, row) => (
+        <Space>
+          <Button size="small" onClick={() => open(row)}>{dict.edit}</Button>
+          <Popconfirm title={dict.confirmDelete} onConfirm={() => remove(row.id)}>
+            <Button size="small" danger>{dict.remove}</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Button type="primary" className="self-start" onClick={() => open("new")}>{dict.newGroup}</Button>
+      <p className="t-caption text-ink-faint">{dict.groupOrderHint}</p>
+      <Table rowKey="id" loading={loading} dataSource={rows} columns={columns} pagination={false} size="middle" />
+      <Modal open={editing != null} onCancel={() => setEditing(null)} onOk={save} title={editing === "new" ? dict.newGroup : dict.edit} okText={dict.save}>
+        <Form form={form} layout="vertical" requiredMark={false} className="pt-2">
+          <Form.Item name="code" label={dict.code} rules={[{ required: true, whitespace: true }]}>
+            <Input placeholder="INTERNATIONAL" />
+          </Form.Item>
+          <div className="grid gap-x-3 sm:grid-cols-2">
+            <Form.Item name="name_en" label={dict.nameEn} rules={[{ required: true }]}><Input /></Form.Item>
+            <Form.Item name="name_ar" label={dict.nameAr} rules={[{ required: true }]}><Input dir="rtl" /></Form.Item>
+          </div>
+          <Form.Item name="order" label={dict.order}><InputNumber min={0} style={{ width: "100%" }} /></Form.Item>
+          <Form.Item name="is_active" label={dict.active} valuePropName="checked"><Switch /></Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
+// --- Stages ----------------------------------------------------------------
+
+function StagesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
+  const { message } = App.useApp();
+  const fail = useFail(dict);
+  const [rows, setRows] = useState<Stage[]>([]);
+  const [groups, setGroups] = useState<StageGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Stage | "new" | null>(null);
+  const [form] = Form.useForm();
+  // Only a GROUPED stage names its own track, so the label fields follow it.
+  const childKind = Form.useWatch<ChildKind>("child_kind", form);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([catalogAdmin.listStages(), catalogAdmin.listGroups()])
+      .then(([stages, stageGroups]) => {
+        setRows(stages);
+        setGroups(stageGroups);
+      })
+      .catch(fail)
+      .finally(() => setLoading(false));
   }, [fail]);
   useEffect(load, [load]);
 
@@ -73,8 +181,12 @@ function StagesTab({ dict }: { dict: Dict; locale: Locale }) {
     setEditing(row);
     form.setFieldsValue(
       row === "new"
-        ? { code: "", name_en: "", name_ar: "", child_kind: "NONE", order: 0, is_active: true }
-        : row,
+        ? {
+            code: "", name_en: "", name_ar: "", group_id: null, child_kind: "NONE",
+            child_label_en: "", child_label_ar: "", order: 0, is_active: true,
+          }
+        // The group reads back nested but writes by id.
+        : { ...row, group_id: row.group?.id ?? null },
     );
   }
 
@@ -105,9 +217,16 @@ function StagesTab({ dict }: { dict: Dict; locale: Locale }) {
     { title: dict.nameEn, dataIndex: "name_en" },
     { title: dict.nameAr, dataIndex: "name_ar" },
     {
+      title: dict.group,
+      key: "group",
+      render: (_, row) => (row.group ? catalogName(row.group, locale) : "—"),
+    },
+    {
       title: dict.childKind,
       dataIndex: "child_kind",
-      render: (k: ChildKind) => ({ NONE: dict.childNone, BRANCH: dict.childBranch, FACULTY: dict.childFaculty }[k]),
+      // A custom grouping shows the name the moderator gave it, not "Custom".
+      render: (k: ChildKind, row) =>
+        k === "GROUPED" ? trackWord(row, dict, locale) : CHILD_KIND_LABELS[k](dict),
     },
     {
       title: dict.active,
@@ -145,6 +264,23 @@ function StagesTab({ dict }: { dict: Dict; locale: Locale }) {
             <Form.Item name="child_kind" label={dict.childKind}><Select options={childKindOptions(dict)} /></Form.Item>
             <Form.Item name="order" label={dict.order}><InputNumber min={0} style={{ width: "100%" }} /></Form.Item>
           </div>
+          {childKind === "GROUPED" ? (
+            <div className="grid gap-x-3 sm:grid-cols-2">
+              <Form.Item name="child_label_en" label={dict.childLabelEn} rules={[{ required: true, whitespace: true }]} extra={dict.childLabelHint}>
+                <Input placeholder="Curriculum" />
+              </Form.Item>
+              <Form.Item name="child_label_ar" label={dict.childLabelAr} rules={[{ required: true, whitespace: true }]}>
+                <Input dir="rtl" />
+              </Form.Item>
+            </div>
+          ) : null}
+          <Form.Item name="group_id" label={dict.group} extra={dict.groupOrderHint}>
+            <Select
+              allowClear
+              placeholder={dict.noGroup}
+              options={groups.map((g) => ({ value: g.id, label: catalogName(g, locale) }))}
+            />
+          </Form.Item>
           <Form.Item name="is_active" label={dict.active} valuePropName="checked"><Switch /></Form.Item>
         </Form>
       </Modal>
@@ -227,7 +363,7 @@ function TracksTab({ dict, locale }: { dict: Dict; locale: Locale }) {
           value={stageId}
           onChange={setStageId}
           placeholder={dict.selectStage}
-          options={stages.map((s) => ({ value: s.id, label: catalogName(s, locale) }))}
+          options={stageSelectOptions(stages, locale)}
         />
         <Button type="primary" disabled={!stageId} onClick={() => open("new")}>{dict.newTrack}</Button>
       </div>
@@ -391,14 +527,14 @@ function AssignmentsTab({ dict, locale }: { dict: Dict; locale: Locale }) {
           value={stageId}
           onChange={setStageId}
           placeholder={dict.selectStage}
-          options={stages.map((s) => ({ value: s.id, label: catalogName(s, locale) }))}
+          options={stageSelectOptions(stages, locale)}
         />
         {needsTrack && (
           <Select
             style={{ minWidth: 200 }}
             value={trackId ?? undefined}
             onChange={(v) => setTrackId(v)}
-            placeholder={stage?.child_kind === "FACULTY" ? dict.selectFaculty : dict.selectBranch}
+            placeholder={dict.selectTrackFor.replace("{label}", trackWord(stage, dict, locale))}
             options={tracks.map((t) => ({ value: t.id, label: catalogName(t, locale) }))}
           />
         )}
