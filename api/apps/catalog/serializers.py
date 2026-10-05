@@ -79,7 +79,7 @@ class SubjectSerializer(serializers.ModelSerializer):
 
 
 class StagePricingRuleSerializer(serializers.ModelSerializer):
-    """Public read of the per-stage minimum price + commission for a market."""
+    """Public read of the per-stage price band + commission for a market."""
 
     stage_name_en = serializers.CharField(source="vertical.name_en", read_only=True)
     stage_name_ar = serializers.CharField(source="vertical.name_ar", read_only=True)
@@ -93,6 +93,7 @@ class StagePricingRuleSerializer(serializers.ModelSerializer):
             "stage_name_en",
             "stage_name_ar",
             "min_price_minor",
+            "max_price_minor",
             "commission_pct",
             "currency",
         )

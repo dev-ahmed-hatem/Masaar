@@ -57,7 +57,7 @@ export default function PricingView({ dict, locale }: { dict: Dict; locale: Loca
   );
 }
 
-// --- Stage rules: minimum price + platform commission per (market, stage) ----
+// --- Stage rules: price band + platform commission per (market, stage) -------
 
 function StageRulesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
   const { message } = App.useApp();
@@ -111,7 +111,23 @@ function StageRulesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
           minor={r.min_price_minor}
           suffix={r.currency}
           step={0.5}
-          onSave={(v) => patch(r.id, { min_price_minor: v })}
+          onSave={(v) => patch(r.id, { min_price_minor: v ?? 0 })}
+        />
+      ),
+    },
+    {
+      title: dict.colMaxPrice,
+      key: "max",
+      width: 190,
+      render: (_, r) => (
+        <PriceCell
+          minor={r.max_price_minor}
+          suffix={r.currency}
+          step={0.5}
+          // Clearing the field lifts the ceiling rather than setting it to zero.
+          clearable
+          placeholder={dict.noMax}
+          onSave={(v) => patch(r.id, { max_price_minor: v })}
         />
       ),
     },
@@ -124,7 +140,7 @@ function StageRulesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
           minor={Math.round(parseFloat(r.commission_pct) * 100)}
           suffix="%"
           step={1}
-          onSave={(v) => patch(r.id, { commission_pct: v / 100 })}
+          onSave={(v) => patch(r.id, { commission_pct: (v ?? 0) / 100 })}
         />
       ),
     },
@@ -212,13 +228,19 @@ function NewStageRuleModal({
     if (open) pricingApi.listVerticals().then(setVerticals).catch(() => undefined);
   }, [open]);
 
-  async function onFinish(values: { vertical: number; min_price: number; commission_pct: number }) {
+  async function onFinish(values: {
+    vertical: number;
+    min_price: number;
+    max_price?: number | null;
+    commission_pct: number;
+  }) {
     setSaving(true);
     try {
       const created = await pricingApi.createStageRule({
         market,
         vertical: values.vertical,
         min_price_minor: Math.round(values.min_price * 100),
+        max_price_minor: values.max_price == null ? null : Math.round(values.max_price * 100),
         commission_pct: values.commission_pct,
       });
       form.resetFields();
@@ -247,6 +269,28 @@ function NewStageRuleModal({
         <div className="grid grid-cols-2 gap-x-4">
           <Form.Item name="min_price" label={dict.colMinPrice} rules={[{ required: true }]}>
             <InputNumber min={0} step={0.5} style={{ width: "100%" }} addonAfter={findMarket(market)?.currency} />
+          </Form.Item>
+          <Form.Item
+            name="max_price"
+            label={dict.colMaxPrice}
+            extra={dict.maxPriceHint}
+            dependencies={["min_price"]}
+            rules={[
+              {
+                validator: (_, value) =>
+                  value == null || value >= (form.getFieldValue("min_price") ?? 0)
+                    ? Promise.resolve()
+                    : Promise.reject(new Error(dict.maxBelowMin)),
+              },
+            ]}
+          >
+            <InputNumber
+              min={0}
+              step={0.5}
+              style={{ width: "100%" }}
+              placeholder={dict.noMax}
+              addonAfter={findMarket(market)?.currency}
+            />
           </Form.Item>
           <Form.Item name="commission_pct" label={dict.colCommission} rules={[{ required: true }]}>
             <InputNumber min={0} max={100} step={1} style={{ width: "100%" }} addonAfter="%" />
@@ -336,27 +380,35 @@ function CategoriesTab({ dict, locale }: { dict: Dict; locale: Locale }) {
   );
 }
 
+/** Inline minor-units editor with an explicit save. With `clearable`, an empty
+ *  field is a real value (null) rather than zero — that's how a ceiling is lifted. */
 function PriceCell({
   minor,
   suffix,
   step,
+  clearable = false,
+  placeholder,
   onSave,
 }: {
-  minor: number;
+  minor: number | null;
   suffix: string;
   step: number;
-  onSave: (minor: number) => Promise<void>;
+  clearable?: boolean;
+  placeholder?: string;
+  onSave: (minor: number | null) => Promise<void>;
 }) {
-  const [value, setValue] = useState(minor / 100);
+  const major = (m: number | null) => (m == null ? null : m / 100);
+  const [value, setValue] = useState<number | null>(major(minor));
   const [loading, setLoading] = useState(false);
-  const dirty = Math.round(value * 100) !== minor;
+  const next = value == null ? null : Math.round(value * 100);
+  const dirty = next !== minor;
 
-  useEffect(() => setValue(minor / 100), [minor]);
+  useEffect(() => setValue(major(minor)), [minor]);
 
   async function save() {
     setLoading(true);
     try {
-      await onSave(Math.round(value * 100));
+      await onSave(next);
     } finally {
       setLoading(false);
     }
@@ -368,7 +420,8 @@ function PriceCell({
         min={0}
         step={step}
         value={value}
-        onChange={(v) => setValue(v ?? 0)}
+        placeholder={placeholder}
+        onChange={(v) => setValue(clearable ? (v ?? null) : (v ?? 0))}
         addonAfter={suffix}
         style={{ width: 140 }}
       />

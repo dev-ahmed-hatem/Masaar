@@ -175,6 +175,22 @@ def test_price_below_minimum_rejected(teacher_api, world):
     assert res.status_code == 400
 
 
+def test_price_above_maximum_rejected(teacher_api, world):
+    StagePricingRule.objects.filter(market=world["eg"], vertical=world["primary"]).update(
+        max_price_minor=7000
+    )
+    assert teacher_api.post(STAGES, _card(world, price_minor=9000), format="json").status_code == 400
+
+    ok = teacher_api.post(STAGES, _card(world, price_minor=7000), format="json")
+    assert ok.status_code == 201
+    assert ok.data["max_price_minor"] == 7000 and ok.data["incomplete"] == []
+
+
+def test_no_maximum_means_no_ceiling(teacher_api, world):
+    res = teacher_api.post(STAGES, _card(world, price_minor=500_000), format="json")
+    assert res.status_code == 201 and res.data["max_price_minor"] is None
+
+
 def test_overlapping_windows_rejected(teacher_api, world):
     res = teacher_api.post(
         STAGES,
@@ -239,6 +255,20 @@ def test_publish_requires_bio_and_stage(teacher_api, world):
     assert res.status_code == 400
     assert res.data["error"]["code"] == "profile_incomplete"
     assert set(res.data["error"]["detail"]["missing"]) == {"stage", "bio"}
+
+
+def test_publish_blocked_when_card_sits_above_a_new_maximum(teacher_api, world):
+    teacher_api.patch(PROFILE, {"bio_en": "Ready to teach."}, format="json")
+    card_id = teacher_api.post(STAGES, _card(world, price_minor=6000), format="json").data["id"]
+    # A moderator caps the stage below the card's price afterwards.
+    StagePricingRule.objects.filter(market=world["eg"], vertical=world["primary"]).update(
+        max_price_minor=4000
+    )
+
+    res = teacher_api.post(PUBLISH, format="json")
+    assert res.status_code == 400
+    detail = res.data["error"]["detail"]
+    assert detail["missing"] == ["price"] and detail["incomplete_stages"] == [card_id]
 
 
 def test_publish_requires_complete_cards(teacher_api, world):

@@ -26,8 +26,10 @@ export interface StageCard {
   price: Money;
   free_lessons_offered: number;
   availability: WeeklyWindow[];
-  /** Teacher self API only: the stage minimum and why the card isn't bookable yet. */
+  /** Teacher self API only: the stage band and why the card isn't bookable yet. */
   min_price_minor?: number;
+  /** Teacher self API only; null means the stage has no ceiling. */
+  max_price_minor?: number | null;
   incomplete?: ("subject" | "price" | "availability")[];
 }
 

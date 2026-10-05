@@ -77,7 +77,7 @@ class LessonCategoryAdminDetailView(RetrieveUpdateAPIView):
     queryset = LessonCategory.objects.select_related("market", "vertical", "grade_level", "subject")
 
 
-# --- Stage pricing rules: per-market minimum price + platform commission ----
+# --- Stage pricing rules: per-market price band + platform commission ------
 
 
 class StagePricingRuleAdminSerializer(serializers.ModelSerializer):
@@ -95,21 +95,42 @@ class StagePricingRuleAdminSerializer(serializers.ModelSerializer):
             "stage_name_en",
             "stage_name_ar",
             "min_price_minor",
+            "max_price_minor",
             "commission_pct",
             "currency",
             "is_active",
         )
         read_only_fields = ("id", "stage_name_en", "stage_name_ar", "currency")
+        extra_kwargs = {"max_price_minor": {"required": False, "allow_null": True}}
 
     def validate_min_price_minor(self, value):
         if value < 0:
             raise serializers.ValidationError("Minimum price cannot be negative.")
         return value
 
+    def validate_max_price_minor(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("Maximum price must be greater than zero.")
+        return value
+
     def validate_commission_pct(self, value):
         if value < 0 or value > 100:
             raise serializers.ValidationError("Commission must be between 0 and 100.")
         return value
+
+    def validate(self, attrs):
+        """The band has to be a band: a set maximum may not sit below the minimum.
+
+        On a PATCH only one of the two is usually sent, so the other comes from
+        the instance.
+        """
+        minimum = attrs.get("min_price_minor", getattr(self.instance, "min_price_minor", None))
+        maximum = attrs.get("max_price_minor", getattr(self.instance, "max_price_minor", None))
+        if maximum is not None and minimum is not None and maximum < minimum:
+            raise serializers.ValidationError(
+                {"max_price_minor": "Maximum price cannot be below the minimum price."}
+            )
+        return attrs
 
 
 class StagePricingRuleAdminListCreateView(ListCreateAPIView):

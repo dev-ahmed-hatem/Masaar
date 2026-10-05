@@ -19,7 +19,7 @@ export interface CategoryInput {
   subject: number;
 }
 
-/** A moderator-set stage rule: minimum price + platform commission, per market. */
+/** A moderator-set stage rule: price band + platform commission, per market. */
 export interface StagePricingRuleAdmin {
   id: number;
   market: string;
@@ -27,6 +27,8 @@ export interface StagePricingRuleAdmin {
   stage_name_en: string;
   stage_name_ar: string;
   min_price_minor: number;
+  /** null means no ceiling. */
+  max_price_minor: number | null;
   commission_pct: string; // DRF DecimalField serializes as a string, e.g. "15.00"
   currency: string;
   is_active: boolean;
@@ -36,6 +38,7 @@ export interface StageRuleInput {
   market: string;
   vertical: number;
   min_price_minor: number;
+  max_price_minor?: number | null;
   commission_pct: number;
 }
 
@@ -62,7 +65,7 @@ export const pricingApi = {
       body: JSON.stringify(patch),
     }),
 
-  // Stage pricing rules: minimum price + platform commission per (market, stage).
+  // Stage pricing rules: price band + platform commission per (market, stage).
   listStageRules: (market?: string) =>
     apiAuthed<Paginated<StagePricingRuleAdmin>>(
       `/api/admin/stage-pricing/?page_size=100${market ? `&market=${market}` : ""}`,

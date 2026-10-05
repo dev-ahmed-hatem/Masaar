@@ -214,12 +214,14 @@ class LessonCategory(TimeStampedModel):
 
 
 class StagePricingRule(TimeStampedModel):
-    """Moderator-set pricing floor + platform commission for a stage in a market.
+    """Moderator-set price band + platform commission for a stage in a market.
 
-    A teacher's per-stage price must be at least ``min_price_minor``. The
-    platform keeps ``commission_pct`` percent of each lesson, deducted from the
-    teacher's price — so the teacher receives ``price × (1 − commission_pct/100)``
-    and the student pays the teacher's price unchanged.
+    A teacher's per-stage price must be at least ``min_price_minor`` and, when
+    ``max_price_minor`` is set, at most that — a blank maximum means no ceiling.
+    The platform keeps ``commission_pct`` percent of each lesson, deducted from
+    the teacher's price — so the teacher receives
+    ``price × (1 − commission_pct/100)`` and the student pays the teacher's
+    price unchanged.
     """
 
     market = models.ForeignKey(
@@ -230,6 +232,14 @@ class StagePricingRule(TimeStampedModel):
     )
     min_price_minor = models.IntegerField(
         help_text="Minimum lesson price a teacher may set, in minor units"
+    )
+    max_price_minor = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Maximum lesson price a teacher may set, in minor units; "
+            "blank means no ceiling"
+        ),
     )
     commission_pct = models.DecimalField(
         max_digits=5,
@@ -248,4 +258,7 @@ class StagePricingRule(TimeStampedModel):
         return self.market.currency
 
     def __str__(self):
-        return f"{self.market.code} · {self.vertical.code}: min {self.min_price_minor}, {self.commission_pct}%"
+        band = f"min {self.min_price_minor}"
+        if self.max_price_minor is not None:
+            band += f"–max {self.max_price_minor}"
+        return f"{self.market.code} · {self.vertical.code}: {band}, {self.commission_pct}%"

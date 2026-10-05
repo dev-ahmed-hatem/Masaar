@@ -252,6 +252,9 @@ function StageCardForm({
   const needsTrack = stage ? stage.child_kind !== "NONE" : Boolean(card?.track);
   const rule = rules.find((r) => r.vertical === verticalId);
   const minMinor = Math.max(1, rule?.min_price_minor ?? card?.min_price_minor ?? 0);
+  // A blank ceiling (null) and a missing rule both mean "no maximum".
+  const maxRaw = rule ? rule.max_price_minor : card?.max_price_minor;
+  const maxMinor = maxRaw == null ? null : Math.max(maxRaw, minMinor);
   const currency = rule?.currency ?? card?.price.currency ?? "";
   const subjectsKey =
     verticalId && (!needsTrack || trackId) ? cardKey(verticalId, needsTrack ? trackId! : null) : null;
@@ -260,6 +263,13 @@ function StageCardForm({
     () => (subjectsFor && subjectsFor.key === subjectsKey ? subjectsFor.rows : []),
     [subjectsFor, subjectsKey],
   );
+
+  const priceHint =
+    maxMinor == null
+      ? dict.minPrice.replace("{amount}", formatMoney(minMinor, currency))
+      : dict.priceRange
+          .replace("{min}", formatMoney(minMinor, currency))
+          .replace("{max}", formatMoney(maxMinor, currency));
 
   const schema = useMemo(
     () =>
@@ -303,6 +313,12 @@ function StageCardForm({
               code: "custom",
               path: ["price"],
               message: dict.priceTooLow.replace("{amount}", formatMoney(minMinor, currency)),
+            });
+          } else if (maxMinor != null && Math.round(amount * 100) > maxMinor) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["price"],
+              message: dict.priceTooHigh.replace("{amount}", formatMoney(maxMinor, currency)),
             });
           }
 
@@ -353,7 +369,7 @@ function StageCardForm({
             }
           }
         }),
-    [dict, needsTrack, card, takenKeys, minMinor, currency],
+    [dict, needsTrack, card, takenKeys, minMinor, maxMinor, currency],
   );
 
   const {
@@ -582,7 +598,7 @@ function StageCardForm({
           <Field
             id="price"
             label={dict.price}
-            hint={verticalId ? dict.minPrice.replace("{amount}", formatMoney(minMinor, currency)) : undefined}
+            hint={verticalId ? priceHint : undefined}
             error={errors.price?.message}
             required
           >

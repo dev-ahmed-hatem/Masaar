@@ -119,7 +119,9 @@ def _named(obj) -> dict | None:
     return {"id": obj.id, "name_en": obj.name_en, "name_ar": obj.name_ar}
 
 
-def stage_card_data(card: TeacherStage, currency: str, *, min_price_minor=None) -> dict:
+def stage_card_data(
+    card: TeacherStage, currency: str, *, min_price_minor=None, max_price_minor=None
+) -> dict:
     """Read shape of a stage card, shared by the self API and public profile.
 
     Expects ``vertical``, ``track``, ``subjects__subject`` and ``availability``
@@ -147,6 +149,9 @@ def stage_card_data(card: TeacherStage, currency: str, *, min_price_minor=None) 
     }
     if min_price_minor is not None:
         data["min_price_minor"] = min_price_minor
+        # Sent alongside the minimum so the editor can show the whole band;
+        # null is meaningful here (no ceiling), hence the paired flag.
+        data["max_price_minor"] = max_price_minor
     return data
 
 
@@ -183,6 +188,7 @@ class TeacherStageSerializer(serializers.Serializer):
             card,
             teacher.market.currency,
             min_price_minor=stage_setup.min_card_price(teacher.market_id, card.vertical_id),
+            max_price_minor=stage_setup.max_card_price(teacher.market_id, card.vertical_id),
         )
         data["incomplete"] = stage_setup.incomplete_reasons(card, teacher.market_id)
         return data

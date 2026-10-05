@@ -25,19 +25,41 @@ MAX_FREE_LESSONS = 10
 _WEEKDAYS = {choice for choice, _ in AvailabilityRule.Weekday.choices}
 
 
+def _stage_band(market_id, vertical_id) -> tuple[int, int | None]:
+    """The active (min, max) rule for a stage in a market; (0, None) if unset."""
+    row = (
+        StagePricingRule.objects.filter(market_id=market_id, vertical_id=vertical_id, is_active=True)
+        .values_list("min_price_minor", "max_price_minor")
+        .first()
+    )
+    return row if row else (0, None)
+
+
 def stage_minimum_minor(market_id, vertical_id) -> int:
     """The moderator-set minimum lesson price for a stage in a market (0 if unset)."""
-    return (
-        StagePricingRule.objects.filter(market_id=market_id, vertical_id=vertical_id, is_active=True)
-        .values_list("min_price_minor", flat=True)
-        .first()
-        or 0
-    )
+    return _stage_band(market_id, vertical_id)[0] or 0
+
+
+def stage_maximum_minor(market_id, vertical_id) -> int | None:
+    """The moderator-set maximum lesson price for a stage, or None for no ceiling."""
+    return _stage_band(market_id, vertical_id)[1]
 
 
 def min_card_price(market_id, vertical_id) -> int:
     """The lowest price a card may have: the stage minimum, and never free."""
     return max(1, stage_minimum_minor(market_id, vertical_id))
+
+
+def max_card_price(market_id, vertical_id) -> int | None:
+    """The highest price a card may have, or None when the stage has no ceiling.
+
+    A maximum below the card floor would leave no legal price, so it is lifted
+    to the floor rather than locking the stage out.
+    """
+    maximum = stage_maximum_minor(market_id, vertical_id)
+    if maximum is None:
+        return None
+    return max(maximum, min_card_price(market_id, vertical_id))
 
 
 def _int(value, label):
@@ -143,6 +165,11 @@ def validate_card(market_id, data, *, instance: TeacherStage | None = None, part
             raise serializers.ValidationError(
                 {"price_minor": f"Price must be at least the stage minimum ({minimum})."}
             )
+        maximum = max_card_price(market_id, vertical.id)
+        if maximum is not None and price > maximum:
+            raise serializers.ValidationError(
+                {"price_minor": f"Price must be at most the stage maximum ({maximum})."}
+            )
         cleaned["price_minor"] = price
 
     if not partial or "free_lessons_offered" in data:
@@ -225,11 +252,18 @@ def write_card(teacher, cleaned: dict, instance: TeacherStage | None = None) -> 
 
 
 def incomplete_reasons(card: TeacherStage, market_id) -> list[str]:
-    """Why a card can't be booked yet: no subjects / price below minimum / no hours."""
+    """Why a card can't be booked yet: no subjects / price out of band / no hours.
+
+    The price check also catches a card the moderator has since priced out of
+    range by moving the stage floor or ceiling.
+    """
     reasons = []
     if not card.subjects.all():
         reasons.append("subject")
-    if card.price_minor < min_card_price(market_id, card.vertical_id):
+    maximum = max_card_price(market_id, card.vertical_id)
+    if card.price_minor < min_card_price(market_id, card.vertical_id) or (
+        maximum is not None and card.price_minor > maximum
+    ):
         reasons.append("price")
     if not card.availability.all():
         reasons.append("availability")

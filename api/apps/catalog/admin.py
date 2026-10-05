@@ -50,7 +50,7 @@ class StageSubjectAdmin(admin.ModelAdmin):
 
 @admin.register(StagePricingRule)
 class StagePricingRuleAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "is_active")
+    list_display = ("__str__", "min_price_minor", "max_price_minor", "is_active")
     list_filter = ("market", "vertical", "is_active")
 
 

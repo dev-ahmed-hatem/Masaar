@@ -1018,11 +1018,12 @@
   },
   "adminPricing": {
     "title": "التسعير",
-    "intro": "حدّد الحد الأدنى لسعر الحصة ونسبة عمولة المنصّة لكل مرحلة، لكل سوق.",
+    "intro": "حدّد نطاق سعر الحصة ونسبة عمولة المنصة لكل مرحلة في كل سوق.",
     "tabStageRules": "تسعير المراحل",
     "tabCategories": "الفئات",
     "colStage": "المرحلة",
     "colMinPrice": "الحد الأدنى للسعر",
+    "colMaxPrice": "الحد الأقصى للسعر",
     "colCommission": "العمولة",
     "newRule": "قاعدة مرحلة جديدة",
     "noRules": "لا توجد قواعد مراحل بعد. أضف واحدة لكل مرحلة.",
@@ -1054,7 +1055,10 @@
     "statusPending": "قيد المراجعة",
     "statusApproved": "معتمد",
     "noRequests": "لا توجد طلبات أسعار",
-    "genericError": "حدث خطأ ما. حاول مرة أخرى."
+    "genericError": "حدث خطأ ما. حاول مرة أخرى.",
+    "noMax": "بلا حد أقصى",
+    "maxPriceHint": "اتركه فارغًا لإلغاء الحد الأقصى.",
+    "maxBelowMin": "لا يمكن أن يكون الحد الأقصى أقل من الحد الأدنى."
   },
   "adminCatalog": {
     "title": "المناهج",
@@ -1173,7 +1177,9 @@
     "missingAvailability": "أضف المواعيد الأسبوعية",
     "stageInUse": "لهذه المرحلة دروس قادمة. أنهِها أو ألغِها قبل إزالة المرحلة.",
     "requiredAvailabilityRow": "أكمل هذا الصف أو احذفه.",
-    "chooseTrackFor": "اختر {label}"
+    "chooseTrackFor": "اختر {label}",
+    "priceRange": "بين {min} و{max}",
+    "priceTooHigh": "يجب ألا يزيد السعر عن {amount}"
   },
   "adminPaymentAccounts": {
     "title": "حسابات الدفع",

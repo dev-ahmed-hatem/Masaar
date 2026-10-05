@@ -164,13 +164,15 @@ export interface LessonCategoryOption {
   label_ar: string;
 }
 
-/** Public per-stage minimum price + commission for a market. */
+/** Public per-stage price band + commission for a market. */
 export interface StagePricing {
   id: number;
   vertical: number;
   stage_name_en: string;
   stage_name_ar: string;
   min_price_minor: number;
+  /** null means no ceiling. */
+  max_price_minor: number | null;
   commission_pct: string;
   currency: string;
 }

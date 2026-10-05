@@ -1018,11 +1018,12 @@
   },
   "adminPricing": {
     "title": "Pricing",
-    "intro": "Set the minimum lesson price and platform commission for each stage, per market.",
+    "intro": "Set the lesson price range and platform commission for each stage, per market.",
     "tabStageRules": "Stage pricing",
     "tabCategories": "Categories",
     "colStage": "Stage",
     "colMinPrice": "Minimum price",
+    "colMaxPrice": "Maximum price",
     "colCommission": "Commission",
     "newRule": "New stage rule",
     "noRules": "No stage rules yet. Add one per stage.",
@@ -1054,7 +1055,10 @@
     "statusPending": "Pending",
     "statusApproved": "Approved",
     "noRequests": "No price requests",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "noMax": "No maximum",
+    "maxPriceHint": "Leave empty for no ceiling.",
+    "maxBelowMin": "The maximum cannot be below the minimum."
   },
   "adminCatalog": {
     "title": "Catalog",
@@ -1173,7 +1177,9 @@
     "missingAvailability": "add weekly hours",
     "stageInUse": "This stage has upcoming lessons. Finish or cancel them before removing it.",
     "requiredAvailabilityRow": "Complete this row or remove it.",
-    "chooseTrackFor": "Choose a {label}"
+    "chooseTrackFor": "Choose a {label}",
+    "priceRange": "Between {min} and {max}",
+    "priceTooHigh": "The price must be at most {amount}"
   },
   "adminPaymentAccounts": {
     "title": "Payment accounts",

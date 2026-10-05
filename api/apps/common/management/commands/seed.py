@@ -200,20 +200,22 @@ class Command(BaseCommand):
         link("intl_exams", "ap",
              ["AP Calculus", "AP Physics", "AP Chemistry", "AP Biology", "AP Computer Science"])
 
-        # --- Moderator stage pricing: (min_price_minor, commission_pct) ----
+        # --- Moderator stage pricing: (min, max, commission_pct) -----------
         # Every market prices every stage, so nothing downstream ever has to
-        # invent a price for an unpriced (market, stage) pair.
-        FLOORS = {
-            "EG": {"primary": (5000, 15), "prep": (6000, 15), "secondary": (8000, 18),
-                   "university": (11000, 20), "intl_curricula": (20000, 20), "intl_exams": (25000, 22)},
-            "SA": {"primary": (3500, 15), "prep": (4000, 15), "secondary": (5000, 18),
-                   "university": (7000, 20), "intl_curricula": (12000, 20), "intl_exams": (15000, 22)},
+        # invent a price for an unpriced (market, stage) pair. The ceiling sits
+        # well above the demo prices below (min × 1.5 at most), so no seeded
+        # card lands outside its own band.
+        BANDS = {
+            "EG": {"primary": (5000, 15000, 15), "prep": (6000, 18000, 15), "secondary": (8000, 24000, 18),
+                   "university": (11000, 33000, 20), "intl_curricula": (20000, 60000, 20), "intl_exams": (25000, 75000, 22)},
+            "SA": {"primary": (3500, 10000, 15), "prep": (4000, 12000, 15), "secondary": (5000, 15000, 18),
+                   "university": (7000, 21000, 20), "intl_curricula": (12000, 36000, 20), "intl_exams": (15000, 45000, 22)},
         }
         for market in (eg, sa):
-            for key, (minp, pct) in FLOORS[market.code].items():
+            for key, (minp, maxp, pct) in BANDS[market.code].items():
                 StagePricingRule.objects.get_or_create(
                     market=market, vertical=stages[key],
-                    defaults={"min_price_minor": minp, "commission_pct": pct},
+                    defaults={"min_price_minor": minp, "max_price_minor": maxp, "commission_pct": pct},
                 )
 
         # --- Teacher roster ------------------------------------------------
